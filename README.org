@@ -6,9 +6,5 @@
   1. install [[https://github.com/Konubinix/click-project][click-project]]
   2. install this recipe with
      #+BEGIN_SRC shell   
-clk recipe clone Konubinix/k8s k8s
-     #+END_SRC
-  3. enable the recipe with
-     #+BEGIN_SRC shell 
-clk recipe enable k8s
+clk recipe install Konubinix/k8s
      #+END_SRC
