@@ -15,6 +15,7 @@ from click_project.lib import (
     extract,
     tempdir,
     temporary_file,
+    check_output,
 )
 from click_project.log import get_logger
 
@@ -39,7 +40,8 @@ kind: ClusterIssuer
 metadata:
   name: local
 spec:
-  selfSigned: {}
+  ca:
+    secretName: ca-key-pair
 """
 
 
@@ -87,7 +89,17 @@ def install_cert_manager():
           '--set', 'installCRDs=true',
           '--set', 'ingressShim.defaultIssuerName=local',
           '--set', 'ingressShim.defaultIssuerKind=ClusterIssuer'])
+    # generate a certificate authority for the cert-manager
+    with tempdir() as d, cd(d):
+        call(['openssl', 'genrsa', '-out', 'ca.key', '2048'])
+        call(['openssl', 'req',  '-x509', '-new', '-nodes', '-key', 'ca.key', '-subj', '/CN=localhost', '-days', '3650',
+              '-reqexts', 'v3_req', '-extensions', 'v3_ca', '-out', 'ca.crt'])
+        ca_secret = check_output(['kubectl', 'create', 'secret', 'tls', 'ca-key-pair', '--cert=ca.crt', '--key=ca.key',
+                                  '--namespace=cert-manager', '--dry-run=true', '-o', 'yaml'])
     with temporary_file() as f:
-        f.write(cluster_issuer.encode('utf8'))
+        f.write(f'''{ca_secret}
+---
+{cluster_issuer}
+'''.encode('utf8'))
         f.close()
         call(['kubectl', 'apply', '-n', 'cert-manager', '-f', f.name])
