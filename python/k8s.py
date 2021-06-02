@@ -15,6 +15,7 @@ from click_project.lib import (
     extract,
     tempdir,
     temporary_file,
+    cd,
     check_output,
 )
 from click_project.log import get_logger
