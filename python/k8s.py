@@ -112,3 +112,18 @@ def install_cert_manager():
 '''.encode('utf8'))
         f.close()
         call(['kubectl', 'apply', '-n', 'cert-manager', '-f', f.name])
+
+
+@k8s.command(flowdepends=["k8s.create-cluster"])
+@argument('domain', help="The domain name to define")
+@argument('ip', default="172.17.0.1", help="The IP address for this domain")
+def add_domain(domain, ip):
+    """Add a new domain entry in K8s dns"""
+    import yaml
+    coredns_conf = check_output(['kubectl', 'get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
+    coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
+    coredns_conf['data']['NodeHosts'] = f'{ip} {domain}\n' + coredns_conf['data']['NodeHosts']
+    with temporary_file() as f:
+        f.write(yaml.dump(coredns_conf).encode('utf8'))
+        f.close()
+        call(['kubectl', 'apply', '-n', 'kube-system', '-f', f.name])
