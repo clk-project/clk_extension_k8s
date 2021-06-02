@@ -71,12 +71,20 @@ def install_local_registry():
 @argument("name", default="k3s-default", help="The name of the cluster to create")
 def create_cluster(name):
     """Create a k3d cluster"""
+    import yaml
     call(['k3d', 'cluster', 'create', name,
           '--wait',
           '--port', '80:80@loadbalancer',
           '--port', '443:443@loadbalancer',
           '--registry-use', 'k3d-registry.localhost:5000',
     ])
+    traefik_conf = check_output(['kubectl', 'get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
+    traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
+    traefik_conf['data']['traefik.toml'] = 'insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml']
+    with temporary_file() as f:
+        f.write(yaml.dump(traefik_conf).encode('utf8'))
+        f.close()
+        call(['kubectl', 'apply', '-n', 'kube-system', '-f', f.name])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
