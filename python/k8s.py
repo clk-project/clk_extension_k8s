@@ -85,6 +85,7 @@ def create_cluster(name):
         f.write(yaml.dump(traefik_conf).encode('utf8'))
         f.close()
         call(['kubectl', 'apply', '-n', 'kube-system', '-f', f.name])
+    call(['kubectl', 'delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
