@@ -30,10 +30,10 @@ def k8s():
 
 
 bindir = Path("~/.local/bin").expanduser()
-k3d_url = "https://github.com/rancher/k3d/releases/download/v4.4.2/k3d-linux-amd64"
-helm_url = "https://get.helm.sh/helm-v3.5.4-linux-amd64.tar.gz"
-kubectl_url = "https://dl.k8s.io/release/v1.21.0/bin/linux/amd64/kubectl"
-tilt_url = "https://github.com/tilt-dev/tilt/releases/download/v0.20.6/tilt.0.20.6.linux.x86_64.tar.gz"
+k3d_url = "https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64"
+helm_url = "https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz"
+kubectl_url = "https://dl.k8s.io/release/v1.21.1/bin/linux/amd64/kubectl"
+tilt_url = "https://github.com/tilt-dev/tilt/releases/download/v0.20.7/tilt.0.20.7.linux.x86_64.tar.gz"
 k3d_dir = os.path.expanduser('~/.k3d')
 
 cluster_issuer = """apiVersion: cert-manager.io/v1
