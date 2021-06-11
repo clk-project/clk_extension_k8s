@@ -2,6 +2,8 @@
 # -*- coding:utf-8 -*-
 
 import os
+import subprocess
+import time
 from pathlib import Path
 
 from click_project.decorators import (
@@ -78,7 +80,13 @@ def create_cluster(name):
           '--port', '443:443@loadbalancer',
           '--registry-use', 'k3d-registry.localhost:5000',
     ])
-    traefik_conf = check_output(['kubectl', 'get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
+    traefik_conf = ""
+    time.sleep(60)
+    while not traefik_conf:
+        try:
+            traefik_conf = check_output(['kubectl', 'get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
+        except subprocess.CalledProcessError:
+            time.sleep(5)
     traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
     traefik_conf['data']['traefik.toml'] = 'insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml']
     with temporary_file() as f:
