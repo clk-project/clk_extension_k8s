@@ -33,11 +33,52 @@ def k8s():
 
 
 bindir = Path("~/.local/bin").expanduser()
-k3d_url = "https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64"
+kind_url = "https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64"
 helm_url = "https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz"
 kubectl_url = "https://dl.k8s.io/release/v1.21.1/bin/linux/amd64/kubectl"
 tilt_url = "https://github.com/tilt-dev/tilt/releases/download/v0.20.7/tilt.0.20.7.linux.x86_64.tar.gz"
-k3d_dir = os.path.expanduser('~/.k3d')
+kind_config = """
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: ClusterConfiguration
+  metadata:
+    name: config
+  apiServer:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+  scheduler:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+  controllerManager:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: InitConfiguration
+  metadata:
+    name: config
+  nodeRegistration:
+    kubeletExtraArgs:
+      "feature-gates": "EphemeralContainers=true"
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+"""
 
 cluster_issuer = """apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -67,7 +108,7 @@ def doctor():
 def install_dependencies():
     """Install the dependencies needed to setup the stack"""
     # call(['sudo', 'apt', 'install', 'libnss-myhostname', 'docker.io'])
-    download(k3d_url, outdir=bindir, outfilename="k3d", mode=0o755)
+    download(kind_url, outdir=bindir, outfilename="kind", mode=0o755)
     with tempdir() as d:
         extract(helm_url, d)
         move(Path(d) / "linux-amd64" / "helm", bindir / "helm")
@@ -78,47 +119,37 @@ def install_dependencies():
     download(kubectl_url, outdir=bindir, outfilename="kubectl", mode=0o755)
 
 
+# @k8s.command(flowdepends=["k8s.install-dependencies"])
+# def install_local_registry():
+#     """Install the local registry """
+#     call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
+
+
 @k8s.command(flowdepends=["k8s.install-dependencies"])
-def install_local_registry():
-    """Install the local registry """
-    call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
-
-
-@k8s.command(flowdepends=["k8s.install-local-registry"])
-@argument("name", default="k3s-default", help="The name of the cluster to create")
-def create_cluster(name):
-    """Create a k3d cluster"""
+def create_cluster():
+    """Create a kind cluster"""
     import yaml
-    call(['k3d', 'cluster', 'create', name,
-          '--wait',
-          '--port', '80:80@loadbalancer',
-          '--port', '443:443@loadbalancer',
-          '--registry-use', 'k3d-registry.localhost:5000',
-          '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
-          '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
-    ])
-    traefik_conf = ""
-    time.sleep(10)
-    while not traefik_conf:
-        try:
-            traefik_conf = check_output(['kubectl', '--context', 'k3d-k3s-default', 'get', 'cm', 'traefik', '-n',
-                                         'kube-system', '-o', 'yaml'])
-        except subprocess.CalledProcessError:
-            time.sleep(5)
-    traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
-    traefik_conf['data']['traefik.toml'] = 'insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml']
     with temporary_file() as f:
-        f.write(yaml.dump(traefik_conf).encode('utf8'))
+        f.write(kind_config.encode('utf8'))
         f.close()
-        call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'kube-system', '-f', f.name])
-    call(['kubectl', '--context', 'k3d-k3s-default', 'delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
+        call(['kind', 'create', 'cluster', '--config', f.name])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
+def install_ingress():
+    """Install a ingress"""
+    call(["helm", "repo", "add", "ingress-nginx", "https://kubernetes.github.io/ingress-nginx"])
+    call(['kubectl', '--context', 'kind-kind', 'apply', '-f',
+          'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml'])
+    call(['kubectl', 'wait', '--namespace', 'ingress-nginx', '--for=condition=ready', 'pod',
+          '--selector=app.kubernetes.io/component=controller', '--timeout=90s'])
+
+
+@k8s.command(flowdepends=["k8s.install-ingress"])
 def install_cert_manager():
     """Install a certificate manager in the current cluster"""
     call(["helm", "repo", "add", "jetstack", "https://charts.jetstack.io"])
-    call(['helm', '--kube-context', 'k3d-k3s-default', 'upgrade', '--install', '--create-namespace', '--wait',
+    call(['helm', '--kube-context', 'kind-kind', 'upgrade', '--install', '--create-namespace', '--wait',
           'cert-manager', 'jetstack/cert-manager',
           '--namespace', 'cert-manager',
           '--version', 'v1.2.0',
@@ -130,7 +161,7 @@ def install_cert_manager():
         call(['openssl', 'genrsa', '-out', 'ca.key', '2048'])
         call(['openssl', 'req',  '-x509', '-new', '-nodes', '-key', 'ca.key', '-subj', '/CN=localhost', '-days', '3650',
               '-reqexts', 'v3_req', '-extensions', 'v3_ca', '-out', 'ca.crt'])
-        ca_secret = check_output(['kubectl', '--context', 'k3d-k3s-default', 'create', 'secret', 'tls', 'ca-key-pair',
+        ca_secret = check_output(['kubectl', '--context', 'kind-kind', 'create', 'secret', 'tls', 'ca-key-pair',
                                   '--cert=ca.crt', '--key=ca.key',
                                   '--namespace=cert-manager', '--dry-run=true', '-o', 'yaml'])
     with temporary_file() as f:
@@ -139,7 +170,7 @@ def install_cert_manager():
 {cluster_issuer}
 '''.encode('utf8'))
         f.close()
-        call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'cert-manager', '-f', f.name])
+        call(['kubectl', '--context', 'kind-kind', 'apply', '-n', 'cert-manager', '-f', f.name])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
@@ -148,13 +179,13 @@ def install_cert_manager():
 def add_domain(domain, ip):
     """Add a new domain entry in K8s dns"""
     import yaml
-    coredns_conf = check_output(['kubectl', '--context', 'k3d-k3s-default', 'get', 'cm', 'coredns', '-n', 'kube-system',
+    coredns_conf = check_output(['kubectl', '--context', 'kind-kind', 'get', 'cm', 'coredns', '-n', 'kube-system',
                                  '-o', 'yaml'])
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
     data = f'{ip} {domain}'
-    if data not in coredns_conf['data']['NodeHosts'].split('\n'):
-        coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
+    if data not in coredns_conf['data'].get('NodeHosts', '').split('\n'):
+        coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data'].get('NodeHosts', '')
         with temporary_file() as f:
             f.write(yaml.dump(coredns_conf).encode('utf8'))
             f.close()
-            call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'kube-system', '-f', f.name])
+            call(['kubectl', '--context', 'kind-kind', 'apply', '-n', 'kube-system', '-f', f.name])
