@@ -131,8 +131,10 @@ def add_domain(domain, ip):
     import yaml
     coredns_conf = check_output(['kubectl', 'get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
-    coredns_conf['data']['NodeHosts'] = f'{ip} {domain}\n' + coredns_conf['data']['NodeHosts']
-    with temporary_file() as f:
-        f.write(yaml.dump(coredns_conf).encode('utf8'))
-        f.close()
-        call(['kubectl', 'apply', '-n', 'kube-system', '-f', f.name])
+    data = f'{ip} {domain}'
+    if data not in coredns_conf['data']['NodeHosts'].split('\n'):
+        coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
+        with temporary_file() as f:
+            f.write(yaml.dump(coredns_conf).encode('utf8'))
+            f.close()
+            call(['kubectl', 'apply', '-n', 'kube-system', '-f', f.name])
