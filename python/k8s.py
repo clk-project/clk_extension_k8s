@@ -81,7 +81,7 @@ def create_cluster(name):
           '--registry-use', 'k3d-registry.localhost:5000',
     ])
     traefik_conf = ""
-    time.sleep(60)
+    time.sleep(10)
     while not traefik_conf:
         try:
             traefik_conf = check_output(['kubectl', 'get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
