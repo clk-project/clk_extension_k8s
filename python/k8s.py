@@ -19,6 +19,7 @@ from click_project.lib import (
     temporary_file,
     cd,
     check_output,
+    which,
 )
 from click_project.log import get_logger
 
@@ -46,6 +47,20 @@ spec:
   ca:
     secretName: ca-key-pair
 """
+
+
+@k8s.command()
+def doctor():
+    """Check if you have everything needed to run the stack."""
+    docker = which("docker")
+    if docker is None:
+        raise click.UsageError("You need to install docker")
+    import grp
+    if not "docker" in [
+            grp.getgrgid(g).gr_name for g in os.getgroups()
+    ]:
+        raise click.UsageError("You need to add the current user in the docker group")
+    LOGGER.info("We did not find a reason to believe you will have trouble playing with the stack")
 
 
 @k8s.command()
