@@ -94,6 +94,8 @@ def create_cluster(name):
           '--port', '80:80@loadbalancer',
           '--port', '443:443@loadbalancer',
           '--registry-use', 'k3d-registry.localhost:5000',
+          '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
+          '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
     ])
     traefik_conf = ""
     time.sleep(10)
