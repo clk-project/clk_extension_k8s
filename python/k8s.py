@@ -101,7 +101,8 @@ def create_cluster(name):
     time.sleep(10)
     while not traefik_conf:
         try:
-            traefik_conf = check_output(['kubectl', 'get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
+            traefik_conf = check_output(['kubectl', '--context', 'k3d-k3s-default', 'get', 'cm', 'traefik', '-n',
+                                         'kube-system', '-o', 'yaml'])
         except subprocess.CalledProcessError:
             time.sleep(5)
     traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
@@ -109,8 +110,8 @@ def create_cluster(name):
     with temporary_file() as f:
         f.write(yaml.dump(traefik_conf).encode('utf8'))
         f.close()
-        call(['kubectl', 'apply', '-n', 'kube-system', '-f', f.name])
-    call(['kubectl', 'delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
+        call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'kube-system', '-f', f.name])
+    call(['kubectl', '--context', 'k3d-k3s-default', 'delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
@@ -129,7 +130,8 @@ def install_cert_manager():
         call(['openssl', 'genrsa', '-out', 'ca.key', '2048'])
         call(['openssl', 'req',  '-x509', '-new', '-nodes', '-key', 'ca.key', '-subj', '/CN=localhost', '-days', '3650',
               '-reqexts', 'v3_req', '-extensions', 'v3_ca', '-out', 'ca.crt'])
-        ca_secret = check_output(['kubectl', 'create', 'secret', 'tls', 'ca-key-pair', '--cert=ca.crt', '--key=ca.key',
+        ca_secret = check_output(['kubectl', '--context', 'k3d-k3s-default', 'create', 'secret', 'tls', 'ca-key-pair',
+                                  '--cert=ca.crt', '--key=ca.key',
                                   '--namespace=cert-manager', '--dry-run=true', '-o', 'yaml'])
     with temporary_file() as f:
         f.write(f'''{ca_secret}
@@ -137,7 +139,7 @@ def install_cert_manager():
 {cluster_issuer}
 '''.encode('utf8'))
         f.close()
-        call(['kubectl', 'apply', '-n', 'cert-manager', '-f', f.name])
+        call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'cert-manager', '-f', f.name])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
@@ -146,7 +148,8 @@ def install_cert_manager():
 def add_domain(domain, ip):
     """Add a new domain entry in K8s dns"""
     import yaml
-    coredns_conf = check_output(['kubectl', 'get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
+    coredns_conf = check_output(['kubectl', '--context', 'k3d-k3s-default', 'get', 'cm', 'coredns', '-n', 'kube-system',
+                                 '-o', 'yaml'])
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
     data = f'{ip} {domain}'
     if data not in coredns_conf['data']['NodeHosts'].split('\n'):
@@ -154,4 +157,4 @@ def add_domain(domain, ip):
         with temporary_file() as f:
             f.write(yaml.dump(coredns_conf).encode('utf8'))
             f.close()
-            call(['kubectl', 'apply', '-n', 'kube-system', '-f', f.name])
+            call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'kube-system', '-f', f.name])
