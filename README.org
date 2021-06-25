@@ -3,8 +3,16 @@
 #+email: konubinixweb@gmail.com
 #+language: en
 * Installation
-  1. install [[https://github.com/Konubinix/click-project][click-project]]
-  2. install this recipe with
+
+Either:
+
+  1. install [[https://github.com/Konubinix/click-project][click-project]] and the recipe with
+
+     #+BEGIN_SRC shell   
+curl -sSL https://raw.githubusercontent.com/click-project/click-project/master/install.sh | env CLK_RECIPES=k8s bash
+     #+END_SRC
+
+  2. if you already have click-project, install this recipe with
      #+BEGIN_SRC shell   
 clk recipe install Konubinix/k8s
      #+END_SRC
