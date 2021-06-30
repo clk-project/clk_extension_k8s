@@ -11,6 +11,7 @@ import click
 from click_project.decorators import (
     argument,
     group,
+    option,
 )
 from click_project.lib import (
     call,
@@ -147,10 +148,12 @@ def install_cert_manager():
 @k8s.command(flowdepends=["k8s.create-cluster"])
 @argument('domain', help="The domain name to define")
 @argument('ip', default="172.17.0.1", help="The IP address for this domain")
-def add_domain(domain, ip):
+@option("--context", help="The context to connect to the correct cluster",
+        default="k3d-k3s-default")
+def add_domain(domain, ip, context):
     """Add a new domain entry in K8s dns"""
     import yaml
-    coredns_conf = check_output(['kubectl', '--context', 'k3d-k3s-default', 'get', 'cm', 'coredns', '-n', 'kube-system',
+    coredns_conf = check_output(['kubectl', '--context', context, 'get', 'cm', 'coredns', '-n', 'kube-system',
                                  '-o', 'yaml'])
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
     data = f'{ip} {domain}'
@@ -159,4 +162,4 @@ def add_domain(domain, ip):
         with temporary_file() as f:
             f.write(yaml.dump(coredns_conf).encode('utf8'))
             f.close()
-            call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'kube-system', '-f', f.name])
+            call(['kubectl', '--context', context, 'apply', '-n', 'kube-system', '-f', f.name])
