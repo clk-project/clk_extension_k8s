@@ -150,7 +150,9 @@ def install_prometheus():
     call(["helm", "repo", "add", "prometheus-community", "https://prometheus-community.github.io/helm-charts"])
     call(["helm", "repo", "add", "kube-state-metrics", "https://kubernetes.github.io/kube-state-metrics"])
     call(["helm", "repo", "update"])
-    call(["helm", "upgrade", "--install", "prometheus", "prometheus-community/prometheus", "--version", "14.1.1"])
+    call(["helm", 
+            "--kube-context", "k3d-k3s-default", 
+            "upgrade", "--install", "prometheus", "prometheus-community/prometheus", "--version", "14.1.1"])
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
 @argument('domain', help="The domain name to define")
