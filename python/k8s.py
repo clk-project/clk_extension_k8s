@@ -144,6 +144,13 @@ def install_cert_manager():
         f.close()
         call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'cert-manager', '-f', f.name])
 
+@k8s.command(flowdepends=["k8s.create-cluster"])
+def install_prometheus():
+    """Install Prometheus"""
+    call(["helm", "repo", "add", "prometheus-community", "https://prometheus-community.github.io/helm-charts"])
+    call(["helm", "repo", "add", "kube-state-metrics", "https://kubernetes.github.io/kube-state-metrics"])
+    call(["helm", "repo", "update"])
+    call(["helm", "upgrade", "--install", "prometheus", "prometheus-community/prometheus", "--version", "14.1.1"])
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
 @argument('domain', help="The domain name to define")
