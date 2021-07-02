@@ -3,7 +3,9 @@
 
 import os
 import subprocess
+import grp
 import json
+import sys
 import time
 from pathlib import Path
 from shlex import split
@@ -79,12 +81,11 @@ def doctor():
     docker = which("docker")
     if docker is None:
         raise click.UsageError("You need to install docker")
-    import grp
-
-    if "docker" not in [grp.getgrgid(g).gr_name for g in os.getgroups()]:
-        raise click.UsageError(
-            "You need to add the current user in the docker group"
-        )
+    if sys.platform == "linux":
+        if "docker" not in [grp.getgrgid(g).gr_name for g in os.getgroups()]:
+            raise click.UsageError(
+                "You need to add the current user in the docker group"
+            )
     LOGGER.info(
         "We did not find a reason to believe you will have trouble playing with the stack"
     )
