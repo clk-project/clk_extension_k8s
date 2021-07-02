@@ -15,6 +15,7 @@ import click
 from click_project.decorators import (
     argument,
     group,
+    option,
     flag,
     param_config,
 )
@@ -28,6 +29,7 @@ from click_project.lib import (
     cd,
     check_output,
     which,
+    get_keyring,
 )
 from click_project.log import get_logger
 from click_project.config import config
@@ -109,6 +111,49 @@ def install_dependencies(force):
             move(Path(d) / "tilt", bindir / "tilt")
     if force or not which("kubectl"):
         download(kubectl_url, outdir=bindir, outfilename="kubectl", mode=0o755)
+
+
+@k8s.command(flowdepends=["k8s.create-cluster"])
+@option(
+    "--registry-provider",
+    type=click.Choice(["gitlab"]),
+    help="What registry provider to connect to",
+)
+@option("--username", help="The username of the provider registry")
+@option("--password", help="The password of the provider registry")
+def install_docker_registry_secret(registry_provider, username, password):
+    """Install the credential to get access to the given registry provider."""
+    registries = {
+        "gitlab": {
+            "secret-name": "gitlab-registry",
+            "server": "registry.gitlab.com",
+        }
+    }
+    if registry_provider:
+        if not (username and password):
+            if res := get_keyring().get_password(
+                    "click-project", f"{registry_provider}-registry-auth"):
+                username, password = json.loads(res)
+        username = username or click.prompt(
+            "username", hide_input=True, default="", show_default=False
+        )
+        password = password or click.prompt(
+            "password", hide_input=True, default="", show_default=False
+        )
+        registry = registries[registry_provider]
+        config.kubectl.call(
+            [
+                "create",
+                "secret",
+                "docker-registry",
+                registry["secret-name"],
+                f"--docker-server={registry['server']}",
+                f"--docker-username={username}",
+                f"--docker-password={password}",
+            ]
+        )
+    else:
+        LOGGER.status("No registry provider given, doing nothing.")
 
 
 @k8s.command(flowdepends=["k8s.install-dependencies"])
