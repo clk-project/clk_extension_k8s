@@ -15,6 +15,7 @@ from click_project.decorators import (
     group,
     option,
     flag,
+    param_config,
 )
 from click_project.lib import (
     call,
@@ -28,12 +29,24 @@ from click_project.lib import (
     which,
 )
 from click_project.log import get_logger
+from click_project.config import config
 
 
 LOGGER = get_logger(__name__)
 
 
+class KubeCtl():
+    def call(self, arguments):
+        call(["kubectl", "--context", self.context] + arguments)
+
+    def output(self, arguments):
+        return check_output(["kubectl", "--context", self.context] + arguments)
+
+
 @group()
+@param_config(
+    "kubectl", "--context", typ=KubeCtl, help="The kubectl context to use",
+    default="k3d-k3s-default")
 def k8s():
     """Manipulate k8s"""
 
@@ -127,8 +140,8 @@ def create_cluster(name):
     time.sleep(10)
     while not traefik_conf:
         try:
-            traefik_conf = check_output(['kubectl', '--context', 'k3d-k3s-default', 'get', 'cm', 'traefik', '-n',
-                                         'kube-system', '-o', 'yaml'])
+            traefik_conf = config.kubectl.output(['get', 'cm', 'traefik', '-n',
+                                                      'kube-system', '-o', 'yaml'])
         except subprocess.CalledProcessError:
             time.sleep(5)
     traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
@@ -136,8 +149,8 @@ def create_cluster(name):
     with temporary_file() as f:
         f.write(yaml.dump(traefik_conf).encode('utf8'))
         f.close()
-        call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'kube-system', '-f', f.name])
-    call(['kubectl', '--context', 'k3d-k3s-default', 'delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
+        config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+    config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
@@ -156,7 +169,7 @@ def install_cert_manager():
         call(['openssl', 'genrsa', '-out', 'ca.key', '2048'])
         call(['openssl', 'req',  '-x509', '-new', '-nodes', '-key', 'ca.key', '-subj', '/CN=localhost', '-days', '3650',
               '-reqexts', 'v3_req', '-extensions', 'v3_ca', '-out', 'ca.crt'])
-        ca_secret = check_output(['kubectl', '--context', 'k3d-k3s-default', 'create', 'secret', 'tls', 'ca-key-pair',
+        ca_secret = config.kubectl.output(['create', 'secret', 'tls', 'ca-key-pair',
                                   '--cert=ca.crt', '--key=ca.key',
                                   '--namespace=cert-manager', '--dry-run=true', '-o', 'yaml'])
     with temporary_file() as f:
@@ -165,19 +178,17 @@ def install_cert_manager():
 {cluster_issuer}
 '''.encode('utf8'))
         f.close()
-        call(['kubectl', '--context', 'k3d-k3s-default', 'apply', '-n', 'cert-manager', '-f', f.name])
+        config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
 @argument('domain', help="The domain name to define")
 @argument('ip', default="172.17.0.1", help="The IP address for this domain")
-@option("--context", help="The context to connect to the correct cluster",
-        default="k3d-k3s-default")
-def add_domain(domain, ip, context):
+def add_domain(domain, ip):
     """Add a new domain entry in K8s dns"""
     import yaml
-    coredns_conf = check_output(['kubectl', '--context', context, 'get', 'cm', 'coredns', '-n', 'kube-system',
-                                 '-o', 'yaml'])
+    coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system',
+                                              '-o', 'yaml'])
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
     data = f'{ip} {domain}'
     if data not in coredns_conf['data']['NodeHosts'].split('\n'):
@@ -185,4 +196,12 @@ def add_domain(domain, ip, context):
         with temporary_file() as f:
             f.write(yaml.dump(coredns_conf).encode('utf8'))
             f.close()
-            call(['kubectl', '--context', context, 'apply', '-n', 'kube-system', '-f', f.name])
+            config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+
+
+@k8s.command()
+def ipython():
+    import IPython
+    dict_ = globals()
+    dict_.update(locals())
+    IPython.start_ipython(argv=[], user_ns=dict_)
