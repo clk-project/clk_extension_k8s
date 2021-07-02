@@ -3,8 +3,10 @@
 
 import os
 import subprocess
+import json
 import time
 from pathlib import Path
+from shlex import split
 
 import click
 
@@ -89,8 +91,22 @@ def install_dependencies(force):
 
 
 @k8s.command(flowdepends=["k8s.install-dependencies"])
-def install_local_registry():
+@flag("--reinstall", help="Reinstall it if it already exists")
+def install_local_registry(reinstall):
     """Install the local registry """
+    if "k3d-registry.localhost" in [
+        registry["name"]
+        for registry in
+        json.loads(check_output(split("k3d registry list -o json")))
+    ]:
+        if reinstall:
+            call(split("k3d registry delete k3d-registry.localhost"))
+        else:
+            LOGGER.info(
+                "A registry with the name k3d-registry.localhost already exists."
+                " Nothing to do."
+            )
+            return
     call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
 
 
