@@ -12,6 +12,7 @@ from click_project.decorators import (
     argument,
     group,
     option,
+    flag,
 )
 from click_project.lib import (
     call,
@@ -67,18 +68,24 @@ def doctor():
 
 
 @k8s.command()
-def install_dependencies():
+@flag("--force",
+      help="Overwrite the existing binaries")
+def install_dependencies(force):
     """Install the dependencies needed to setup the stack"""
     # call(['sudo', 'apt', 'install', 'libnss-myhostname', 'docker.io'])
-    download(k3d_url, outdir=bindir, outfilename="k3d", mode=0o755)
-    with tempdir() as d:
-        extract(helm_url, d)
-        move(Path(d) / "linux-amd64" / "helm", bindir / "helm")
-        (bindir / "helm").chmod(0o755)
-    with tempdir() as d:
-        extract(tilt_url, d)
-        move(Path(d) / "tilt", bindir / "tilt")
-    download(kubectl_url, outdir=bindir, outfilename="kubectl", mode=0o755)
+    if force or not which("k3d"):
+        download(k3d_url, outdir=bindir, outfilename="k3d", mode=0o755)
+    if force or not which("helm"):
+        with tempdir() as d:
+            extract(helm_url, d)
+            move(Path(d) / "linux-amd64" / "helm", bindir / "helm")
+            (bindir / "helm").chmod(0o755)
+    if force or not which("tilt"):
+        with tempdir() as d:
+            extract(tilt_url, d)
+            move(Path(d) / "tilt", bindir / "tilt")
+    if force or not which("kubectl"):
+        download(kubectl_url, outdir=bindir, outfilename="kubectl", mode=0o755)
 
 
 @k8s.command(flowdepends=["k8s.install-dependencies"])
