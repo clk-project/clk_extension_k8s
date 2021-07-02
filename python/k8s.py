@@ -93,24 +93,66 @@ def doctor():
     )
 
 
-@k8s.command()
-@flag("--force", help="Overwrite the existing binaries")
-def install_dependencies(force):
+@k8s.group(default_command="all")
+def install_dependency():
     """Install the dependencies needed to setup the stack"""
     # call(['sudo', 'apt', 'install', 'libnss-myhostname', 'docker.io'])
+
+
+@install_dependency.command()
+@flag("--force", help="Overwrite the existing binaries")
+def k3d(force):
+    """Install k3d"""
     if force or not which("k3d"):
         download(k3d_url, outdir=bindir, outfilename="k3d", mode=0o755)
+    else:
+        LOGGER.info("No need to install k3d, force with --force")
+
+
+@install_dependency.command()
+@flag("--force", help="Overwrite the existing binaries")
+def helm(force):
+    """Install helm"""
     if force or not which("helm"):
         with tempdir() as d:
             extract(helm_url, d)
             move(Path(d) / "linux-amd64" / "helm", bindir / "helm")
             (bindir / "helm").chmod(0o755)
+    else:
+        LOGGER.info("No need to install helm, force with --force")
+
+
+@install_dependency.command()
+@flag("--force", help="Overwrite the existing binaries")
+def tilt(force):
+    """Install tilt"""
     if force or not which("tilt"):
         with tempdir() as d:
             extract(tilt_url, d)
             move(Path(d) / "tilt", bindir / "tilt")
+    else:
+        LOGGER.info("No need to install tilt, force with --force")
+
+
+@install_dependency.command()
+@flag("--force", help="Overwrite the existing binaries")
+def kubectl(force):
+    """Install kubectl"""
     if force or not which("kubectl"):
         download(kubectl_url, outdir=bindir, outfilename="kubectl", mode=0o755)
+    else:
+        LOGGER.info("No need to install kubectl, force with --force")
+
+
+@install_dependency.command()
+@flag("--force", help="Overwrite the existing binaries")
+def _all(force):
+    """Install all the dependencies"""
+    ctx = click.get_current_context()
+    ctx.invoke(kubectl, force=force)
+    ctx.invoke(helm, force=force)
+    ctx.invoke(tilt, force=force)
+    ctx.invoke(k3d, force=force)
 
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
@@ -156,7 +198,7 @@ def install_docker_registry_secret(registry_provider, username, password):
         LOGGER.status("No registry provider given, doing nothing.")
 
 
-@k8s.command(flowdepends=["k8s.install-dependencies"])
+@k8s.command(flowdepends=["k8s.install-dependency.all"])
 @flag("--reinstall", help="Reinstall it if it already exists")
 def install_local_registry(reinstall):
     """Install the local registry"""
