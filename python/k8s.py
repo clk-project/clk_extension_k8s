@@ -375,6 +375,16 @@ def flow(**options):
 
 
 @k8s.command()
+@argument('target', type=click.Choice(['cluster', 'registry', 'all']), default="all", help="What should removed")
+def remove(target):
+    """Remove the k8s cluster"""
+    if target in ['all', 'cluster']:
+        call(['k3d', 'cluster', 'delete'])
+    if target in ['all', 'registry']:
+        call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
+
+
+@k8s.command()
 def ipython():
     import IPython
 
