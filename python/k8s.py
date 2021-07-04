@@ -38,6 +38,9 @@ LOGGER = get_logger(__name__)
 
 
 class KubeCtl:
+    def __init__(self):
+        self.context = None
+
     def call(self, arguments):
         call(['kubectl', '--context', self.context] + arguments)
 
@@ -279,8 +282,8 @@ def add_domain(domain, ip):
 
 
 @k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
-def flow(**options):
-    '''Run the full k8s setup flow'''
+def flow():
+    """Run the full k8s setup flow"""
 
 
 @k8s.command()
