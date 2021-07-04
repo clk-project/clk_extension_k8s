@@ -34,7 +34,6 @@ from click_project.lib import (
 from click_project.log import get_logger
 from click_project.config import config
 
-
 LOGGER = get_logger(__name__)
 
 
@@ -53,9 +52,7 @@ def k8s():
 
 
 bindir = Path('~/.local/bin').expanduser()
-k3d_url = (
-    'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64'
-)
+k3d_url = 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64'
 helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.1/bin/linux/amd64/kubectl'
 tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.21.0/tilt.0.21.0.linux.x86_64.tar.gz'
@@ -79,12 +76,8 @@ def doctor():
         raise click.UsageError("You need to install docker")
     if sys.platform == 'linux':
         if 'docker' not in [grp.getgrgid(g).gr_name for g in os.getgroups()]:
-            raise click.UsageError(
-                "You need to add the current user in the docker group"
-            )
-    LOGGER.info(
-        "We did not find a reason to believe you will have trouble playing with the stack"
-    )
+            raise click.UsageError("You need to add the current user in the docker group")
+    LOGGER.info("We did not find a reason to believe you will have trouble playing with the stack")
 
 
 @k8s.group(default_command='all')
@@ -163,22 +156,17 @@ def install_docker_registry_secret(registry_provider, username, password):
     }
     if registry_provider:
         if not (username and password):
-            if res := get_keyring().get_password(
-                    'click-project', f'{registry_provider}-registry-auth'):
+            if res := get_keyring().get_password('click-project', f'{registry_provider}-registry-auth'):
                 username, password = json.loads(res)
-        username = username or click.prompt(
-            'username', hide_input=True, default='', show_default=False
-        )
-        password = password or click.prompt(
-            'password', hide_input=True, default='', show_default=False
-        )
+        username = username or click.prompt('username', hide_input=True, default='', show_default=False)
+        password = password or click.prompt('password', hide_input=True, default='', show_default=False)
         registry = registries[registry_provider]
         config.kubectl.call([
             'create', 'secret', 'docker-registry', registry['secret-name'],
             f'--docker-server={registry["server"]}',
             f'--docker-username={username}',
             f'--docker-password={password}',
-        ])
+        ])  # yapf: disable
     else:
         LOGGER.status("No registry provider given, doing nothing.")
 
@@ -188,19 +176,13 @@ def install_docker_registry_secret(registry_provider, username, password):
 def install_local_registry(reinstall):
     """Install the local registry"""
     if 'k3d-registry.localhost' in [
-        registry['name']
-        for registry in json.loads(
-            check_output(split('k3d registry list -o json'))
-        )
+            registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
     ]:
         if reinstall:
             ctx = click.get_current_context()
             ctx.invoke(remove, target='registry')
         else:
-            LOGGER.info(
-                "A registry with the name k3d-registry.localhost already exists."
-                " Nothing to do."
-            )
+            LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
             return
     call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
 
@@ -219,27 +201,21 @@ def create_cluster(name):
         '--registry-use', 'k3d-registry.localhost:5000',
         '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
         '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
-    ])
+    ])  # yapf: disable
     traefik_conf = ''
     time.sleep(10)
     while not traefik_conf:
         try:
-            traefik_conf = config.kubectl.output(
-                ['get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml']
-            )
+            traefik_conf = config.kubectl.output(['get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
         except subprocess.CalledProcessError:
             time.sleep(5)
     traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
-    traefik_conf['data']['traefik.toml'] = (
-        'insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml']
-    )
+    traefik_conf['data']['traefik.toml'] = ('insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml'])
     with temporary_file() as f:
         f.write(yaml.dump(traefik_conf).encode('utf8'))
         f.close()
         config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-    config.kubectl.call(
-        ['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system']
-    )
+    config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
@@ -254,7 +230,7 @@ def install_cert_manager():
         '--set', 'installCRDs=true',
         '--set', 'ingressShim.defaultIssuerName=local',
         '--set', 'ingressShim.defaultIssuerKind=ClusterIssuer',
-    ])
+    ])  # yapf: disable
     # generate a certificate authority for the cert-manager
     with tempdir() as d, cd(d):
         call(['openssl', 'genrsa', '-out', 'ca.key', '2048'])
@@ -266,7 +242,7 @@ def install_cert_manager():
             '-reqexts', 'v3_req',
             '-extensions', 'v3_ca',
             '-out', 'ca.crt',
-        ])
+        ])  # yapf: disable
         ca_secret = config.kubectl.output([
             'create', 'secret', 'tls', 'ca-key-pair',
             '--cert=ca.crt',
@@ -274,10 +250,9 @@ def install_cert_manager():
             '--namespace=cert-manager',
             '--dry-run=true',
             '-o', 'yaml',
-        ])
+        ])  # yapf: disable
     with temporary_file() as f:
-        f.write(
-            f'''{ca_secret}
+        f.write(f'''{ca_secret}
 ---
 {cluster_issuer}
 '''.encode('utf8'))
@@ -296,9 +271,7 @@ def add_domain(domain, ip):
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
     data = f'{ip} {domain}'
     if data not in coredns_conf['data']['NodeHosts'].split('\n'):
-        coredns_conf['data']['NodeHosts'] = (
-            data + '\n' + coredns_conf['data']['NodeHosts']
-        )
+        coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
         with temporary_file() as f:
             f.write(yaml.dump(coredns_conf).encode('utf8'))
             f.close()
