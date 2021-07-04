@@ -16,7 +16,6 @@ from click_project.decorators import (
     argument,
     group,
     option,
-    flow_command,
     flag,
     param_config,
 )
