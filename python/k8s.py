@@ -16,6 +16,7 @@ from click_project.decorators import (
     argument,
     group,
     option,
+    flow_command,
     flag,
     param_config,
 )
@@ -366,6 +367,11 @@ def add_domain(domain, ip):
             f.write(yaml.dump(coredns_conf).encode("utf8"))
             f.close()
             config.kubectl.call(["apply", "-n", "kube-system", "-f", f.name])
+
+
+@k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
+def flow(**options):
+    """Run the full k8s setup flow"""
 
 
 @k8s.command()
