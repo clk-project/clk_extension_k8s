@@ -135,7 +135,10 @@ def tilt(force):
 @flag('--force', help="Overwrite the existing binaries")
 def kubectl(force):
     """Install kubectl"""
-    if force or not which('kubectl'):
+    kubectl_version = re.search('/(v[0-9.]+)/', kubectl_url).group(1)
+    if force or not which('kubectl') \
+            or re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
+                        check_output(['kubectl', 'version'])).group(1) != kubectl_version:
         download(kubectl_url, outdir=bindir, outfilename='kubectl', mode=0o755)
     else:
         LOGGER.info("No need to install kubectl, force with --force")
