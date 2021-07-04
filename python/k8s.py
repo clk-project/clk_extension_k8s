@@ -121,7 +121,9 @@ def helm(force):
 @flag('--force', help="Overwrite the existing binaries")
 def tilt(force):
     """Install tilt"""
-    if force or not which('tilt'):
+    tilt_version = re.search('/(v[0-9.]+)/', tilt_url).group(1)
+    if force or not which('tilt') \
+            or re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1) != tilt_version:
         with tempdir() as d:
             extract(tilt_url, d)
             move(Path(d) / 'tilt', bindir / 'tilt')
