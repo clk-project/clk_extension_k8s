@@ -106,7 +106,9 @@ def k3d(force):
 @flag('--force', help="Overwrite the existing binaries")
 def helm(force):
     """Install helm"""
-    if force or not which('helm'):
+    helm_version = re.search('helm-(v[0-9.]+)', helm_url).group(1)
+    if force or not which('helm') \
+            or re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1) != helm_version:
         with tempdir() as d:
             extract(helm_url, d)
             move(Path(d) / 'linux-amd64' / 'helm', bindir / 'helm')
