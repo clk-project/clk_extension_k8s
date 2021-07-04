@@ -5,6 +5,7 @@ import os
 import subprocess
 import grp
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -93,7 +94,9 @@ def install_dependency():
 @flag('--force', help="Overwrite the existing binaries")
 def k3d(force):
     """Install k3d"""
-    if force or not which('k3d'):
+    k3d_version = re.search('/(v[0-9.]+)/', k3d_url).group(1)
+    if force or not which('k3d') \
+            or re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1) != k3d_version:
         download(k3d_url, outdir=bindir, outfilename='k3d', mode=0o755)
     else:
         LOGGER.info("No need to install k3d, force with --force")
