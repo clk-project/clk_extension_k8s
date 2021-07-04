@@ -195,7 +195,8 @@ def install_local_registry(reinstall):
         )
     ]:
         if reinstall:
-            call(split('k3d registry delete k3d-registry.localhost'))
+            ctx = click.get_current_context()
+            ctx.invoke(remove, target='registry')
         else:
             LOGGER.info(
                 "A registry with the name k3d-registry.localhost already exists."
