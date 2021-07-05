@@ -236,7 +236,7 @@ def install_cert_manager():
     """Install a certificate manager in the current cluster"""
     call(['helm', 'repo', 'add', 'jetstack', 'https://charts.jetstack.io'])
     call([
-        'helm', '--kube-context', 'k3d-k3s-default',
+        'helm', '--kube-context', config.kubectl.context,
         'upgrade', '--install', '--create-namespace', '--wait', 'cert-manager', 'jetstack/cert-manager',
         '--namespace', 'cert-manager',
         '--version', 'v1.2.0',
