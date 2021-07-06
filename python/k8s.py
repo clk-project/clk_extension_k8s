@@ -95,8 +95,15 @@ def install_dependency():
 def k3d(force):
     """Install k3d"""
     k3d_version = re.search('/(v[0-9.]+)/', k3d_url).group(1)
-    if force or not which('k3d') \
-            or re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1) != k3d_version:
+    if not force and not which("k3d"):
+        force = True
+        LOGGER.info("Could not find k3d")
+    if which("k3d"):
+        found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
+    if not force and found_k3d_version != k3d_version:
+        force = True
+        LOGGER.info(f"Found an older version of k3d ({found_k3d_version}) than the requested one {k3d_version}")
+    if force:
         download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
     else:
         LOGGER.info("No need to install k3d, force with --force")
@@ -107,8 +114,15 @@ def k3d(force):
 def helm(force):
     """Install helm"""
     helm_version = re.search('helm-(v[0-9.]+)', helm_url).group(1)
-    if force or not which('helm') \
-            or re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1) != helm_version:
+    if not force and not which("helm"):
+        force = True
+        LOGGER.info("Could not find helm")
+    if which("helm"):
+        found_helm_version = re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
+    if not force and found_helm_version != helm_version:
+        force = True
+        LOGGER.info(f"Found an older version of helm ({found_helm_version}) than the requested one {helm_version}")
+    if force:
         with tempdir() as d:
             extract(helm_url, d)
             move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
@@ -122,8 +136,15 @@ def helm(force):
 def tilt(force):
     """Install tilt"""
     tilt_version = re.search('/(v[0-9.]+)/', tilt_url).group(1)
-    if force or not which('tilt') \
-            or re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1) != tilt_version:
+    if not force and not which("tilt"):
+        force = True
+        LOGGER.info("Could not find tilt")
+    if which("tilt"):
+        found_tilt_version = re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
+    if not force and found_tilt_version != tilt_version:
+        force = True
+        LOGGER.info(f"Found an older version of tilt ({found_tilt_version}) than the requested one {tilt_version}")
+    if force:
         with tempdir() as d:
             extract(tilt_url, d)
             move(Path(d) / 'tilt', bin_dir / 'tilt')
@@ -136,9 +157,15 @@ def tilt(force):
 def kubectl(force):
     """Install kubectl"""
     kubectl_version = re.search('/(v[0-9.]+)/', kubectl_url).group(1)
-    if force or not which('kubectl') \
-            or re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
-                        check_output(['kubectl', 'version'])).group(1) != kubectl_version:
+    if not force and not which("kubectl"):
+        force = True
+        LOGGER.info("Could not find kubectl")
+    if which("kubectl"):
+        found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"', check_output(['kubectl', 'version'], failok=True)).group(1)
+    if not force and found_kubectl_version != kubectl_version:
+        force = True
+        LOGGER.info(f"Found an older version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}")
+    if force:
         download(kubectl_url, outdir=bin_dir, outfilename='kubectl', mode=0o755)
     else:
         LOGGER.info("No need to install kubectl, force with --force")
