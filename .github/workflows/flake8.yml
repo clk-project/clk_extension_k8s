@@ -1,0 +1,8 @@
+name: flake8
+on: push
+jobs:
+  my_job:
+    container: alpine/flake8
+    steps:
+      - uses: actions/checkout@v2
+      - run: flake8
