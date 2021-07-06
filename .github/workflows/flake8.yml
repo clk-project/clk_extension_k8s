@@ -1,7 +1,6 @@
-name: flake8
 on: push
 jobs:
-  my_job:
+  flake8:
     runs-on: ubuntu-latest
     container: alpine/flake8
     steps:
