@@ -229,10 +229,19 @@ def install_local_registry(reinstall):
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
 @argument('name', default='k3s-default', help="The name of the cluster to create")
-def create_cluster(name):
+@flag('--recreate', help="Recreate it if it already exists")
+def create_cluster(name, recreate):
     """Create a k3d cluster"""
-    import yaml
+    if name in [
+            cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))
+    ]:
+        if recreate:
+            call(["k3d", "cluster", "delete", name])
+        else:
+            LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
+            return
 
+    import yaml
     call([
         'k3d', 'cluster', 'create', name,
         '--wait',
