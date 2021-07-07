@@ -161,10 +161,12 @@ def kubectl(force):
         force = True
         LOGGER.info("Could not find kubectl")
     if which("kubectl"):
-        found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"', check_output(['kubectl', 'version'], failok=True)).group(1)
+        found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
+                                         check_output(['kubectl', 'version'], failok=True)).group(1)
     if not force and found_kubectl_version != kubectl_version:
         force = True
-        LOGGER.info(f"Found an older version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}")
+        LOGGER.info(
+            f"Found an older version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}")
     if force:
         download(kubectl_url, outdir=bin_dir, outfilename='kubectl', mode=0o755)
     else:
@@ -232,9 +234,7 @@ def install_local_registry(reinstall):
 @flag('--recreate', help="Recreate it if it already exists")
 def create_cluster(name, recreate):
     """Create a k3d cluster"""
-    if name in [
-            cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))
-    ]:
+    if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
         if recreate:
             call(["k3d", "cluster", "delete", name])
         else:
