@@ -14,5 +14,5 @@ curl -sSL https://raw.githubusercontent.com/click-project/click-project/master/i
 
   2. if you already have click-project, install this recipe with
      #+BEGIN_SRC shell   
-clk recipe install Konubinix/k8s
+clk recipe install k8s
      #+END_SRC
