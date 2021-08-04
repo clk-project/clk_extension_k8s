@@ -8,11 +8,17 @@ Either:
 
   1. install [[https://github.com/Konubinix/click-project][click-project]] and the recipe with
 
+     #+BEGIN_SRC shell
+curl -sSL https://bit.ly/3ii011L | env CLK_RECIPES=k8s bash
+     #+END_SRC
+
+     or
+
      #+BEGIN_SRC shell   
 curl -sSL https://raw.githubusercontent.com/click-project/click-project/master/install.sh | env CLK_RECIPES=k8s bash
      #+END_SRC
 
   2. if you already have click-project, install this recipe with
      #+BEGIN_SRC shell   
-clk recipe install Konubinix/k8s
+clk recipe install k8s
      #+END_SRC
