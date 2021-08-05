@@ -6,19 +6,19 @@
 
 Either:
 
-  1. install [[https://github.com/Konubinix/click-project][click-project]] and the recipe with
+  1. install [[https://github.com/Konubinix/click-project][click-project]] and the extension with
 
      #+BEGIN_SRC shell
-curl -sSL https://bit.ly/3ii011L | env CLK_RECIPES=k8s bash
+curl -sSL https://bit.ly/3ii011L | env CLK_EXTENSIONS=k8s bash
      #+END_SRC
 
      or
 
      #+BEGIN_SRC shell   
-curl -sSL https://raw.githubusercontent.com/click-project/click-project/master/install.sh | env CLK_RECIPES=k8s bash
+curl -sSL https://raw.githubusercontent.com/click-project/click-project/master/install.sh | env CLK_EXTENSIONS=k8s bash
      #+END_SRC
 
-  2. if you already have click-project, install this recipe with
+  2. if you already have click-project, install this extension with
      #+BEGIN_SRC shell   
-clk recipe install k8s
+clk extension install k8s
      #+END_SRC
