@@ -35,6 +35,8 @@ class KubeCtl:
         else:
             if config.k8s.distribution == "k3d":
                 return "k3d-k3s-default"
+            if config.k8s.distribution == "kind":
+                return "kind-kind"
             else:
                 return None
 
@@ -59,17 +61,61 @@ class KubeCtl:
 
 @group()
 @param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use")
-@param_config('k8s', '--distribution', '-d', help="Distribution to use. Supported: k3d, docker-desktop", default='k3d')
+@param_config('k8s', '--distribution', '-d', help="Distribution to use", default='k3d',
+              type=click.Choice(['k3d', 'kind']))
 def k8s():
     """Manipulate k8s"""
 
 
 bin_dir = Path('~/.local/bin').expanduser()
 k3d_url = 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64'
+kind_url = 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64'
 helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
 tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.22.3/tilt.0.22.3.linux.x86_64.tar.gz'
-k3d_dir = os.path.expanduser('~/.k3d')
+kind_config = """
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kind
+kubeadmConfigPatches:
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: ClusterConfiguration
+  metadata:
+    name: config
+  apiServer:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+  scheduler:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+  controllerManager:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: InitConfiguration
+  metadata:
+    name: config
+  nodeRegistration:
+    kubeletExtraArgs:
+      "feature-gates": "EphemeralContainers=true"
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+"""
 
 cluster_issuer = '''apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -97,6 +143,25 @@ def doctor():
 def install_dependency():
     """Install the dependencies needed to setup the stack"""
     # call(['sudo', 'apt', 'install', 'libnss-myhostname', 'docker.io'])
+
+
+@install_dependency.command()
+@flag('--force', help="Overwrite the existing binaries")
+def kind(force):
+    """Install kind"""
+    kind_version = re.search('/(v[0-9.]+)/', kind_url).group(1)
+    if not force and not which("kind"):
+        force = True
+        LOGGER.info("Could not find kind")
+    if which("kind"):
+        found_kind_version = re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
+    if not force and found_kind_version != kind_version:
+        force = True
+        LOGGER.info(f"Found an older version of kind ({found_kind_version}) than the requested one {kind_version}")
+    if force:
+        download(kind_url, outdir=bin_dir, outfilename='kind', mode=0o755)
+    else:
+        LOGGER.info("No need to install kind, force with --force")
 
 
 @install_dependency.command()
@@ -191,6 +256,7 @@ def _all(force):
     ctx.invoke(helm, force=force)
     ctx.invoke(tilt, force=force)
     ctx.invoke(k3d, force=force)
+    ctx.invoke(kind, force=force)
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
@@ -240,23 +306,34 @@ def install_local_registry(reinstall):
 
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
-@argument('name', default='k3s-default', help="The name of the cluster to create. Supported distribution: k3d")
 @flag('--recreate', help="Recreate it if it already exists")
-def create_cluster(name, recreate):
+def create_cluster(recreate):
     """Create a k3d cluster"""
     if config.k8s.distribution == "k3d":
+        name = 'k3s-default'
         if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
             if recreate:
                 call(["k3d", "cluster", "delete", name])
             else:
                 LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
                 return
+    elif config.k8s.distribution == 'kind':
+        if name in check_output('kind get clusters'.split()).split('\n'):
+            if recreate:
+                call(['kind', 'delete', 'clusters', name])
+            else:
+                LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
+                return
+    else:
+        raise click.ClickException("Unsupported distribution")
 
-        if not is_port_available(80):
-            raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
-        if not is_port_available(443):
-            raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
 
+    if not is_port_available(80):
+        raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
+    if not is_port_available(443):
+        raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
+
+    if config.k8s.distribution == "k3d":
         import yaml
         call([
             'k3d', 'cluster', 'create', name,
@@ -281,10 +358,12 @@ def create_cluster(name, recreate):
             f.close()
             config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
         config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
-    else:
-        raise click.ClickException("Unsupported distribution")
+    elif config.k8s.distribution == "kind":
+        with temporary_file() as f:
+            f.write(kind_config.encode('utf8'))
+            f.close()
+            call(['kind', 'create', 'cluster', '--config', f.name])
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v1.2.0', help="The version of cert-manager chart to install")
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
@@ -421,6 +500,26 @@ def add_domain(domain, ip):
                 f.write(yaml.dump(coredns_conf).encode('utf8'))
                 f.close()
                 config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+    if config.k8s.distribution == "kind":
+        coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
+        coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
+        top_level_domain = domain.split('.')[-1]
+        data = '''
+    hosts custom.hosts %s {
+        # new hosts here
+        %s %s
+        fallthrough
+    }
+'''
+        data = data % (top_level_domain, ip, domain)
+        if not re.search(data, coredns_conf['data']['Corefile']):
+            last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
+            coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}'
+            with temporary_file() as f:
+                f.write(yaml.dump(coredns_conf).encode('utf8'))
+                f.close()
+                config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+                config.kubectl.call(['rollout', 'restart', '-n', 'kube-system', 'deployment/coredns'])
     else:
         raise click.ClickException("Unsupported distribution")
 
@@ -434,10 +533,14 @@ def flow():
 @argument('target', type=click.Choice(['cluster', 'registry', 'all']), default='all', help="What should removed")
 def remove(target):
     """Remove the k8s cluster"""
-    if target in ['all', 'cluster']:
-        call(['k3d', 'cluster', 'delete'])
-    if target in ['all', 'registry']:
-        call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
+    if config.k8s.distribution == "k3d":
+        if target in ['all', 'cluster']:
+            call(['k3d', 'cluster', 'delete'])
+        if target in ['all', 'registry']:
+            call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
+    elif config.k8s.distribution == "kind":
+        if target in ['all', 'cluster']:
+            call(['kind', 'delete', 'cluster'])
 
 
 @k8s.command()
