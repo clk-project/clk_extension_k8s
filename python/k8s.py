@@ -50,7 +50,7 @@ class KubeCtl:
 
 
 @group()
-@param_config('kubectl', '--context', typ=KubeCtl, help="The kubectl context to use", default='k3d-k3s-default')
+@param_config('kubectl', '--context', typ=KubeCtl, help="The kubectl context to use", default='kind-kind')
 def k8s():
     """Manipulate k8s"""
 
@@ -63,6 +63,7 @@ tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.21.0/tilt.0.21
 kind_config = """
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+name: kind
 kubeadmConfigPatches:
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
@@ -131,23 +132,41 @@ def install_dependency():
     # call(['sudo', 'apt', 'install', 'libnss-myhostname', 'docker.io'])
 
 
+# @install_dependency.command()
+# @flag('--force', help="Overwrite the existing binaries")
+# def k3d(force):
+#     """Install k3d"""
+#     k3d_version = re.search('/(v[0-9.]+)/', k3d_url).group(1)
+#     if not force and not which("k3d"):
+#         force = True
+#         LOGGER.info("Could not find k3d")
+#     if which("k3d"):
+#         found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
+#     if not force and found_k3d_version != k3d_version:
+#         force = True
+#         LOGGER.info(f"Found an older version of k3d ({found_k3d_version}) than the requested one {k3d_version}")
+#     if force:
+#         download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
+#     else:
+#         LOGGER.info("No need to install k3d, force with --force")
+
 @install_dependency.command()
 @flag('--force', help="Overwrite the existing binaries")
-def k3d(force):
-    """Install k3d"""
-    k3d_version = re.search('/(v[0-9.]+)/', k3d_url).group(1)
-    if not force and not which("k3d"):
+def kind(force):
+    """Install kind"""
+    kind_version = re.search('/(v[0-9.]+)/', kind_url).group(1)
+    if not force and not which("kind"):
         force = True
-        LOGGER.info("Could not find k3d")
-    if which("k3d"):
-        found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
-    if not force and found_k3d_version != k3d_version:
+        LOGGER.info("Could not find kind")
+    if which("kind"):
+        found_kind_version = re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
+    if not force and found_kind_version != kind_version:
         force = True
-        LOGGER.info(f"Found an older version of k3d ({found_k3d_version}) than the requested one {k3d_version}")
+        LOGGER.info(f"Found an older version of kind ({found_kind_version}) than the requested one {kind_version}")
     if force:
-        download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
+        download(kind_url, outdir=bin_dir, outfilename='kind', mode=0o755)
     else:
-        LOGGER.info("No need to install k3d, force with --force")
+        LOGGER.info("No need to install kind, force with --force")
 
 
 @install_dependency.command()
@@ -203,7 +222,7 @@ def kubectl(force):
         LOGGER.info("Could not find kubectl")
     if which("kubectl"):
         found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
-                                         check_output(['kubectl', 'version'], failok=True)).group(1)
+                                         check_output(['kubectl', 'version'])).group(1)
     if not force and found_kubectl_version != kubectl_version:
         force = True
         LOGGER.info(
@@ -222,108 +241,83 @@ def _all(force):
     ctx.invoke(kubectl, force=force)
     ctx.invoke(helm, force=force)
     ctx.invoke(tilt, force=force)
-    ctx.invoke(k3d, force=force)
+    # ctx.invoke(k3d, force=force)
+    ctx.invoke(kind, force=force)
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
-@option('--registry-provider', type=click.Choice(['gitlab']), help="What registry provider to connect to")
-@option('--username', help="The username of the provider registry")
-@option('--password', help="The password of the provider registry")
-def install_docker_registry_secret(registry_provider, username, password):
-    """Install the credential to get access to the given registry provider."""
-    registries = {
-        'gitlab': {
-            'secret-name': 'gitlab-registry',
-            'server': 'registry.gitlab.com',
-        }
-    }
-    if registry_provider:
-        if not (username and password):
-            if res := get_keyring().get_password('click-project', f'{registry_provider}-registry-auth'):
-                username, password = json.loads(res)
-        username = username or click.prompt('username', hide_input=True, default='', show_default=False)
-        password = password or click.prompt('password', hide_input=True, default='', show_default=False)
-        registry = registries[registry_provider]
-        config.kubectl.call([
-            'create', 'secret', 'docker-registry', registry['secret-name'],
-            f'--docker-server={registry["server"]}',
-            f'--docker-username={username}',
-            f'--docker-password={password}',
-        ])  # yapf: disable
-    else:
-        LOGGER.status("No registry provider given, doing nothing.")
+# @k8s.command(flowdepends=['k8s.create-cluster'])
+# @option('--registry-provider', type=click.Choice(['gitlab']), help="What registry provider to connect to")
+# @option('--username', help="The username of the provider registry")
+# @option('--password', help="The password of the provider registry")
+# def install_docker_registry_secret(registry_provider, username, password):
+#     """Install the credential to get access to the given registry provider."""
+#     registries = {
+#         'gitlab': {
+#             'secret-name': 'gitlab-registry',
+#             'server': 'registry.gitlab.com',
+#         }
+#     }
+#     if registry_provider:
+#         if not (username and password):
+#             if res := get_keyring().get_password('click-project', f'{registry_provider}-registry-auth'):
+#                 username, password = json.loads(res)
+#         username = username or click.prompt('username', hide_input=True, default='', show_default=False)
+#         password = password or click.prompt('password', hide_input=True, default='', show_default=False)
+#         registry = registries[registry_provider]
+#         config.kubectl.call([
+#             'create', 'secret', 'docker-registry', registry['secret-name'],
+#             f'--docker-server={registry["server"]}',
+#             f'--docker-username={username}',
+#             f'--docker-password={password}',
+#         ])  # yapf: disable
+#     else:
+#         LOGGER.status("No registry provider given, doing nothing.")
 
 
-@k8s.command(flowdepends=['k8s.install-dependency.all'])
-@flag('--reinstall', help="Reinstall it if it already exists")
-def install_local_registry(reinstall):
-    """Install the local registry"""
-    if 'k3d-registry.localhost' in [
-            registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
-    ]:
-        if reinstall:
-            ctx = click.get_current_context()
-            ctx.invoke(remove, target='registry')
-        else:
-            LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
-            return
-    call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
+# @k8s.command(flowdepends=['k8s.install-dependency.all'])
+# @flag('--reinstall', help="Reinstall it if it already exists")
+# def install_local_registry(reinstall):
+#     """Install the local registry"""
+#     if 'k3d-registry.localhost' in [
+#             registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
+#     ]:
+#         if reinstall:
+#             ctx = click.get_current_context()
+#             ctx.invoke(remove, target='registry')
+#         else:
+#             LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
+#             return
+#     call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
 
 
-@k8s.command(flowdepends=['k8s.install-local-registry'])
-@argument('name', default='k3s-default', help="The name of the cluster to create")
+@k8s.command(flowdepends=["k8s.install-dependency.all"])
+@argument('name', default='kind', help="The name of the cluster to create")
 @flag('--recreate', help="Recreate it if it already exists")
 def create_cluster(name, recreate):
-    """Create a k3d cluster"""
-    if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
+    """Create a kind cluster"""
+    if name in check_output('kind get clusters'.split()).split('\n'):
         if recreate:
-            call(["k3d", "cluster", "delete", name])
+            call(['kind', 'delete', 'clusters', name])
         else:
             LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
             return
 
     import yaml
-    call([
-        'k3d', 'cluster', 'create', name,
-        '--wait',
-        '--port', '80:80@loadbalancer',
-        '--port', '443:443@loadbalancer',
-        '--registry-use', 'k3d-registry.localhost:5000',
-        '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
-        '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
-    ])  # yapf: disable
-    traefik_conf = ''
-    time.sleep(10)
-    while not traefik_conf:
-        try:
-            traefik_conf = config.kubectl.output(['get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
-        except subprocess.CalledProcessError:
-            time.sleep(5)
-    traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
-    traefik_conf['data']['traefik.toml'] = ('insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml'])
     with temporary_file() as f:
-        f.write(yaml.dump(traefik_conf).encode('utf8'))
+        f.write(kind_config.encode('utf8'))
         f.close()
-        config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-    config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
+        call(['kind', 'create', 'cluster', '--config', f.name])
 
-# @k8s.command(flowdepends=["k8s.install-dependencies"])
-# def create_cluster():
-#     """Create a kind cluster"""
-#     import yaml
-#     with temporary_file() as f:
-#         f.write(kind_config.encode('utf8'))
-#         f.close()
-#         call(['kind', 'create', 'cluster', '--config', f.name])
 
 @k8s.command(flowdepends=["k8s.create-cluster"])
 def install_ingress():
     """Install a ingress"""
     call(["helm", "repo", "add", "ingress-nginx", "https://kubernetes.github.io/ingress-nginx"])
-    call(['kubectl', '--context', 'kind-kind', 'apply', '-f',
-          'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml'])
-    call(['kubectl', 'wait', '--namespace', 'ingress-nginx', '--for=condition=ready', 'pod',
-          '--selector=app.kubernetes.io/component=controller', '--timeout=90s'])
+    config.kubectl.call(['apply', '-f',
+        'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml'
+    ])
+    config.kubectl.call(['wait', '--namespace', 'ingress-nginx', '--for=condition=ready', 'pod',
+          '--selector=app.kubernetes.io/component=controller', '--timeout=120s'])
 
 
 @k8s.command(flowdepends=["k8s.install-ingress"])
@@ -377,13 +371,23 @@ def add_domain(domain, ip):
 
     coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
-    data = f'{ip} {domain}'
-    if data not in coredns_conf['data']['NodeHosts'].split('\n'):
-        coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
+    top_level_domain = domain.split('.')[-1]
+    data = '''
+    hosts custom.hosts %s {
+        # new hosts here
+        %s %s
+        fallthrough
+    }
+'''
+    data = data % (top_level_domain, ip, domain)
+    if not re.search(data, coredns_conf['data']['Corefile']):
+        last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
+        coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}'
         with temporary_file() as f:
             f.write(yaml.dump(coredns_conf).encode('utf8'))
             f.close()
             config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+            config.kubectl.call(['rollout', 'restart', '-n', 'kube-system', 'deployment/coredns'])
 
 
 @k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
