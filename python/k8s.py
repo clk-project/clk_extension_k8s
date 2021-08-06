@@ -72,7 +72,8 @@ k3d_url = 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd
 kind_url = 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64'
 helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
-kubectl_buildkit_url = 'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
+kubectl_buildkit_url = \
+    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
 tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.22.3/tilt.0.22.3.linux.x86_64.tar.gz'
 kind_config = """
 kind: Cluster
@@ -265,9 +266,8 @@ def kubectl_buildkit(force):
         LOGGER.info("Could not find kubectl buildkit")
     if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
         force = True
-        LOGGER.info(
-            f"Found an older version of kubectl buildkit ({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}"
-        )
+        LOGGER.info(f"Found an older version of kubectl buildkit "
+                    f"({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
     if force:
         with tempdir() as d:
             extract(kubectl_buildkit_url, d)
