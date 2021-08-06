@@ -4,19 +4,16 @@
 import os
 import subprocess
 import grp
-import json
 import re
 import sys
 import time
 from pathlib import Path
-from shlex import split
 
 import click
 
 from click_project.decorators import (
     argument,
     group,
-    option,
     flag,
     param_config,
 )
@@ -30,7 +27,6 @@ from click_project.lib import (
     cd,
     check_output,
     which,
-    get_keyring,
 )
 from click_project.log import get_logger
 from click_project.config import config
@@ -59,7 +55,8 @@ bin_dir = Path('~/.local/bin').expanduser()
 kind_url = 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64'
 helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
-kubectl_buildkit_url = 'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
+kubectl_buildkit_url = \
+    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
 tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.21.0/tilt.0.21.0.linux.x86_64.tar.gz'
 kind_config = """
 kind: Cluster
@@ -233,9 +230,8 @@ def kubectl_buildkit(force):
         LOGGER.info("Could not find kubectl buildkit")
     if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
         force = True
-        LOGGER.info(
-            f"Found an older version of kubectl buildkit ({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}"
-        )
+        LOGGER.info(f"Found an older version of kubectl buildkit "
+                    f"({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
     if force:
         with tempdir() as d:
             extract(kubectl_buildkit_url, d)
@@ -269,7 +265,6 @@ def create_cluster(name, recreate):
             LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
             return
 
-    import yaml
     with temporary_file() as f:
         f.write(kind_config.encode('utf8'))
         f.close()
