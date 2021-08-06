@@ -507,21 +507,22 @@ def add_domain(domain, ip):
         data = '''
     hosts custom.hosts %s {
         # new hosts here
-        %s %s
         fallthrough
     }
 '''
-        data = data % (top_level_domain, ip, domain)
-        if not re.search(data, coredns_conf['data']['Corefile']):
+        data = data % top_level_domain
+        if not re.search('hosts custom.hosts', coredns_conf['data']['Corefile']):
             last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
             coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}'
+        if re.search('# new hosts here', coredns_conf['data']['Corefile']):
+            data = f'{ip} {domain}'
+            coredns_conf['data']['Corefile'] = re.sub(r'(# new hosts here)', f'\\1\n{data}\n', coredns_conf['data']['Corefile'])
             with temporary_file() as f:
                 f.write(yaml.dump(coredns_conf).encode('utf8'))
                 f.close()
                 config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
                 config.kubectl.call(['rollout', 'restart', '-n', 'kube-system', 'deployment/coredns'])
-    else:
-        raise click.ClickException("Unsupported distribution")
+
 
 @k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
 def flow():
