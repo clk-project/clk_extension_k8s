@@ -247,6 +247,7 @@ def kubectl(force):
     else:
         LOGGER.info("No need to install kubectl, force with --force")
 
+
 @install_dependency.command()
 @flag('--force', help="Overwrite the existing binaries")
 def kubectl_buildkit(force):
@@ -265,7 +266,8 @@ def kubectl_buildkit(force):
     if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
         force = True
         LOGGER.info(
-            f"Found an older version of kubectl buildkit ({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
+            f"Found an older version of kubectl buildkit ({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}"
+        )
     if force:
         with tempdir() as d:
             extract(kubectl_buildkit_url, d)
@@ -545,9 +547,10 @@ def add_domain(domain, ip):
             coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}'
         if re.search('# new hosts here', coredns_conf['data']['Corefile']):
             data = f'{ip} {domain}'
-            coredns_conf['data']['Corefile'] = re.sub(r'(# new hosts here)', f'\\1\n{data}\n', coredns_conf['data']['Corefile'])
+            coredns_conf['data']['Corefile'] = re.sub(r'(# new hosts here)', f'\\1\n{data}\n',
+                                                      coredns_conf['data']['Corefile'])
             with temporary_file() as f:
-                f.write(yaml.dump(coredns_conf).encode('utf8'))
+                 f.write(yaml.dump(coredns_conf).encode('utf8'))
                 f.close()
                 config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
                 config.kubectl.call(['rollout', 'restart', '-n', 'kube-system', 'deployment/coredns'])
