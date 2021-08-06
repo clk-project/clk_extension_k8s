@@ -59,6 +59,7 @@ bin_dir = Path('~/.local/bin').expanduser()
 kind_url = 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64'
 helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
+kubectl_buildkit_url = 'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
 tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.21.0/tilt.0.21.0.linux.x86_64.tar.gz'
 kind_config = """
 kind: Cluster
@@ -214,6 +215,33 @@ def kubectl(force):
     else:
         LOGGER.info("No need to install kubectl, force with --force")
 
+@install_dependency.command()
+@flag('--force', help="Overwrite the existing binaries")
+def kubectl_buildkit(force):
+    """Install kubectl buildkit"""
+    kubectl_buildkit_version = re.search('/(v[0-9.]+)/', kubectl_buildkit_url).group(1)
+    found_kubectl_buildkit_version = False
+    try:
+        found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'])
+        found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
+    except subprocess.CalledProcessError:
+        found_kubectl_buildkit_version = False
+
+    if not force and not found_kubectl_buildkit_version:
+        force = True
+        LOGGER.info("Could not find kubectl buildkit")
+    if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
+        force = True
+        LOGGER.info(
+            f"Found an older version of kubectl buildkit ({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
+    if force:
+        with tempdir() as d:
+            extract(kubectl_buildkit_url, d)
+            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
+            move(Path(d) / 'kubectl-buildkit', bin_dir / 'kubectl-buildkit')
+    else:
+        LOGGER.info("No need to install kubectl buildkit, force with --force")
+
 
 @install_dependency.command()
 @flag('--force', help="Overwrite the existing binaries")
@@ -221,6 +249,7 @@ def _all(force):
     """Install all the dependencies"""
     ctx = click.get_current_context()
     ctx.invoke(kubectl, force=force)
+    ctx.invoke(kubectl_buildkit, force=force)
     ctx.invoke(helm, force=force)
     ctx.invoke(tilt, force=force)
     ctx.invoke(kind, force=force)
