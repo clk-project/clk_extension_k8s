@@ -215,6 +215,7 @@ def kubectl(force):
     else:
         LOGGER.info("No need to install kubectl, force with --force")
 
+
 @install_dependency.command()
 @flag('--force', help="Overwrite the existing binaries")
 def kubectl_buildkit(force):
@@ -233,7 +234,8 @@ def kubectl_buildkit(force):
     if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
         force = True
         LOGGER.info(
-            f"Found an older version of kubectl buildkit ({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
+            f"Found an older version of kubectl buildkit ({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}"
+        )
     if force:
         with tempdir() as d:
             extract(kubectl_buildkit_url, d)
@@ -278,14 +280,17 @@ def create_cluster(name, recreate):
 def install_ingress():
     """Install a ingress"""
     call(["helm", "repo", "add", "ingress-nginx", "https://kubernetes.github.io/ingress-nginx"])
-    config.kubectl.call(['apply', '-f',
+    config.kubectl.call([
+        'apply', '-f',
         'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml'
     ])
     success = False
     while not success:
         try:
-            config.kubectl.call(['wait', '--namespace', 'ingress-nginx', '--for=condition=ready', 'pod',
-              '--selector=app.kubernetes.io/component=controller', '--timeout=120s'])
+            config.kubectl.call([
+                'wait', '--namespace', 'ingress-nginx', '--for=condition=ready', 'pod',
+                '--selector=app.kubernetes.io/component=controller', '--timeout=120s'
+            ])
             success = True
         except subprocess.CalledProcessError:
             time.sleep(5)
@@ -355,7 +360,8 @@ def add_domain(domain, ip):
         coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}'
     if re.search('# new hosts here', coredns_conf['data']['Corefile']):
         data = f'{ip} {domain}'
-        coredns_conf['data']['Corefile'] = re.sub(r'(# new hosts here)', f'\\1\n{data}\n', coredns_conf['data']['Corefile'])
+        coredns_conf['data']['Corefile'] = re.sub(r'(# new hosts here)', f'\\1\n{data}\n',
+                                                  coredns_conf['data']['Corefile'])
         with temporary_file() as f:
             f.write(yaml.dump(coredns_conf).encode('utf8'))
             f.close()
