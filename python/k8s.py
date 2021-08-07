@@ -349,3 +349,22 @@ def ipython():
     dict_ = globals()
     dict_.update(locals())
     IPython.start_ipython(argv=[], user_ns=dict_)
+
+
+@k8s.command()
+@argument('path', default='.', required=False, help="Helm chart path")
+def helm_dependency_update(path):
+    """Update helm dependencies"""
+    import yaml
+    chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
+    if 'dependencies' in chart:
+        update = False
+        for dep in chart['dependencies']:
+            name = f'{dep["name"]}-{dep["version"]}.tgz'
+            if not os.path.exists(f'{path}/charts/{name}'):
+                LOGGER.info(f'{name} is missing, updating')
+                update = True
+        if update:
+            call(['helm', 'dependency', 'update', path])
+            # touch the chart directory to trigger a tilt update
+            os.utime(path)
