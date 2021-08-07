@@ -22,6 +22,7 @@ from click_project.decorators import (
 )
 from click_project.lib import (
     call,
+    check_output,
     move,
     download,
     extract,
@@ -369,3 +370,20 @@ def helm_dependency_update(path, force):
             call(['helm', 'dependency', 'update', path])
             # touch the chart directory to trigger a tilt update
             os.utime(path)
+
+
+@k8s.command()
+@option('--docker-login/--no-docker-login', '-d', help="Also log into docker")
+@option('--helm-login/--no-helm-login', '-h', help="Also log into helm")
+@argument('secret', help="K8s secret to use")
+def docker_credentials(docker_login, helm_login, secret):
+    """Extract the docker credentials from a k8s secret"""
+    creds = config.kubectl.output(['get', 'secret', secret, '--template',
+                                   '{{index .data ".dockerconfigjson" | base64decode }}'])
+    creds = json.loads(creds)
+    for registry, values in creds['auths'].items():
+        if docker_login:
+            check_output(['docker', 'login', registry, '-u', values['username'], '-p', values['password']])
+        if helm_login:
+            check_output(['helm', 'registry', 'login', registry, '-u', values['username'], '-p', values['password']])
+    print(json.dumps(creds['auths']))
