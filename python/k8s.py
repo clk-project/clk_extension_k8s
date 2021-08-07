@@ -51,7 +51,7 @@ class KubeCtl:
 
 
 @group()
-@param_config('kubectl', '--context', typ=KubeCtl, help="The kubectl context to use", default='k3d-k3s-default')
+@param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use", default='k3d-k3s-default')
 def k8s():
     """Manipulate k8s"""
 
