@@ -59,7 +59,7 @@ bin_dir = Path('~/.local/bin').expanduser()
 k3d_url = 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64'
 helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
-tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.21.0/tilt.0.21.0.linux.x86_64.tar.gz'
+tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.22.3/tilt.0.22.3.linux.x86_64.tar.gz'
 k3d_dir = os.path.expanduser('~/.k3d')
 
 cluster_issuer = '''apiVersion: cert-manager.io/v1
