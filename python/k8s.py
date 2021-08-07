@@ -352,13 +352,14 @@ def ipython():
 
 
 @k8s.command()
+@option('--force/--no-force', '-f', help="Force update")
 @argument('path', default='.', required=False, help="Helm chart path")
-def helm_dependency_update(path):
+def helm_dependency_update(path, force):
     """Update helm dependencies"""
     import yaml
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
     if 'dependencies' in chart:
-        update = False
+        update = force
         for dep in chart['dependencies']:
             name = f'{dep["name"]}-{dep["version"]}.tgz'
             if not os.path.exists(f'{path}/charts/{name}'):
