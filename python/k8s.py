@@ -22,7 +22,6 @@ from click_project.decorators import (
 )
 from click_project.lib import (
     call,
-    check_output,
     move,
     download,
     extract,
@@ -30,6 +29,7 @@ from click_project.lib import (
     temporary_file,
     cd,
     check_output,
+    updated_env,
     which,
     get_keyring,
 )
@@ -355,8 +355,9 @@ def ipython():
 @k8s.command()
 @option('--force/--no-force', '-f', help="Force update")
 @option('--touch', '-t', help="Touch this file or directory when update is complete")
+@option('--experimental-oci/--no-experimental-oci', default=True, help="Activate experimental OCI feature")
 @argument('path', default='.', required=False, help="Helm chart path")
-def helm_dependency_update(path, force, touch):
+def helm_dependency_update(path, force, touch, experimental_oci):
     """Update helm dependencies"""
     import yaml
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
@@ -368,7 +369,11 @@ def helm_dependency_update(path, force, touch):
                 LOGGER.info(f'{name} is missing, updating')
                 update = True
         if update:
-            call(['helm', 'dependency', 'update', path])
+            if experimental_oci:
+                with updated_env(HELM_EXPERIMENTAL_OCI='1'):
+                    call(['helm', 'dependency', 'update', path])
+            else:
+                call(['helm', 'dependency', 'update', path])
             if touch:
                 os.utime(touch)
 
