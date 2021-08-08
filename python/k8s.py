@@ -696,3 +696,17 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
                     LOGGER.action(f'writing to {f_path}')
                     f.write(values['password'])
     print(json.dumps(creds['auths']))
+
+
+@k8s.command()
+@option('--max-parallelism', '-j', default=1, help="Maximum parallelism")
+@argument('name', default='buildkit', required=False, help="Runner name")
+def create_buildkit_runner(max_parallelism, name):
+    """Create a buildkit runner"""
+    conf = f'''debug = false
+[worker.containerd]
+  namespace = "k8s.io"
+  max-parallelism = {max_parallelism}
+'''
+    with temporary_file(content=conf) as f:
+        call(['kubectl', 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
