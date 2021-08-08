@@ -375,6 +375,7 @@ def helm_dependency_update(path, force, touch, experimental_oci):
             else:
                 call(['helm', 'dependency', 'update', path])
             if touch:
+                LOGGER.action(f"touching {touch}")
                 os.utime(touch)
 
 
