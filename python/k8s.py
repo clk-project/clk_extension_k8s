@@ -356,10 +356,12 @@ def ipython():
 @option('--force/--no-force', '-f', help="Force update")
 @option('--touch', '-t', help="Touch this file or directory when update is complete")
 @option('--experimental-oci/--no-experimental-oci', default=True, help="Activate experimental OCI feature")
+@option('packages', '--package', '-p', multiple=True, help="Other helm dir to package and include in the dependencies")
 @argument('path', default='.', required=False, help="Helm chart path")
-def helm_dependency_update(path, force, touch, experimental_oci):
+def helm_dependency_update(path, force, touch, experimental_oci, packages):
     """Update helm dependencies"""
     import yaml
+    ctx = click.get_current_context()
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
     if 'dependencies' in chart:
         update = force
@@ -374,9 +376,14 @@ def helm_dependency_update(path, force, touch, experimental_oci):
                     call(['helm', 'dependency', 'update', path])
             else:
                 call(['helm', 'dependency', 'update', path])
-            if touch:
-                LOGGER.action(f"touching {touch}")
-                os.utime(touch)
+        for package in packages:
+            ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci)
+            pp = os.path.abspath(package)
+            with cd(f'{path}/charts'):
+                call(['helm', 'package', pp])
+        if update and touch:
+            LOGGER.action(f"touching {touch}")
+            os.utime(touch)
 
 
 @k8s.command()
