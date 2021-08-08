@@ -354,8 +354,9 @@ def ipython():
 
 @k8s.command()
 @option('--force/--no-force', '-f', help="Force update")
+@option('--touch', '-t', help="Touch this file or directory when update is complete")
 @argument('path', default='.', required=False, help="Helm chart path")
-def helm_dependency_update(path, force):
+def helm_dependency_update(path, force, touch):
     """Update helm dependencies"""
     import yaml
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
@@ -368,8 +369,8 @@ def helm_dependency_update(path, force):
                 update = True
         if update:
             call(['helm', 'dependency', 'update', path])
-            # touch the chart directory to trigger a tilt update
-            os.utime(path)
+            if touch:
+                os.utime(touch)
 
 
 @k8s.command()
