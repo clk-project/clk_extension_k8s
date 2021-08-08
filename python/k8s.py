@@ -385,8 +385,8 @@ def helm_dependency_update(path, force, touch, experimental_oci):
 @argument('secret', help="K8s secret to use")
 def docker_credentials(docker_login, helm_login, secret):
     """Extract the docker credentials from a k8s secret"""
-    creds = config.kubectl.output(['get', 'secret', secret, '--template',
-                                   '{{index .data ".dockerconfigjson" | base64decode }}'])
+    creds = config.kubectl.output(
+        ['get', 'secret', secret, '--template', '{{index .data ".dockerconfigjson" | base64decode }}'])
     creds = json.loads(creds)
     for registry, values in creds['auths'].items():
         if docker_login:
