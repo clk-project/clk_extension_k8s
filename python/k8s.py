@@ -22,9 +22,11 @@ from click_project.decorators import (
 )
 from click_project.lib import (
     call,
+    makedirs,
     move,
     download,
     extract,
+    read,
     tempdir,
     temporary_file,
     cd,
@@ -389,8 +391,9 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
 @k8s.command()
 @option('--docker-login/--no-docker-login', '-d', help="Also log into docker")
 @option('--helm-login/--no-helm-login', '-h', help="Also log into helm")
+@option('--export-password', '-p', help="Export the passwords that directory, with the registry host as name")
 @argument('secret', help="K8s secret to use")
-def docker_credentials(docker_login, helm_login, secret):
+def docker_credentials(docker_login, helm_login, secret, export_password):
     """Extract the docker credentials from a k8s secret"""
     creds = config.kubectl.output(
         ['get', 'secret', secret, '--template', '{{index .data ".dockerconfigjson" | base64decode }}'])
@@ -400,4 +403,12 @@ def docker_credentials(docker_login, helm_login, secret):
             check_output(['docker', 'login', registry, '-u', values['username'], '-p', values['password']])
         if helm_login:
             check_output(['helm', 'registry', 'login', registry, '-u', values['username'], '-p', values['password']])
+    if export_password:
+        makedirs(export_password)
+    for registry, values in creds['auths'].items():
+        f_path = f'{export_password}/{registry}'
+        if not os.path.exists(f_path) or read(f_path) != values['password']:
+            with open(f_path, 'w') as f:
+                LOGGER.action(f'writing to {f_path}')
+                f.write(values['password'])
     print(json.dumps(creds['auths']))
