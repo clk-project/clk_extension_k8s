@@ -110,6 +110,8 @@ nodes:
     nodeRegistration:
       kubeletExtraArgs:
         node-labels: "ingress-ready=true"
+        eviction-hard: "imagefs.available<1%,nodefs.available<1%"
+        eviction-minimum-reclaim: "imagefs.available=1%,nodefs.available=1%"
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
