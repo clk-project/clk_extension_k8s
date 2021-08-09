@@ -405,10 +405,10 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
             check_output(['helm', 'registry', 'login', registry, '-u', values['username'], '-p', values['password']])
     if export_password:
         makedirs(export_password)
-    for registry, values in creds['auths'].items():
-        f_path = f'{export_password}/{registry}'
-        if not os.path.exists(f_path) or read(f_path) != values['password']:
-            with open(f_path, 'w') as f:
-                LOGGER.action(f'writing to {f_path}')
-                f.write(values['password'])
+        for registry, values in creds['auths'].items():
+            f_path = f'{export_password}/{registry}'
+            if not os.path.exists(f_path) or read(f_path) != values['password']:
+                with open(f_path, 'w') as f:
+                    LOGGER.action(f'writing to {f_path}')
+                    f.write(values['password'])
     print(json.dumps(creds['auths']))
