@@ -403,7 +403,8 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
             check_output(['docker', 'login', registry, '-u', values['username'], '-p', values['password']])
         if helm_login:
             with updated_env(HELM_EXPERIMENTAL_OCI='1'):
-                check_output(['helm', 'registry', 'login', registry, '-u', values['username'], '-p', values['password']])
+                check_output(
+                    ['helm', 'registry', 'login', registry, '-u', values['username'], '-p', values['password']])
     if export_password:
         makedirs(export_password)
         for registry, values in creds['auths'].items():
