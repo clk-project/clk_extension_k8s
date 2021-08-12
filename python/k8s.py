@@ -271,36 +271,41 @@ def create_cluster(name, recreate):
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
-def install_cert_manager():
+@option('--version', default='v1.2.0', help="The version of cert-manager chart to install")
+def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
     call(['helm', 'repo', 'add', 'jetstack', 'https://charts.jetstack.io'])
     call([
         'helm', '--kube-context', config.kubectl.context,
         'upgrade', '--install', '--create-namespace', '--wait', 'cert-manager', 'jetstack/cert-manager',
         '--namespace', 'cert-manager',
-        '--version', 'v1.2.0',
+        '--version', version,
         '--set', 'installCRDs=true',
         '--set', 'ingressShim.defaultIssuerName=local',
         '--set', 'ingressShim.defaultIssuerKind=ClusterIssuer',
     ])  # yapf: disable
     # generate a certificate authority for the cert-manager
     with tempdir() as d, cd(d):
-        call(['openssl', 'genrsa', '-out', 'ca.key', '2048'])
-        call([
-            'openssl', 'req', '-x509', '-new', '-nodes',
-            '-key', 'ca.key',
-            '-subj', '/CN=localhost',
-            '-days', '3650',
-            '-reqexts', 'v3_req',
-            '-extensions', 'v3_ca',
-            '-out', 'ca.crt',
+        ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl', 
+            'genrsa', '2048'])
+        with open("ca.key", "w") as f:
+            f.write(ca_key)
+            f.close()
+
+        ca_crt = check_output(['docker', 'run', '--rm', '--entrypoint', '/bin/sh', 'alpine/openssl', '-c',
+            'echo -e "' + '\\n'.join(ca_key.split(sep='\n')) + 
+                '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650 -reqexts v3_req -extensions v3_ca',
         ])  # yapf: disable
+        with open("ca.crt", "w") as f:
+            f.write(ca_crt)
+            f.close()
+
         ca_secret = config.kubectl.output([
             'create', 'secret', 'tls', 'ca-key-pair',
             '--cert=ca.crt',
             '--key=ca.key',
             '--namespace=cert-manager',
-            '--dry-run=true',
+            '--dry-run=client',
             '-o', 'yaml',
         ])  # yapf: disable
     with temporary_file() as f:
