@@ -6,10 +6,13 @@ import json
 import os
 import re
 import subprocess
+import platform
+import socket
 import sys
 import time
 from pathlib import Path
 from shlex import split
+from packaging import version
 
 import click
 from click_project.config import config
@@ -29,14 +32,33 @@ class KubeCtl:
         self.context = None
 
     def call(self, arguments):
-        call(['kubectl', '--context', self.context] + arguments)
+        context = self.current_context()
+        if context != None:
+            call(['kubectl', '--context', context] + arguments)
+        else:
+            call(['kubectl'] + arguments)
 
     def output(self, arguments):
-        return check_output(['kubectl', '--context', self.context] + arguments)
+        context = self.current_context()
+        if context != None:
+            return check_output(['kubectl', '--context', context] + arguments)
+        else:
+            return check_output(['kubectl'] + arguments)
 
+    def current_context(self):
+        if self.context != None:
+            return self.context
+        else:
+            if config.k8s.distribution == "k3d":
+                return "k3d-k3s-default"
+            elif config.k8s.distribution == "docker-desktop":
+                return "docker-desktop"
+            else:
+                return None
 
 @group()
-@param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use", default='k3d-k3s-default')
+@param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use")
+@param_config('k8s', '--distribution', '-d', help="Distribution to use. Supported: k3d, docker-desktop", default='k3d')
 def k8s():
     """Manipulate k8s"""
 
@@ -67,6 +89,10 @@ def doctor():
     if sys.platform == 'linux':
         if 'docker' not in [grp.getgrgid(g).gr_name for g in os.getgroups()]:
             raise click.UsageError("You need to add the current user in the docker group")
+    if platform.system() == "Darwin":
+        homebrew = which('brew')
+        if homebrew is None:
+            raise click.UsageError("You need to install homebrew")
     LOGGER.info("We did not find a reason to believe you will have trouble playing with the stack")
 
 
@@ -86,13 +112,13 @@ def k3d(force):
         LOGGER.info("Could not find k3d")
     if which("k3d"):
         found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
-    if not force and found_k3d_version != k3d_version:
+    if not force and version.parse(found_k3d_version) < version.parse(k3d_version):
         force = True
         LOGGER.info(f"Found an older version of k3d ({found_k3d_version}) than the requested one {k3d_version}")
     if force:
         download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
     else:
-        LOGGER.info("No need to install k3d, force with --force")
+        LOGGER.info(f"No need to install k3d ({found_k3d_version} installed), force with --force")
 
 
 @install_dependency.command()
@@ -105,7 +131,7 @@ def helm(force):
         LOGGER.info("Could not find helm")
     if which("helm"):
         found_helm_version = re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
-    if not force and found_helm_version != helm_version:
+    if not force and version.parse(found_helm_version) < version.parse(helm_version):
         force = True
         LOGGER.info(f"Found an older version of helm ({found_helm_version}) than the requested one {helm_version}")
     if force:
@@ -114,7 +140,7 @@ def helm(force):
             move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
             (bin_dir / 'helm').chmod(0o755)
     else:
-        LOGGER.info("No need to install helm, force with --force")
+        LOGGER.info(f"No need to install helm ({found_helm_version} installed), force with --force")
 
 
 @install_dependency.command()
@@ -127,7 +153,7 @@ def tilt(force):
         LOGGER.info("Could not find tilt")
     if which("tilt"):
         found_tilt_version = re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
-    if not force and found_tilt_version != tilt_version:
+    if not force and version.parse(found_tilt_version) < version.parse(tilt_version):
         force = True
         LOGGER.info(f"Found an older version of tilt ({found_tilt_version}) than the requested one {tilt_version}")
     if force:
@@ -135,7 +161,7 @@ def tilt(force):
             extract(tilt_url, d)
             move(Path(d) / 'tilt', bin_dir / 'tilt')
     else:
-        LOGGER.info('No need to install tilt, force with --force')
+        LOGGER.info(f'No need to install tilt ({found_tilt_version} installed), force with --force')
 
 
 @install_dependency.command()
@@ -149,14 +175,14 @@ def kubectl(force):
     if which("kubectl"):
         found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
                                          check_output(['kubectl', 'version', '--client=true'], failok=True)).group(1)
-    if not force and found_kubectl_version != kubectl_version:
+    if not force and version.parse(found_kubectl_version) < version.parse(kubectl_version):
         force = True
         LOGGER.info(
             f"Found an older version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}")
     if force:
         download(kubectl_url, outdir=bin_dir, outfilename='kubectl', mode=0o755)
     else:
-        LOGGER.info("No need to install kubectl, force with --force")
+        LOGGER.info(f"No need to install kubectl ({found_kubectl_version} installed), force with --force")
 
 
 @install_dependency.command()
@@ -202,61 +228,84 @@ def install_docker_registry_secret(registry_provider, username, password):
 @k8s.command(flowdepends=['k8s.install-dependency.all'])
 @flag('--reinstall', help="Reinstall it if it already exists")
 def install_local_registry(reinstall):
-    """Install the local registry"""
-    if 'k3d-registry.localhost' in [
-            registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
-    ]:
-        if reinstall:
-            ctx = click.get_current_context()
-            ctx.invoke(remove, target='registry')
-        else:
-            LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
-            return
-    call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
+    """Install k3d local registry"""
+    if config.k8s.distribution == "k3d":
+        if 'k3d-registry.localhost' in [
+                registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
+        ]:
+            if reinstall:
+                ctx = click.get_current_context()
+                ctx.invoke(remove, target='registry')
+            else:
+                LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
+                return
+        call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
 
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
-@argument('name', default='k3s-default', help="The name of the cluster to create")
+@argument('name', default='k3s-default', help="The name of the cluster to create. Supported distribution: k3d")
 @flag('--recreate', help="Recreate it if it already exists")
 def create_cluster(name, recreate):
-    """Create a k3d cluster"""
-    if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
-        if recreate:
-            call(["k3d", "cluster", "delete", name])
-        else:
-            LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
+    """Create a cluster"""
+    if config.k8s.distribution == "k3d":
+        if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
+            if recreate:
+                call(["k3d", "cluster", "delete", name])
+            else:
+                LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
+                return
+
+        if 'k3d-registry.localhost' not in [
+            registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
+        ]:
+            LOGGER.error(f"You must install local registry first (clk k8s install-local-registry)")
             return
 
-    if not is_port_available(80):
-        raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
-    if not is_port_available(443):
-        raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
+        if not is_port_available(80):
+            raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
+        if not is_port_available(443):
+            raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
 
-    import yaml
-    call([
-        'k3d', 'cluster', 'create', name,
-        '--wait',
-        '--port', '80:80@loadbalancer',
-        '--port', '443:443@loadbalancer',
-        '--registry-use', 'k3d-registry.localhost:5000',
-        '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
-        '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
-    ])  # yapf: disable
-    traefik_conf = ''
-    time.sleep(10)
-    while not traefik_conf:
+        call([
+            'k3d', 'cluster', 'create', name,
+            '--wait',
+            '--port', '80:80@loadbalancer',
+            '--port', '443:443@loadbalancer',
+            '--registry-use', 'k3d-registry.localhost:5000',
+            '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
+            '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
+            '--k3s-server-arg', '--no-deploy=traefik',
+        ])  # yapf: disable
+    elif config.k8s.distribution == "docker-desktop":
+        clusters = config.kubectl.output(["config", "get-contexts", "-o=name"])
+        if not recreate and "docker-desktop" not in clusters:
+            LOGGER.info("You must manually enable Kubernetes in Docker Desktop (Preferences -> Kubernetes -> Enable Kubernetes).")
+            if not _confirm("I confirm the enable"):
+                return
+            LOGGER.info("Waiting for cluster to start...")
+            time.sleep(60)
+        elif recreate:
+            LOGGER.info("You must manually reset Kubernetes cluster in Docker Desktop (Preferences -> Kubernetes -> Reset Kubernetes Cluster).")
+            if not _confirm("I confirm the reset"):
+                return
+            LOGGER.info("Waiting for cluster to start...")
+            time.sleep(60)
+
+        # Checking cluster is running
+        clusters = config.kubectl.output(["config", "get-contexts", "-o=name"])
+        if "docker-desktop" not in clusters:
+            LOGGER.error("Unable to find docker-desktop context. Did you enable Kubernetes in Docker Desktop ?")
+            return
         try:
-            traefik_conf = config.kubectl.output(['get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
+             config.kubectl.output(['--context', 'docker-desktop', 'cluster-info'])
         except subprocess.CalledProcessError:
-            time.sleep(5)
-    traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
-    traefik_conf['data']['traefik.toml'] = ('insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml'])
-    with temporary_file() as f:
-        f.write(yaml.dump(traefik_conf).encode('utf8'))
-        f.close()
-        config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-    config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
+             LOGGER.error("Unable to communicate with docker-desktop cluster.")
+             return
 
+        LOGGER.info("Docker Desktop Kubernetes cluster is running.")
+    else:
+        LOGGER.error("Unsupported distribution")
+        return
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v1.2.0', help="The version of cert-manager chart to install")
@@ -264,7 +313,7 @@ def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
     call(['helm', 'repo', 'add', 'jetstack', 'https://charts.jetstack.io'])
     call([
-        'helm', '--kube-context', config.kubectl.context,
+        'helm', '--kube-context', config.kubectl.current_context(),
         'upgrade', '--install', '--create-namespace', '--wait', 'cert-manager', 'jetstack/cert-manager',
         '--namespace', 'cert-manager',
         '--version', version,
@@ -303,24 +352,137 @@ def install_cert_manager(version):
         f.close()
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
+@k8s.command(flowdepends=['k8s.create-cluster'])
+@option('--version', default='v3.35.0', help="The version of ingress-nginx chart to install")
+def install_ingress_nginx(version):
+    """Install an ingress (ingress-nginx) in the current cluster"""
+    call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
+    call([
+        'helm', '--kube-context', config.kubectl.current_context(),
+        'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
+        '--namespace', 'ingress',
+        '--version', version,
+        '--set', 'rbac.create=true',
+    ])
+
+@k8s.command()
+@option('--version', default='v14.6.0', help="The version of prometheus chart to install")
+@option('--alertmanager', default=False, help="Enable alertmanager")
+@option('--pushgateway', default=False, help="Enable pushgateway")
+@option('--retention', default='1d', help="Server retention")
+@option('--persistent-volume-size', default='1Gi', help="Server persistent volume size")
+def install_prometheus(version, alertmanager, pushgateway, retention, persistent_volume_size):
+    """Install a prometheus instance in the current cluster"""
+    call(['helm', 'repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'])
+    call([
+        'helm', '--kube-context', config.kubectl.current_context(),
+        'upgrade', '--install', '--create-namespace', '--wait', 'prometheus', 'prometheus-community/prometheus',
+        '--namespace', 'monitoring',
+        '--version', version,
+        '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
+        '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
+        '--set', 'server.strategy.type=Recreate',
+        '--set', 'server.retention=' + retention,
+        '--set', 'nodeExporter.hostRootfs=' + str(not(config.k8s.distribution == "docker-desktop")).lower(),
+        '--set', 'server.persistentVolume.size=' + persistent_volume_size,
+    ])
+
+@k8s.command(flowdepends=['k8s.create-cluster'])
+def install_dnsmasq():
+    """Install a dnsmasq server resolving *.localhost to 127.0.0.1. Supported OS: macOS."""
+    if platform.system() == "Darwin":
+        call(['brew', 'install', 'dnsmasq'])
+        brew_prefix = check_output(['brew', '--prefix']).rstrip("\n")
+        with open(brew_prefix + "/etc/dnsmasq.conf", "r+") as f:
+            line_found = any("address=/localhost/127.0.0.1" in line for line in f)
+            if not line_found:
+                f.seek(0, os.SEEK_END)
+                f.write("\naddress=/localhost/127.0.0.1\n")
+        call(['sudo', 'brew', 'services', 'restart', 'dnsmasq'])
+        call(['sudo', 'mkdir', '-p', '/etc/resolver'])
+        with temporary_file() as f:
+            f.write("nameserver 127.0.0.1\n".encode('utf8'))
+            f.close()
+            call(['sudo', 'cp', f.name, '/etc/resolver/localhost'])
+        #Path("/etc/resolver").mkdir(parents=True, exist_ok=True)
+        #with open("/etc/resolver/localhost", "r+") as f:
+        #    line_found = any("nameserver 127.0.0.1" in line for line in f)
+        #    if not line_found:
+        #        f.seek(0, os.SEEK_END)
+        #        f.write("\nnameserver 127.0.0.1\n")
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @argument('domain', help="The domain name to define")
-@argument('ip', default='172.17.0.1', help="The IP address for this domain")
+@option('--ip', help="The IP address for this domain. Default: 172.17.0.1 if k3d, local ip if docker-desktop")
 def add_domain(domain, ip):
     """Add a new domain entry in K8s dns"""
     import yaml
 
     coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
     coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
-    data = f'{ip} {domain}'
-    if data not in coredns_conf['data']['NodeHosts'].split('\n'):
-        coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
-        with temporary_file() as f:
-            f.write(yaml.dump(coredns_conf).encode('utf8'))
-            f.close()
-            config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+    
+    if config.k8s.distribution == "k3d":
+        if ip is None:
+            ip = "172.17.0.1" #NOSONAR
+        data = f'{ip} {domain}'
+        if data not in coredns_conf['data']['NodeHosts'].split('\n'):
+            coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
+            with temporary_file() as f:
+                f.write(yaml.dump(coredns_conf).encode('utf8'))
+                f.close()
+                config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+    elif config.k8s.distribution == "docker-desktop":
+        if ip is None:
+            ip = socket.gethostbyname(socket.gethostname())
+        data = f'{ip} {domain}'
+        update = False
+        if 'hosts /etc/coredns/NodeHosts' not in coredns_conf['data']['Corefile']:
+            nodeHostConfig = '''    hosts /etc/coredns/NodeHosts {
+      ttl 60
+      reload 15s
+      fallthrough
+    }'''
+            corefile = ""
+            for line in coredns_conf['data']['Corefile'].split('\n'):
+                if "prometheus :9153" in line:
+                    corefile += nodeHostConfig + "\n" + line + "\n"
+                else:
+                    corefile += line + "\n"
+            coredns_conf['data']['Corefile'] = corefile[:-1]
+            update = True
+        if 'NodeHosts' not in coredns_conf['data']:
+            coredns_conf['data']['NodeHosts'] = data
+            update = True
+        if data not in coredns_conf['data']['NodeHosts'].split('\n'):
+            coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
+            update = True
+        if update:
+            with temporary_file() as f:
+                f.write(yaml.dump(coredns_conf).encode('utf8'))
+                f.close()
+                config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
 
+        coredns_dp = config.kubectl.output(['get', 'deployment', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
+        if "NodeHosts" not in coredns_dp:
+            patch = '''spec:
+  template:
+    spec:
+      volumes:
+        - name: config-volume
+          configMap:
+            name: coredns
+            items:
+              - key: Corefile
+                path: Corefile
+              - key: NodeHosts
+                path: NodeHosts
+            defaultMode: 420
+'''
+            config.kubectl.output(['patch', 'deployment', 'coredns', '-n', 'kube-system', '--patch', patch])
+
+    else:
+        LOGGER.error(f"Unsupported distribution")
+        return
 
 @k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
 def flow():
@@ -452,3 +614,14 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
                     LOGGER.action(f'writing to {f_path}')
                     f.write(values['password'])
     print(json.dumps(creds['auths']))
+
+def _confirm(msg="Confirm ?"):
+    """
+    Ask user to enter Y or N (case-insensitive).
+    :return: True if the answer is Y.
+    :rtype: bool
+    """
+    answer = ""
+    while answer not in ["y", "n"]:
+        answer = input(msg + " [Y/N] ").lower()
+    return answer == "y"
