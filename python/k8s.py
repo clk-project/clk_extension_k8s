@@ -370,6 +370,11 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
     if 'dependencies' in chart:
         update = force
+        for package in packages:
+            ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci)
+            pp = os.path.abspath(package)
+            with cd(f'{path}/charts'):
+                call(['helm', 'package', pp])
         for dep in chart['dependencies']:
             name = f'{dep["name"]}-{dep["version"]}.tgz'
             if not os.path.exists(f'{path}/charts/{name}'):
@@ -381,11 +386,6 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
                     call(['helm', 'dependency', 'update', path])
             else:
                 call(['helm', 'dependency', 'update', path])
-        for package in packages:
-            ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci)
-            pp = os.path.abspath(package)
-            with cd(f'{path}/charts'):
-                call(['helm', 'package', pp])
         if update and touch:
             LOGGER.action(f"touching {touch}")
             os.utime(touch)
