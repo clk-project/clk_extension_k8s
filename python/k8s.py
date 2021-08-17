@@ -286,19 +286,17 @@ def install_cert_manager(version):
     ])  # yapf: disable
     # generate a certificate authority for the cert-manager
     with tempdir() as d, cd(d):
-        ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl', 
+        ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl',
             'genrsa', '2048'])
         with open("ca.key", "w") as f:
             f.write(ca_key)
-            f.close()
 
         ca_crt = check_output(['docker', 'run', '--rm', '--entrypoint', '/bin/sh', 'alpine/openssl', '-c',
-            'echo -e "' + '\\n'.join(ca_key.split(sep='\n')) + 
+            'echo -e "' + '\\n'.join(ca_key.split(sep='\n')) +
                 '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650 -reqexts v3_req -extensions v3_ca',
         ])  # yapf: disable
         with open("ca.crt", "w") as f:
             f.write(ca_crt)
-            f.close()
 
         ca_secret = config.kubectl.output([
             'create', 'secret', 'tls', 'ca-key-pair',
