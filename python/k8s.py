@@ -36,6 +36,7 @@ from click_project.lib import (
     which,
     get_keyring,
     rm,
+    is_port_available,
 )
 from click_project.log import get_logger
 from click_project.config import config
@@ -245,6 +246,11 @@ def create_cluster(name, recreate):
         else:
             LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
             return
+
+    if not is_port_available(80):
+        raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
+    if not is_port_available(443):
+        raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
 
     import yaml
     call([
