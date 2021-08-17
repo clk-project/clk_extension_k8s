@@ -24,6 +24,7 @@ from click_project.lib import (
     call,
     makedirs,
     move,
+    deepcopy,
     download,
     extract,
     read,
@@ -34,6 +35,7 @@ from click_project.lib import (
     updated_env,
     which,
     get_keyring,
+    rm,
 )
 from click_project.log import get_logger
 from click_project.config import config
@@ -369,23 +371,39 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
     ctx = click.get_current_context()
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
     if 'dependencies' in chart:
+        with tempdir() as d:
+            for package in packages:
+                ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci)
+                pp = os.path.abspath(package)
+                with cd(d):
+                    call(['helm', 'package', pp])
+            generated_packages = set(os.listdir(d))
+            for gp in generated_packages:
+                rm(f'{path}/charts/{gp}')
+                move(f'{d}/{gp}', f'{path}/charts')
+        # check wether we need to update the dependencies or not
         update = force
-        for package in packages:
-            ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci)
-            pp = os.path.abspath(package)
-            with cd(f'{path}/charts'):
-                call(['helm', 'package', pp])
+        deps_to_update = []
         for dep in chart['dependencies']:
             name = f'{dep["name"]}-{dep["version"]}.tgz'
             if not os.path.exists(f'{path}/charts/{name}'):
                 LOGGER.info(f'{name} is missing, updating')
                 update = True
+                deps_to_update.append(dep)
         if update:
-            if experimental_oci:
-                with updated_env(HELM_EXPERIMENTAL_OCI='1'):
-                    call(['helm', 'dependency', 'update', path])
-            else:
-                call(['helm', 'dependency', 'update', path])
+            chart_to_update = deepcopy(chart)
+            chart['dependencies'] = deps_to_update
+            with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
+                yaml.dump(chart_to_update, f)
+                if experimental_oci:
+                    with updated_env(HELM_EXPERIMENTAL_OCI='1'):
+                        call(['helm', 'dependency', 'update', d])
+                else:
+                    call(['helm', 'dependency', 'update', d])
+                generated_dependencies = os.listdir(f'{d}/charts')
+                for gd in generated_dependencies:
+                    rm(f'{path}/charts/{gd}')
+                    move(f'{d}/charts/{gd}', f'{path}/charts')
         if update and touch:
             LOGGER.action(f"touching {touch}")
             os.utime(touch)
