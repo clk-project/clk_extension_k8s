@@ -294,8 +294,7 @@ def install_cert_manager(version):
     ])  # yapf: disable
     # generate a certificate authority for the cert-manager
     with tempdir() as d, cd(d):
-        ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl',
-            'genrsa', '2048'])
+        ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'])
         with open("ca.key", "w") as f:
             f.write(ca_key)
 
