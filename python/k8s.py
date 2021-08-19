@@ -399,7 +399,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
                 deps_to_update.append(dep)
         if update:
             chart_to_update = deepcopy(chart)
-            chart['dependencies'] = deps_to_update
+            chart_to_update['dependencies'] = deps_to_update
             with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
                 yaml.dump(chart_to_update, f)
                 if experimental_oci:
