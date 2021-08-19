@@ -384,7 +384,8 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
                     call(['helm', 'package', pp])
             generated_packages = set(os.listdir(d))
             for gp in generated_packages:
-                rm(f'{path}/charts/{gp}')
+                if os.path.exists(f'{path}/charts/{gp}'):
+                    rm(f'{path}/charts/{gp}')
                 move(f'{d}/{gp}', f'{path}/charts')
         # check wether we need to update the dependencies or not
         update = force
@@ -407,7 +408,8 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
                     call(['helm', 'dependency', 'update', d])
                 generated_dependencies = os.listdir(f'{d}/charts')
                 for gd in generated_dependencies:
-                    rm(f'{path}/charts/{gd}')
+                    if os.path.exists(f'{path}/charts/{gd}'):
+                        rm(f'{path}/charts/{gd}')
                     move(f'{d}/charts/{gd}', f'{path}/charts')
         if update and touch:
             LOGGER.action(f"touching {touch}")
