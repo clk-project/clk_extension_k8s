@@ -409,9 +409,10 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
                     call(['helm', 'dependency', 'update', d])
                 generated_dependencies = os.listdir(f'{d}/charts')
                 for gd in generated_dependencies:
+                    makedirs(f'{path}/charts')
                     if os.path.exists(f'{path}/charts/{gd}'):
                         rm(f'{path}/charts/{gd}')
-                    move(f'{d}/charts/{gd}', f'{path}/charts')
+                    move(f'{d}/charts/{gd}', f'{path}/charts/{gd}')
         if update and touch:
             LOGGER.action(f"touching {touch}")
             os.utime(touch)
