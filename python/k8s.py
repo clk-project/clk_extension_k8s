@@ -298,9 +298,11 @@ def install_cert_manager(version):
         with open("ca.key", "w") as f:
             f.write(ca_key)
 
-        ca_crt = check_output(['docker', 'run', '--rm', '--entrypoint', '/bin/sh', 'alpine/openssl', '-c',
+        ca_crt = check_output([
+            'docker', 'run', '--rm', '--entrypoint', '/bin/sh', 'alpine/openssl', '-c',
             'echo -e "' + '\\n'.join(ca_key.split(sep='\n')) +
-                '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650 -reqexts v3_req -extensions v3_ca',
+            '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650' +
+            ' -reqexts v3_req -extensions v3_ca',
         ])  # yapf: disable
         with open("ca.crt", "w") as f:
             f.write(ca_crt)
