@@ -369,8 +369,9 @@ def ipython():
 @option('--touch', '-t', help="Touch this file or directory when update is complete")
 @option('--experimental-oci/--no-experimental-oci', default=True, help="Activate experimental OCI feature")
 @option('packages', '--package', '-p', multiple=True, help="Other helm dir to package and include in the dependencies")
+@option('--remove/--no-remove', default=True, help="Remove extra dependency that may still be there")
 @argument('path', default='.', required=False, help="Helm chart path")
-def helm_dependency_update(path, force, touch, experimental_oci, packages):
+def helm_dependency_update(path, force, touch, experimental_oci, packages, remove):
     """Update helm dependencies"""
     import yaml
     ctx = click.get_current_context()
@@ -378,7 +379,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
     if 'dependencies' in chart:
         with tempdir() as d:
             for package in packages:
-                ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci)
+                ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci, remove=remove)
                 pp = os.path.abspath(package)
                 with cd(d):
                     call(['helm', 'package', pp])
@@ -414,6 +415,11 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages):
         if update and touch:
             LOGGER.action(f"touching {touch}")
             os.utime(touch)
+    if remove:
+        depArchives = set(f'{dep["name"]}-{dep["version"]}.tgz' for dep in chart.get('dependencies', []))
+        for archive in os.listdir(f'{path}/charts'):
+            if archive not in depArchives:
+                rm(f'{path}/charts/{archive}')
 
 
 @k8s.command()
