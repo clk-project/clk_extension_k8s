@@ -379,7 +379,11 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     if 'dependencies' in chart:
         with tempdir() as d:
             for package in packages:
-                ctx.invoke(helm_dependency_update, path=package, force=force, experimental_oci=experimental_oci, remove=remove)
+                ctx.invoke(helm_dependency_update,
+                           path=package,
+                           force=force,
+                           experimental_oci=experimental_oci,
+                           remove=remove)
                 pp = os.path.abspath(package)
                 with cd(d):
                     call(['helm', 'package', pp])
