@@ -420,6 +420,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
         depArchives = set(f'{dep["name"]}-{dep["version"]}.tgz' for dep in chart.get('dependencies', []))
         for archive in os.listdir(f'{path}/charts'):
             if archive not in depArchives:
+                LOGGER.warning(f"Removing extra dependency: {archive}")
                 rm(f'{path}/charts/{archive}')
 
 
