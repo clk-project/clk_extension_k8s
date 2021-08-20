@@ -675,9 +675,14 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     """Update helm dependencies
 
     It does the same thing as the command helm dependency update, but better."""
+    chart_path = Path(f'{path}/Chart.yaml')
+    if not chart_path.exists():
+        raise click.UsageError(f"No file Chart.yaml in the directory {Path(path).resolve()}."
+                               " You must provide as argument the path to a"
+                               " root helm chart directory (meaning with Chart.yaml inside)")
     import yaml
     ctx = click.get_current_context()
-    chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
+    chart = yaml.load(chart_path.open(), Loader=yaml.FullLoader)
     # generate the packages
     generated_packages = set()
     with tempdir() as d:
