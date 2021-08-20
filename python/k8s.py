@@ -384,10 +384,10 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
         # call the same command without --package for each package
         for package in packages:
             ctx.invoke(helm_dependency_update,
-                        path=package,
-                        force=force,
-                        experimental_oci=experimental_oci,
-                        remove=remove)
+                       path=package,
+                       force=force,
+                       experimental_oci=experimental_oci,
+                       remove=remove)
             pp = os.path.abspath(package)
             with cd(d):
                 call(['helm', 'package', pp])
