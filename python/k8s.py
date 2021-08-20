@@ -435,7 +435,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
                 if os.path.exists(f'{path}/charts/{gd}'):
                     rm(f'{path}/charts/{gd}')
                 move(f'{d}/charts/{gd}', f'{path}/charts/{gd}')
-    if deps_to_update and touch:
+    if (deps_to_update or packages) and touch:
         LOGGER.action(f"touching {touch}")
         os.utime(touch)
     if remove:
