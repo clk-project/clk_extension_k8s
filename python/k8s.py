@@ -440,7 +440,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
         os.utime(touch)
     if remove:
         for archive in os.listdir(f'{path}/charts'):
-            if archive not in depArchives:
+            if archive.endswith('.tgz') and archive not in depArchives:
                 LOGGER.warning(f"Removing extra dependency: {archive}")
                 rm(f'{path}/charts/{archive}')
 
