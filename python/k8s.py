@@ -672,7 +672,9 @@ def ipython():
 @option('--remove/--no-remove', default=True, help="Remove extra dependency that may still be there")
 @argument('path', default='.', required=False, help="Helm chart path")
 def helm_dependency_update(path, force, touch, experimental_oci, packages, remove):
-    """Update helm dependencies"""
+    """Update helm dependencies
+
+    It does the same thing as the command helm dependency update, but better."""
     import yaml
     ctx = click.get_current_context()
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
