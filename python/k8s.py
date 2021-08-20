@@ -1,45 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-import os
-import subprocess
 import grp
 import json
+import os
 import re
+import subprocess
 import sys
 import time
 from pathlib import Path
 from shlex import split
 
 import click
-
-from click_project.decorators import (
-    argument,
-    group,
-    option,
-    flag,
-    param_config,
-)
-from click_project.lib import (
-    call,
-    makedirs,
-    move,
-    deepcopy,
-    download,
-    extract,
-    read,
-    tempdir,
-    temporary_file,
-    cd,
-    check_output,
-    updated_env,
-    which,
-    get_keyring,
-    rm,
-    is_port_available,
-)
-from click_project.log import get_logger
 from click_project.config import config
+from click_project.decorators import (argument, flag, group, option,
+                                      param_config)
+from click_project.lib import (call, cd, check_output, deepcopy, download,
+                               extract, get_keyring, is_port_available,
+                               makedirs, move, read, rm, tempdir,
+                               temporary_file, updated_env, which)
+from click_project.log import get_logger
 
 LOGGER = get_logger(__name__)
 
