@@ -378,52 +378,67 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     import yaml
     ctx = click.get_current_context()
     chart = yaml.load(open(f'{path}/Chart.yaml'), Loader=yaml.FullLoader)
-    if 'dependencies' in chart:
-        with tempdir() as d:
-            for package in packages:
-                ctx.invoke(helm_dependency_update,
-                           path=package,
-                           force=force,
-                           experimental_oci=experimental_oci,
-                           remove=remove)
-                pp = os.path.abspath(package)
-                with cd(d):
-                    call(['helm', 'package', pp])
-            generated_packages = set(os.listdir(d))
-            for gp in generated_packages:
-                if os.path.exists(f'{path}/charts/{gp}'):
-                    rm(f'{path}/charts/{gp}')
-                move(f'{d}/{gp}', f'{path}/charts')
-        # check wether we need to update the dependencies or not
-        update = force
-        deps_to_update = []
-        for dep in chart['dependencies']:
-            name = f'{dep["name"]}-{dep["version"]}.tgz'
-            if not os.path.exists(f'{path}/charts/{name}'):
-                LOGGER.info(f'{name} is missing, updating')
-                update = True
-                deps_to_update.append(dep)
-        if update:
-            chart_to_update = deepcopy(chart)
-            chart_to_update['dependencies'] = deps_to_update
-            with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
-                yaml.dump(chart_to_update, f)
-                if experimental_oci:
-                    with updated_env(HELM_EXPERIMENTAL_OCI='1'):
-                        call(['helm', 'dependency', 'update', d])
-                else:
+    # generate the packages
+    generated_packages = set()
+    with tempdir() as d:
+        # call the same command without --package for each package
+        for package in packages:
+            ctx.invoke(helm_dependency_update,
+                        path=package,
+                        force=force,
+                        experimental_oci=experimental_oci,
+                        remove=remove)
+            pp = os.path.abspath(package)
+            with cd(d):
+                call(['helm', 'package', pp])
+        # and move the generated packages to the chart dir
+        generated_packages = set(os.listdir(d))
+        for gp in generated_packages:
+            if os.path.exists(f'{path}/charts/{gp}'):
+                rm(f'{path}/charts/{gp}')
+            move(f'{d}/{gp}', f'{path}/charts')
+    # check wether we need to update the dependencies or not
+    deps_to_update = []
+    depArchives = set()
+    for dep in chart.get('dependencies', []):
+        name = f'{dep["name"]}-{dep["version"]}.tgz'
+        matched_generated_packages = [gp for gp in generated_packages if name.startswith(gp[:-len('.tgz')])]
+        if force and not matched_generated_packages:
+            depArchives.add(name)
+            deps_to_update.append(dep)
+        if os.path.exists(f'{path}/charts/{name}'):
+            depArchives.add(name)
+        elif matched_generated_packages:
+            LOGGER.warning(f"{name} loosely matched to package {matched_generated_packages[0]}")
+            depArchives.add(matched_generated_packages[0])
+        else:
+            LOGGER.info(f"{name} is missing, updating")
+            depArchives.add(name)
+            deps_to_update.append(dep)
+    if deps_to_update:
+        # create a copy of Chart.yaml without the dependencies we don't want to redownload
+        # in a temporary directory
+        chart_to_update = deepcopy(chart)
+        chart_to_update['dependencies'] = deps_to_update
+        with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
+            yaml.dump(chart_to_update, f)
+            # download the dependencies
+            if experimental_oci:
+                with updated_env(HELM_EXPERIMENTAL_OCI='1'):
                     call(['helm', 'dependency', 'update', d])
-                generated_dependencies = os.listdir(f'{d}/charts')
-                for gd in generated_dependencies:
-                    makedirs(f'{path}/charts')
-                    if os.path.exists(f'{path}/charts/{gd}'):
-                        rm(f'{path}/charts/{gd}')
-                    move(f'{d}/charts/{gd}', f'{path}/charts/{gd}')
-        if update and touch:
-            LOGGER.action(f"touching {touch}")
-            os.utime(touch)
+            else:
+                call(['helm', 'dependency', 'update', d])
+            # and move them to the real charts directory
+            generated_dependencies = set(os.listdir(f'{d}/charts'))
+            for gd in generated_dependencies:
+                makedirs(f'{path}/charts')
+                if os.path.exists(f'{path}/charts/{gd}'):
+                    rm(f'{path}/charts/{gd}')
+                move(f'{d}/charts/{gd}', f'{path}/charts/{gd}')
+    if deps_to_update and touch:
+        LOGGER.action(f"touching {touch}")
+        os.utime(touch)
     if remove:
-        depArchives = set(f'{dep["name"]}-{dep["version"]}.tgz' for dep in chart.get('dependencies', []))
         for archive in os.listdir(f'{path}/charts'):
             if archive not in depArchives:
                 LOGGER.warning(f"Removing extra dependency: {archive}")
