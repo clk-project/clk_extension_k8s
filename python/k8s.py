@@ -13,12 +13,31 @@ from shlex import split
 
 import click
 from click_project.config import config
-from click_project.decorators import (argument, flag, group, option,
-                                      param_config)
-from click_project.lib import (call, cd, check_output, deepcopy, download,
-                               extract, get_keyring, is_port_available,
-                               makedirs, move, read, rm, tempdir,
-                               temporary_file, updated_env, which)
+from click_project.decorators import (
+    argument,
+    flag,
+    group,
+    option,
+    param_config,
+)
+from click_project.lib import (
+    call,
+    cd,
+    check_output,
+    deepcopy,
+    download,
+    extract,
+    get_keyring,
+    is_port_available,
+    makedirs,
+    move,
+    read,
+    rm,
+    tempdir,
+    temporary_file,
+    updated_env,
+    which,
+)
 from click_project.log import get_logger
 
 LOGGER = get_logger(__name__)
@@ -397,6 +416,7 @@ def create_cluster(recreate):
             f.close()
             call(['kind', 'create', 'cluster', '--config', f.name])
 
+
 @option('--version', default='v1.2.0', help="The version of cert-manager chart to install")
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
@@ -441,6 +461,7 @@ def install_cert_manager(version):
         f.close()
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
+
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v3.35.0', help="The version of ingress-nginx chart to install")
 @option('--controller-hostport', default=False, help="Enable controller host port")
@@ -462,6 +483,7 @@ def install_ingress_nginx(version, controller_hostport, controller_hostport_http
         '--version', version,
         '--set', 'rbac.create=true'
     ] + helm_extra_args)
+
 
 @k8s.command()
 @option('--version', default='v14.6.0', help="The version of prometheus chart to install")
@@ -485,7 +507,7 @@ def install_prometheus(version, alertmanager, pushgateway, retention, persistent
         '--set', 'server.persistentVolume.size=' + persistent_volume_size,
     ])
 
-    
+
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v0.0.99', help="The version of reloader chart to install")
 def install_reloader(version):
