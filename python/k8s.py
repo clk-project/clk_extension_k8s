@@ -65,14 +65,14 @@ class KubeCtl:
 
     def call(self, arguments):
         context = self.context
-        if context != None:
+        if context is not None:
             call(['kubectl', '--context', context] + arguments)
         else:
             call(['kubectl'] + arguments)
 
     def output(self, arguments):
         context = self.context
-        if context != None:
+        if context is not None:
             return check_output(['kubectl', '--context', context] + arguments)
         else:
             return check_output(['kubectl'] + arguments)
@@ -81,7 +81,7 @@ class KubeCtl:
 @group()
 @param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use")
 @param_config('k8s', '--distribution', '-d', help="Distribution to use", default='k3d',
-              type=click.Choice(['k3d', 'kind']))
+              type=click.Choice(['k3d', 'kind']))  # yapf: disable
 def k8s():
     """Manipulate k8s"""
 
@@ -380,7 +380,6 @@ def create_cluster(recreate):
     else:
         raise click.ClickException("Unsupported distribution")
 
-
     if not is_port_available(80):
         raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
     if not is_port_available(443):
@@ -475,14 +474,14 @@ def install_ingress_nginx(version):
             helm_extra_args += [
                 '--set', 'controller.service.type=NodePort',
                 '--set', 'controller.hostPort.enabled=true',
-            ]
+            ]  # yapf: disable
         call([
             'helm', '--kube-context', config.kubectl.context,
             'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
             '--namespace', 'ingress',
             '--version', version,
             '--set', 'rbac.create=true'
-        ] + helm_extra_args)
+        ] + helm_extra_args)  # yapf: disable
 
 
 @k8s.command()
@@ -505,7 +504,7 @@ def install_prometheus(version, alertmanager, pushgateway, retention, persistent
         '--set', 'server.retention=' + retention,
         '--set', 'nodeExporter.hostRootfs=' + str(not(config.k8s.distribution == "docker-desktop")).lower(),
         '--set', 'server.persistentVolume.size=' + persistent_volume_size,
-    ])
+    ])  # yapf: disable
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
