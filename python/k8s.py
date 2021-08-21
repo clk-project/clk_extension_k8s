@@ -13,12 +13,31 @@ from shlex import split
 
 import click
 from click_project.config import config
-from click_project.decorators import (argument, flag, group, option,
-                                      param_config)
-from click_project.lib import (call, cd, check_output, deepcopy, download,
-                               extract, get_keyring, is_port_available,
-                               makedirs, move, read, rm, tempdir,
-                               temporary_file, updated_env, which)
+from click_project.decorators import (
+    argument,
+    flag,
+    group,
+    option,
+    param_config,
+)
+from click_project.lib import (
+    call,
+    cd,
+    check_output,
+    deepcopy,
+    download,
+    extract,
+    get_keyring,
+    is_port_available,
+    makedirs,
+    move,
+    read,
+    rm,
+    tempdir,
+    temporary_file,
+    updated_env,
+    which,
+)
 from click_project.log import get_logger
 
 LOGGER = get_logger(__name__)
@@ -35,6 +54,8 @@ class KubeCtl:
         else:
             if config.k8s.distribution == "k3d":
                 return "k3d-k3s-default"
+            if config.k8s.distribution == "kind":
+                return "kind-kind"
             else:
                 return None
 
@@ -44,14 +65,14 @@ class KubeCtl:
 
     def call(self, arguments):
         context = self.context
-        if context != None:
+        if context is not None:
             call(['kubectl', '--context', context] + arguments)
         else:
             call(['kubectl'] + arguments)
 
     def output(self, arguments):
         context = self.context
-        if context != None:
+        if context is not None:
             return check_output(['kubectl', '--context', context] + arguments)
         else:
             return check_output(['kubectl'] + arguments)
@@ -59,17 +80,65 @@ class KubeCtl:
 
 @group()
 @param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use")
-@param_config('k8s', '--distribution', '-d', help="Distribution to use. Supported: k3d, docker-desktop", default='k3d')
+@param_config('k8s', '--distribution', '-d', help="Distribution to use", default='k3d',
+              type=click.Choice(['k3d', 'kind']))  # yapf: disable
 def k8s():
     """Manipulate k8s"""
 
 
 bin_dir = Path('~/.local/bin').expanduser()
 k3d_url = 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64'
+kind_url = 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64'
 helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
+kubectl_buildkit_url = \
+    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
 tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.22.3/tilt.0.22.3.linux.x86_64.tar.gz'
-k3d_dir = os.path.expanduser('~/.k3d')
+kind_config = """
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kind
+kubeadmConfigPatches:
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: ClusterConfiguration
+  metadata:
+    name: config
+  apiServer:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+  scheduler:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+  controllerManager:
+    extraArgs:
+      "feature-gates": "EphemeralContainers=true"
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: InitConfiguration
+  metadata:
+    name: config
+  nodeRegistration:
+    kubeletExtraArgs:
+      "feature-gates": "EphemeralContainers=true"
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+        eviction-hard: "imagefs.available<1%,nodefs.available<1%"
+        eviction-minimum-reclaim: "imagefs.available=1%,nodefs.available=1%"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+"""
 
 cluster_issuer = '''apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -97,6 +166,25 @@ def doctor():
 def install_dependency():
     """Install the dependencies needed to setup the stack"""
     # call(['sudo', 'apt', 'install', 'libnss-myhostname', 'docker.io'])
+
+
+@install_dependency.command()
+@flag('--force', help="Overwrite the existing binaries")
+def kind(force):
+    """Install kind"""
+    kind_version = re.search('/(v[0-9.]+)/', kind_url).group(1)
+    if not force and not which("kind"):
+        force = True
+        LOGGER.info("Could not find kind")
+    if which("kind"):
+        found_kind_version = re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
+    if not force and found_kind_version != kind_version:
+        force = True
+        LOGGER.info(f"Found an older version of kind ({found_kind_version}) than the requested one {kind_version}")
+    if force:
+        download(kind_url, outdir=bin_dir, outfilename='kind', mode=0o755)
+    else:
+        LOGGER.info("No need to install kind, force with --force")
 
 
 @install_dependency.command()
@@ -184,13 +272,43 @@ def kubectl(force):
 
 @install_dependency.command()
 @flag('--force', help="Overwrite the existing binaries")
+def kubectl_buildkit(force):
+    """Install kubectl buildkit"""
+    kubectl_buildkit_version = re.search('/(v[0-9.]+)/', kubectl_buildkit_url).group(1)
+    found_kubectl_buildkit_version = False
+    try:
+        found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'])
+        found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
+    except subprocess.CalledProcessError:
+        found_kubectl_buildkit_version = False
+
+    if not force and not found_kubectl_buildkit_version:
+        force = True
+        LOGGER.info("Could not find kubectl buildkit")
+    if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
+        force = True
+        LOGGER.info(f"Found an older version of kubectl buildkit "
+                    f"({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
+    if force:
+        with tempdir() as d:
+            extract(kubectl_buildkit_url, d)
+            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
+            move(Path(d) / 'kubectl-buildkit', bin_dir / 'kubectl-buildkit')
+    else:
+        LOGGER.info("No need to install kubectl buildkit, force with --force")
+
+
+@install_dependency.command()
+@flag('--force', help="Overwrite the existing binaries")
 def _all(force):
     """Install all the dependencies"""
     ctx = click.get_current_context()
     ctx.invoke(kubectl, force=force)
+    ctx.invoke(kubectl_buildkit, force=force)
     ctx.invoke(helm, force=force)
     ctx.invoke(tilt, force=force)
     ctx.invoke(k3d, force=force)
+    ctx.invoke(kind, force=force)
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
@@ -240,23 +358,34 @@ def install_local_registry(reinstall):
 
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
-@argument('name', default='k3s-default', help="The name of the cluster to create. Supported distribution: k3d")
 @flag('--recreate', help="Recreate it if it already exists")
-def create_cluster(name, recreate):
+def create_cluster(recreate):
     """Create a k3d cluster"""
     if config.k8s.distribution == "k3d":
+        name = 'k3s-default'
         if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
             if recreate:
                 call(["k3d", "cluster", "delete", name])
             else:
                 LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
                 return
+    elif config.k8s.distribution == 'kind':
+        name = 'kind'
+        if name in check_output('kind get clusters'.split()).split('\n'):
+            if recreate:
+                call(['kind', 'delete', 'clusters', name])
+            else:
+                LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
+                return
+    else:
+        raise click.ClickException("Unsupported distribution")
 
-        if not is_port_available(80):
-            raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
-        if not is_port_available(443):
-            raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
+    if not is_port_available(80):
+        raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
+    if not is_port_available(443):
+        raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
 
+    if config.k8s.distribution == "k3d":
         import yaml
         call([
             'k3d', 'cluster', 'create', name,
@@ -281,10 +410,14 @@ def create_cluster(name, recreate):
             f.close()
             config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
         config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
-    else:
-        raise click.ClickException("Unsupported distribution")
+    elif config.k8s.distribution == "kind":
+        with temporary_file() as f:
+            f.write(kind_config.encode('utf8'))
+            f.close()
+            call(['kind', 'create', 'cluster', '--config', f.name])
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
+
+@k8s.command(flowdepends=['k8s.install-ingress-nginx'])
 @option('--version', default='v1.2.0', help="The version of cert-manager chart to install")
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
@@ -329,27 +462,27 @@ def install_cert_manager(version):
         f.close()
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
+
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v3.35.0', help="The version of ingress-nginx chart to install")
-@option('--controller-hostport', default=False, help="Enable controller host port")
-@option('--controller-hostport-http', default=80, help="Custom HTTP host port")
-@option('--controller-hostport-https', default=443, help="Custom HTTPS host port")
-def install_ingress_nginx(version, controller_hostport, controller_hostport_http, controller_hostport_https):
+def install_ingress_nginx(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
-    call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
-    helm_extra_args = []
-    if controller_hostport:
-        helm_extra_args += ['--set', 'controller.service.type=ClusterIP',
-                            '--set', 'controller.hostPort.enabled=true',
-                            '--set', 'controller.hostPort.ports.http=' + str(controller_hostport_http),
-                            '--set', 'controller.hostPort.ports.https=' + str(controller_hostport_https)]
-    call([
-        'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
-        '--namespace', 'ingress',
-        '--version', version,
-        '--set', 'rbac.create=true'
-    ] + helm_extra_args)
+    if config.k8s.distribution != 'k3d':
+        call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
+        helm_extra_args = []
+        if config.k8s.distribution == 'kind':
+            helm_extra_args += [
+                '--set', 'controller.service.type=NodePort',
+                '--set', 'controller.hostPort.enabled=true',
+            ]  # yapf: disable
+        call([
+            'helm', '--kube-context', config.kubectl.context,
+            'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
+            '--namespace', 'ingress',
+            '--version', version,
+            '--set', 'rbac.create=true'
+        ] + helm_extra_args)  # yapf: disable
+
 
 @k8s.command()
 @option('--version', default='v14.6.0', help="The version of prometheus chart to install")
@@ -371,9 +504,9 @@ def install_prometheus(version, alertmanager, pushgateway, retention, persistent
         '--set', 'server.retention=' + retention,
         '--set', 'nodeExporter.hostRootfs=' + str(not(config.k8s.distribution == "docker-desktop")).lower(),
         '--set', 'server.persistentVolume.size=' + persistent_volume_size,
-    ])
+    ])  # yapf: disable
 
-    
+
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v0.0.99', help="The version of reloader chart to install")
 def install_reloader(version):
@@ -409,9 +542,9 @@ def install_dnsmasq():
 @argument('ip', default='172.17.0.1', help="The IP address for this domain")
 def add_domain(domain, ip):
     """Add a new domain entry in K8s dns"""
-    if config.k8s.distribution == "k3d":
-        import yaml
+    import yaml
 
+    if config.k8s.distribution == "k3d":
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
         data = f'{ip} {domain}'
@@ -421,8 +554,36 @@ def add_domain(domain, ip):
                 f.write(yaml.dump(coredns_conf).encode('utf8'))
                 f.close()
                 config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-    else:
-        raise click.ClickException("Unsupported distribution")
+    if config.k8s.distribution == "kind":
+        coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
+        coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
+        top_level_domain = domain.split('.')[-1]
+        update = False
+        if f'hosts custom.hosts {top_level_domain}' not in coredns_conf['data']['Corefile']:
+            data = '''
+        hosts custom.hosts %s {
+            fallthrough
+        }
+            '''
+            data = data % top_level_domain
+            last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
+            coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n'
+            update = True
+        data = f'{ip} {domain}'
+        header, hosts, footer = re.match(
+            r'^(.+hosts custom.hosts ' + top_level_domain + r' \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
+            coredns_conf['data']['Corefile'], re.DOTALL).groups()
+        if f'{data}\n' not in hosts:
+            update = True
+            coredns_conf['data']['Corefile'] = header + hosts + f'        {data}\n' + footer
+
+        if update:
+            with temporary_file() as f:
+                f.write(yaml.dump(coredns_conf).encode('utf8'))
+                f.close()
+                config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+                config.kubectl.call(['rollout', 'restart', '-n', 'kube-system', 'deployment/coredns'])
+
 
 @k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
 def flow():
@@ -434,10 +595,14 @@ def flow():
 @argument('target', type=click.Choice(['cluster', 'registry', 'all']), default='all', help="What should removed")
 def remove(target):
     """Remove the k8s cluster"""
-    if target in ['all', 'cluster']:
-        call(['k3d', 'cluster', 'delete'])
-    if target in ['all', 'registry']:
-        call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
+    if config.k8s.distribution == "k3d":
+        if target in ['all', 'cluster']:
+            call(['k3d', 'cluster', 'delete'])
+        if target in ['all', 'registry']:
+            call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
+    elif config.k8s.distribution == "kind":
+        if target in ['all', 'cluster']:
+            call(['kind', 'delete', 'cluster'])
 
 
 @k8s.command()
@@ -554,3 +719,17 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
                     LOGGER.action(f'writing to {f_path}')
                     f.write(values['password'])
     print(json.dumps(creds['auths']))
+
+
+@k8s.command()
+@option('--max-parallelism', '-j', default=1, help="Maximum parallelism")
+@argument('name', default='buildkit', required=False, help="Runner name")
+def create_buildkit_runner(max_parallelism, name):
+    """Create a buildkit runner"""
+    conf = f'''debug = false
+[worker.containerd]
+  namespace = "k8s.io"
+  max-parallelism = {max_parallelism}
+'''
+    with temporary_file(content=conf) as f:
+        call(['kubectl', 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
