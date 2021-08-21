@@ -243,8 +243,8 @@ def install_local_registry(reinstall):
 @argument('name', default='k3s-default', help="The name of the cluster to create. Supported distribution: k3d")
 @flag('--recreate', help="Recreate it if it already exists")
 def create_cluster(name, recreate):
+    """Create a k3d cluster"""
     if config.k8s.distribution == "k3d":
-        """Create a k3d cluster"""
         if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
             if recreate:
                 call(["k3d", "cluster", "delete", name])
@@ -334,8 +334,8 @@ def install_cert_manager(version):
 @argument('domain', help="The domain name to define")
 @argument('ip', default='172.17.0.1', help="The IP address for this domain")
 def add_domain(domain, ip):
+    """Add a new domain entry in K8s dns"""
     if config.k8s.distribution == "k3d":
-        """Add a new domain entry in K8s dns"""
         import yaml
 
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
