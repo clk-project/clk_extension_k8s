@@ -303,6 +303,27 @@ def install_cert_manager(version):
         f.close()
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
+@k8s.command(flowdepends=['k8s.create-cluster'])
+@option('--version', default='v3.35.0', help="The version of ingress-nginx chart to install")
+@option('--controller-hostport', default=False, help="Enable controller host port")
+@option('--controller-hostport-http', default=80, help="Custom HTTP host port")
+@option('--controller-hostport-https', default=443, help="Custom HTTPS host port")
+def install_ingress_nginx(version, controller_hostport, controller_hostport_http, controller_hostport_https):
+    """Install an ingress (ingress-nginx) in the current cluster"""
+    call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
+    helm_extra_args = []
+    if controller_hostport:
+        helm_extra_args += ['--set', 'controller.service.type=ClusterIP',
+                            '--set', 'controller.hostPort.enabled=true',
+                            '--set', 'controller.hostPort.ports.http=' + str(controller_hostport_http),
+                            '--set', 'controller.hostPort.ports.https=' + str(controller_hostport_https)]
+    call([
+        'helm', '--kube-context', config.kubectl.context,
+        'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
+        '--namespace', 'ingress',
+        '--version', version,
+        '--set', 'rbac.create=true'
+    ] + helm_extra_args)
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @argument('domain', help="The domain name to define")
