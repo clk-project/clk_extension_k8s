@@ -26,17 +26,36 @@ LOGGER = get_logger(__name__)
 
 class KubeCtl:
     def __init__(self):
-        self.context = None
+        self._context = None
+
+    @property
+    def context(self):
+        if self._context is not None:
+            return self._context
+        else:
+            if config.k8s.distribution == "k3d":
+                return "k3d-k3s-default"
+            else:
+                return None
 
     def call(self, arguments):
-        call(['kubectl', '--context', self.context] + arguments)
+        context = self.context
+        if context != None:
+            call(['kubectl', '--context', context] + arguments)
+        else:
+            call(['kubectl'] + arguments)
 
     def output(self, arguments):
-        return check_output(['kubectl', '--context', self.context] + arguments)
+        context = self.context
+        if context != None:
+            return check_output(['kubectl', '--context', context] + arguments)
+        else:
+            return check_output(['kubectl'] + arguments)
 
 
 @group()
-@param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use", default='k3d-k3s-default')
+@param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use")
+@param_config('k8s', '--distribution', '-d', help="Distribution to use. Supported: k3d, docker-desktop", default='k3d')
 def k8s():
     """Manipulate k8s"""
 
@@ -202,61 +221,64 @@ def install_docker_registry_secret(registry_provider, username, password):
 @k8s.command(flowdepends=['k8s.install-dependency.all'])
 @flag('--reinstall', help="Reinstall it if it already exists")
 def install_local_registry(reinstall):
-    """Install the local registry"""
-    if 'k3d-registry.localhost' in [
-            registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
-    ]:
-        if reinstall:
-            ctx = click.get_current_context()
-            ctx.invoke(remove, target='registry')
-        else:
-            LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
-            return
-    call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
+    """Install k3d local registry"""
+    if config.k8s.distribution == "k3d":
+        if 'k3d-registry.localhost' in [
+                registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
+        ]:
+            if reinstall:
+                ctx = click.get_current_context()
+                ctx.invoke(remove, target='registry')
+            else:
+                LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
+                return
+        call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
 
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
-@argument('name', default='k3s-default', help="The name of the cluster to create")
+@argument('name', default='k3s-default', help="The name of the cluster to create. Supported distribution: k3d")
 @flag('--recreate', help="Recreate it if it already exists")
 def create_cluster(name, recreate):
-    """Create a k3d cluster"""
-    if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
-        if recreate:
-            call(["k3d", "cluster", "delete", name])
-        else:
-            LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
-            return
+    if config.k8s.distribution == "k3d":
+        """Create a k3d cluster"""
+        if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
+            if recreate:
+                call(["k3d", "cluster", "delete", name])
+            else:
+                LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
+                return
 
-    if not is_port_available(80):
-        raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
-    if not is_port_available(443):
-        raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
+        if not is_port_available(80):
+            raise click.ClickException("Port 80 is already in use by another process. Please stop this process and retry.")
+        if not is_port_available(443):
+            raise click.ClickException("Port 443 is already in use by another process. Please stop this process and retry.")
 
-    import yaml
-    call([
-        'k3d', 'cluster', 'create', name,
-        '--wait',
-        '--port', '80:80@loadbalancer',
-        '--port', '443:443@loadbalancer',
-        '--registry-use', 'k3d-registry.localhost:5000',
-        '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
-        '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
-    ])  # yapf: disable
-    traefik_conf = ''
-    time.sleep(10)
-    while not traefik_conf:
-        try:
-            traefik_conf = config.kubectl.output(['get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
-        except subprocess.CalledProcessError:
-            time.sleep(5)
-    traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
-    traefik_conf['data']['traefik.toml'] = ('insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml'])
-    with temporary_file() as f:
-        f.write(yaml.dump(traefik_conf).encode('utf8'))
-        f.close()
-        config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-    config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
-
+        import yaml
+        call([
+            'k3d', 'cluster', 'create', name,
+            '--wait',
+            '--port', '80:80@loadbalancer',
+            '--port', '443:443@loadbalancer',
+            '--registry-use', 'k3d-registry.localhost:5000',
+            '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
+            '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
+        ])  # yapf: disable
+        traefik_conf = ''
+        time.sleep(10)
+        while not traefik_conf:
+            try:
+                traefik_conf = config.kubectl.output(['get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
+            except subprocess.CalledProcessError:
+                time.sleep(5)
+        traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
+        traefik_conf['data']['traefik.toml'] = ('insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml'])
+        with temporary_file() as f:
+            f.write(yaml.dump(traefik_conf).encode('utf8'))
+            f.close()
+            config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+        config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
+    else:
+        raise click.ClickException("Unsupported distribution")
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v1.2.0', help="The version of cert-manager chart to install")
@@ -264,7 +286,7 @@ def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
     call(['helm', 'repo', 'add', 'jetstack', 'https://charts.jetstack.io'])
     call([
-        'helm', '--kube-context', config.kubectl.context,
+        'helm', '--kube-context', config.kubectl.context(),
         'upgrade', '--install', '--create-namespace', '--wait', 'cert-manager', 'jetstack/cert-manager',
         '--namespace', 'cert-manager',
         '--version', version,
@@ -308,19 +330,21 @@ def install_cert_manager(version):
 @argument('domain', help="The domain name to define")
 @argument('ip', default='172.17.0.1', help="The IP address for this domain")
 def add_domain(domain, ip):
-    """Add a new domain entry in K8s dns"""
-    import yaml
+    if config.k8s.distribution == "k3d":
+        """Add a new domain entry in K8s dns"""
+        import yaml
 
-    coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
-    coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
-    data = f'{ip} {domain}'
-    if data not in coredns_conf['data']['NodeHosts'].split('\n'):
-        coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
-        with temporary_file() as f:
-            f.write(yaml.dump(coredns_conf).encode('utf8'))
-            f.close()
-            config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-
+        coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
+        coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
+        data = f'{ip} {domain}'
+        if data not in coredns_conf['data']['NodeHosts'].split('\n'):
+            coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
+            with temporary_file() as f:
+                f.write(yaml.dump(coredns_conf).encode('utf8'))
+                f.close()
+                config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
+    else:
+        raise click.ClickException("Unsupported distribution")
 
 @k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
 def flow():
