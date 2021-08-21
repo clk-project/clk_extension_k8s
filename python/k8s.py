@@ -370,6 +370,7 @@ def create_cluster(recreate):
                 LOGGER.info(f"A cluster with the name {name} already exists. Nothing to do.")
                 return
     elif config.k8s.distribution == 'kind':
+        name = 'kind'
         if name in check_output('kind get clusters'.split()).split('\n'):
             if recreate:
                 call(['kind', 'delete', 'clusters', name])
