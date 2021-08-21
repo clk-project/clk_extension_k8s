@@ -10,6 +10,7 @@ import sys
 import time
 from pathlib import Path
 from shlex import split
+from clk.lib import parse_version
 
 import click
 from click_project.config import config
@@ -162,6 +163,10 @@ def doctor():
     if sys.platform == 'linux':
         if 'docker' not in [grp.getgrgid(g).gr_name for g in os.getgroups()]:
             raise click.UsageError("You need to add the current user in the docker group")
+    elif sys.platform == "darwin":
+        homebrew = which('brew')
+        if homebrew is None:
+            raise click.UsageError("You need to install homebrew")
     LOGGER.info("We did not find a reason to believe you will have trouble playing with the stack")
 
 
@@ -200,13 +205,18 @@ def k3d(force):
         LOGGER.info("Could not find k3d")
     if which("k3d"):
         found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
-    if not force and found_k3d_version != k3d_version:
+    if not force and parse_version(found_k3d_version) < parse_version(k3d_version):
         force = True
         LOGGER.info(f"Found an older version of k3d ({found_k3d_version}) than the requested one {k3d_version}")
     if force:
-        download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
+        if sys.platform == "linux":
+            download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
+        elif sys.platform == "darwin":
+            call(['brew', 'install', 'k3d'])
+        else:
+            raise click.ClickException("Unsupported platform")
     else:
-        LOGGER.info("No need to install k3d, force with --force")
+        LOGGER.info(f"No need to install k3d ({found_k3d_version} installed), force with --force")
 
 
 @install_dependency.command()
@@ -219,16 +229,21 @@ def helm(force):
         LOGGER.info("Could not find helm")
     if which("helm"):
         found_helm_version = re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
-    if not force and found_helm_version != helm_version:
+    if not force and parse_version(found_helm_version) < parse_version(helm_version):
         force = True
         LOGGER.info(f"Found an older version of helm ({found_helm_version}) than the requested one {helm_version}")
     if force:
-        with tempdir() as d:
-            extract(helm_url, d)
-            move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
-            (bin_dir / 'helm').chmod(0o755)
+        if sys.platform == "linux":
+            with tempdir() as d:
+                extract(helm_url, d)
+                move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
+                (bin_dir / 'helm').chmod(0o755)
+        elif sys.platform == "darwin":
+            call(['brew', 'install', 'helm'])
+        else:
+            raise click.ClickException("Unsupported platform")
     else:
-        LOGGER.info("No need to install helm, force with --force")
+        LOGGER.info(f"No need to install helm ({found_helm_version} installed), force with --force")
 
 
 @install_dependency.command()
@@ -241,15 +256,20 @@ def tilt(force):
         LOGGER.info("Could not find tilt")
     if which("tilt"):
         found_tilt_version = re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
-    if not force and found_tilt_version != tilt_version:
+    if not force and parse_version(found_tilt_version) < parse_version(tilt_version):
         force = True
         LOGGER.info(f"Found an older version of tilt ({found_tilt_version}) than the requested one {tilt_version}")
     if force:
-        with tempdir() as d:
-            extract(tilt_url, d)
-            move(Path(d) / 'tilt', bin_dir / 'tilt')
+        if sys.platform == "linux":
+            with tempdir() as d:
+                extract(tilt_url, d)
+                move(Path(d) / 'tilt', bin_dir / 'tilt')
+        elif sys.platform == "darwin":
+            call(['brew', 'install', 'tilt'])
+        else:
+            raise click.ClickException("Unsupported platform")
     else:
-        LOGGER.info('No need to install tilt, force with --force')
+        LOGGER.info(f'No need to install tilt ({found_tilt_version} installed), force with --force')
 
 
 @install_dependency.command()
@@ -263,14 +283,19 @@ def kubectl(force):
     if which("kubectl"):
         found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
                                          check_output(['kubectl', 'version', '--client=true'], failok=True)).group(1)
-    if not force and found_kubectl_version != kubectl_version:
+    if not force and parse_version(found_kubectl_version) < parse_version(kubectl_version):
         force = True
         LOGGER.info(
             f"Found an older version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}")
     if force:
-        download(kubectl_url, outdir=bin_dir, outfilename='kubectl', mode=0o755)
+        if sys.platform == "linux":
+            download(kubectl_url, outdir=bin_dir, outfilename='kubectl', mode=0o755)
+        elif sys.platform == "darwin":
+            call(['brew', 'install', 'kubectl'])
+        else:
+            raise click.ClickException("Unsupported platform")
     else:
-        LOGGER.info("No need to install kubectl, force with --force")
+        LOGGER.info(f"No need to install kubectl ({found_kubectl_version} installed), force with --force")
 
 
 @install_dependency.command()
