@@ -543,9 +543,9 @@ def install_dnsmasq():
 @argument('ip', default='172.17.0.1', help="The IP address for this domain")
 def add_domain(domain, ip):
     """Add a new domain entry in K8s dns"""
-    if config.k8s.distribution == "k3d":
-        import yaml
+    import yaml
 
+    if config.k8s.distribution == "k3d":
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
         data = f'{ip} {domain}'
