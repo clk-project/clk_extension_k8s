@@ -38,6 +38,10 @@ class KubeCtl:
             else:
                 return None
 
+    @context.setter
+    def context(self, value):
+        self._context = value
+
     def call(self, arguments):
         context = self.context
         if context != None:
