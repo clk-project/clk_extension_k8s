@@ -303,6 +303,22 @@ def install_cert_manager(version):
         f.close()
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
+@k8s.command(flowdepends=['k8s.create-cluster'])
+def install_dnsmasq():
+    """Install a dnsmasq server resolving *.localhost to 127.0.0.1. Supported OS: macOS."""
+    if sys.platform == "darwin":
+        call(['brew', 'install', 'dnsmasq'])
+        brew_prefix = check_output(['brew', '--prefix']).rstrip("\n")
+        with open(brew_prefix + "/etc/dnsmasq.conf", "r+") as f:
+            line_found = any("address=/localhost/127.0.0.1" in line for line in f)
+            if not line_found:
+                f.seek(0, os.SEEK_END)
+                f.write("\naddress=/localhost/127.0.0.1\n")
+        call(['sudo', 'brew', 'services', 'restart', 'dnsmasq'])
+        call(['sudo', 'mkdir', '-p', '/etc/resolver'])
+        with temporary_file() as f:
+            f.write("nameserver 127.0.0.1\n".encode('utf8'))
+            call(['sudo', 'cp', f.name, '/etc/resolver/localhost'])
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @argument('domain', help="The domain name to define")
