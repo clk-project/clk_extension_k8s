@@ -303,6 +303,30 @@ def install_cert_manager(version):
         f.close()
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
+
+@k8s.command()
+@option('--version', default='v14.6.0', help="The version of prometheus chart to install")
+@option('--alertmanager', default=False, help="Enable alertmanager")
+@option('--pushgateway', default=False, help="Enable pushgateway")
+@option('--retention', default='1d', help="Server retention")
+@option('--persistent-volume-size', default='1Gi', help="Server persistent volume size")
+def install_prometheus(version, alertmanager, pushgateway, retention, persistent_volume_size):
+    """Install a prometheus instance in the current cluster"""
+    call(['helm', 'repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'])
+    call([
+        'helm', '--kube-context', config.kubectl.context,
+        'upgrade', '--install', '--create-namespace', '--wait', 'prometheus', 'prometheus-community/prometheus',
+        '--namespace', 'monitoring',
+        '--version', version,
+        '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
+        '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
+        '--set', 'server.strategy.type=Recreate',
+        '--set', 'server.retention=' + retention,
+        '--set', 'nodeExporter.hostRootfs=' + str(not(config.k8s.distribution == "docker-desktop")).lower(),
+        '--set', 'server.persistentVolume.size=' + persistent_volume_size,
+    ])
+
+    
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--version', default='v0.0.99', help="The version of reloader chart to install")
 def install_reloader(version):
@@ -314,6 +338,7 @@ def install_reloader(version):
         '--namespace', 'reloader',
         '--version', version,
     ])  # yapf: disable
+
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @argument('domain', help="The domain name to define")
