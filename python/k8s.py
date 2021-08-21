@@ -417,6 +417,7 @@ def create_cluster(recreate):
             call(['kind', 'create', 'cluster', '--config', f.name])
 
 
+@k8s.command(flowdepends=['k8s.install-ingress-nginx'])
 @option('--version', default='v1.2.0', help="The version of cert-manager chart to install")
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
