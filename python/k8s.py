@@ -19,6 +19,8 @@ from click_project.decorators import (
     group,
     option,
     param_config,
+    table_fields,
+    table_format,
 )
 from click_project.lib import (
     call,
@@ -37,6 +39,7 @@ from click_project.lib import (
     temporary_file,
     updated_env,
     which,
+    TablePrinter,
 )
 from click_project.log import get_logger
 
@@ -733,3 +736,29 @@ def create_buildkit_runner(max_parallelism, name):
 '''
     with temporary_file(content=conf) as f:
         call(['kubectl', 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
+
+
+_features = {
+    'kind': {
+        'kubectl_build': True
+    },
+    'k3d': {
+        'kubectl_build': False
+    },
+}
+
+
+@k8s.command(handle_dry_run=True)
+@table_format(default='key_value')
+@table_fields(choices=['variable', 'value'])
+@argument("keys",
+          type=click.Choice(list(_features['kind'].keys())),
+          nargs=-1,
+          help="Only display these key values. If no key is provided, all the key values are displayed")
+def features(fields, format, keys):
+    """Show supported features for the current distribution"""
+    with TablePrinter(fields, format) as tp:
+        fs = _features[config.k8s.distribution]
+        keys = keys or sorted(fs.keys())
+        for k in keys:
+            tp.echo(k, fs[k])
