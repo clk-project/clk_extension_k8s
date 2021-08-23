@@ -319,9 +319,15 @@ def kubectl_buildkit(force):
                     f"({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
     if force:
         with tempdir() as d:
-            extract(kubectl_buildkit_url, d)
-            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
-            move(Path(d) / 'kubectl-buildkit', bin_dir / 'kubectl-buildkit')
+            if sys.platform == "linux":
+                extract(kubectl_buildkit_url, d)
+                move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
+                move(Path(d) / 'kubectl-buildkit', bin_dir / 'kubectl-buildkit')
+            elif sys.platform == "darwin":
+                call(['brew', 'tap', 'vmware-tanzu/buildkit-cli-for-kubectl', 'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl'])
+                call(['brew', 'install', 'kubectl-buildkit'])
+            else:
+                raise click.ClickException("Unsupported platform")
     else:
         LOGGER.info("No need to install kubectl buildkit, force with --force")
 
