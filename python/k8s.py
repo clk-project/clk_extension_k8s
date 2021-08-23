@@ -10,7 +10,6 @@ import sys
 import time
 from pathlib import Path
 from shlex import split
-from clk.lib import parse_version
 
 import click
 from click_project.config import config
@@ -41,6 +40,7 @@ from click_project.lib import (
     updated_env,
     which,
     TablePrinter,
+    parse_version
 )
 from click_project.log import get_logger
 
@@ -302,7 +302,7 @@ def kubectl(force):
 @flag('--force', help="Overwrite the existing binaries")
 def kubectl_buildkit(force):
     """Install kubectl buildkit"""
-    kubectl_buildkit_version = re.search('/(v[0-9.]+)/', kubectl_buildkit_url).group(1)
+    kubectl_buildkit_version = re.search('/v([0-9.]+)/', kubectl_buildkit_url).group(1)
     found_kubectl_buildkit_version = False
     try:
         found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'])
