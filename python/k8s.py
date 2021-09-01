@@ -498,7 +498,8 @@ def install_prometheus(version, alertmanager, pushgateway, retention, persistent
     call(['helm', 'repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'])
     call([
         'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'prometheus', 'prometheus-community/prometheus',
+        'upgrade', '--install', '--create-namespace', '--wait', 'kube-prometheus-stack',
+        'prometheus-community/kube-prometheus-stack',
         '--namespace', 'monitoring',
         '--version', version,
         '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
@@ -508,6 +509,36 @@ def install_prometheus(version, alertmanager, pushgateway, retention, persistent
         '--set', 'nodeExporter.hostRootfs=' + str(not(config.k8s.distribution == "docker-desktop")).lower(),
         '--set', 'server.persistentVolume.size=' + persistent_volume_size,
     ])  # yapf: disable
+
+
+@k8s.command(flowdepends=['k8s.create-cluster'])
+@option('--version', default='v0.50.0', help="The version of prometheus operator CRDs to install")
+def install_prometheus_operator_crds(version):
+    """Install prometheus operator CRDs in the current cluster"""
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagerconfigs.yaml'])
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml'])
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml'])
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd/monitoring.coreos.com_probes.yaml'])
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd//monitoring.coreos.com_prometheuses.yaml'])
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml'])
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml'])
+    config.kubectl.output(['apply', '-f', 'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/'
+                           + version +
+                           '/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml'])
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
