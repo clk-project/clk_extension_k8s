@@ -629,7 +629,7 @@ def add_domain(domain, ip):
                 config.kubectl.call(['rollout', 'restart', '-n', 'kube-system', 'deployment/coredns'])
 
 
-@k8s.flow_command(flowdepends=['k8s.install-cert-manager'])
+@k8s.flow_command(flowdepends=['k8s.install-cert-manager', 'k8s.install-prometheus-operator-crds'])
 def flow():
     """Run the full k8s setup flow"""
     LOGGER.status('Everything worked well. Now enjoy your new cluster ready to go!')
