@@ -826,3 +826,31 @@ def install_cilium():
             '--set', 'ipam.mode=kubernetes',
             '--set', 'operator.replicas=1',
         ])  # yapf: disable
+
+
+network_policy = """kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: deny-from-other-namespaces
+  namespace: default
+spec:
+  podSelector: {}
+  ingress:
+    - from:
+        - podSelector: {}
+          namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - podSelector: {}
+          namespaceSelector:
+            matchLabels:
+              name: logging
+  policyTypes:
+    - Ingress
+"""
+
+@k8s.command()
+def install_network_policy():
+    """Isolate the default namespace from the rest"""
+    with temporary_file(content=network_policy) as f:
+        config.kubectl.call(['apply', '-f', f.name])
