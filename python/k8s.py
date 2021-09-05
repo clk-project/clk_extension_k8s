@@ -141,6 +141,8 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
+networking:
+  disableDefaultCNI: true
 """
 
 cluster_issuer = '''apiVersion: cert-manager.io/v1
@@ -466,7 +468,7 @@ def install_cert_manager(version):
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
+@k8s.command(flowdepends=['k8s.install-cilium'])
 @option('--version', default='v3.35.0', help="The version of ingress-nginx chart to install")
 def install_ingress_nginx(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
@@ -500,9 +502,8 @@ def install_ingress_nginx(version):
 @option('--grafana-host', default='grafana.localhost', help="Grafana host")
 @option('--grafana-persistence-size', default='1Gi', help="Grafana persistent volume size")
 @option('--grafana-admin-password', default='grafana', help="Grafana admin password")
-def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, kubedns,
-                                  kube_scheduler, kube_controller_manager,
-                                  prometheus_retention, prometheus_persistence_size,
+def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, kubedns, kube_scheduler,
+                                  kube_controller_manager, prometheus_retention, prometheus_persistence_size,
                                   grafana_host, grafana_persistence_size, grafana_admin_password):
     """Install a kube-prometheus-stack instance in the current cluster"""
     call(['helm', 'repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'])
@@ -538,14 +539,14 @@ def install_prometheus_operator_crds(version):
     """Install prometheus operator CRDs in the current cluster"""
     base_url = f'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/{version}/example/prometheus-operator-crd'
     for crd in [
-        'monitoring.coreos.com_alertmanagerconfigs.yaml',
-        'monitoring.coreos.com_alertmanagers.yaml',
-        'monitoring.coreos.com_podmonitors.yaml',
-        'monitoring.coreos.com_probes.yaml',
-        'monitoring.coreos.com_prometheuses.yaml',
-        'monitoring.coreos.com_prometheusrules.yaml',
-        'monitoring.coreos.com_servicemonitors.yaml',
-        'monitoring.coreos.com_thanosrulers.yaml',
+            'monitoring.coreos.com_alertmanagerconfigs.yaml',
+            'monitoring.coreos.com_alertmanagers.yaml',
+            'monitoring.coreos.com_podmonitors.yaml',
+            'monitoring.coreos.com_probes.yaml',
+            'monitoring.coreos.com_prometheuses.yaml',
+            'monitoring.coreos.com_prometheusrules.yaml',
+            'monitoring.coreos.com_servicemonitors.yaml',
+            'monitoring.coreos.com_thanosrulers.yaml',
     ]:
         config.kubectl.output(['apply', '-f', f'{base_url}/{crd}'])
 
@@ -802,3 +803,26 @@ def features(fields, format, keys):
         keys = keys or sorted(fs.keys())
         for k in keys:
             tp.echo(k, fs[k])
+
+
+@k8s.command(flowdepends=['k8s.create-cluster'])
+def install_cilium():
+    """Install cilium"""
+    if config.k8s.distribution == "kind":
+        # config.kubectl.call(['apply', '-f',
+        # 'https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml'])
+        call([
+            'helm', '--kube-context', config.kubectl.context, 'upgrade', '--install', '--wait',
+            'cilium', 'cilium/cilium', '--version', '1.9.10',
+            '--namespace', 'kube-system',
+            '--set', 'nodeinit.enabled=true',
+            '--set', 'kubeProxyReplacement=partial',
+            '--set', 'hostServices.enabled=false',
+            '--set', 'externalIPs.enabled=true',
+            '--set', 'nodePort.enabled=true',
+            '--set', 'hostPort.enabled=true',
+            '--set', 'bpf.masquerade=false',
+            '--set', 'image.pullPolicy=IfNotPresent',
+            '--set', 'ipam.mode=kubernetes',
+            '--set', 'operator.replicas=1',
+        ])  # yapf: disable
