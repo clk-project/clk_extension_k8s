@@ -473,8 +473,7 @@ def install_cert_manager(version):
 def install_ingress_nginx(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
     if config.k8s.distribution != 'k3d':
-        call(['helm', 'repo', 'add', 'cilium', 'https://helm.cilium.io/'])
-        call(['helm', 'repo', 'update'])
+        call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
         helm_extra_args = []
         if config.k8s.distribution == 'kind':
             helm_extra_args += [
