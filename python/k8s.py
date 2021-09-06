@@ -845,9 +845,14 @@ spec:
           namespaceSelector:
             matchLabels:
               name: logging
+        - podSelector: {}
+          namespaceSelector:
+            matchLabels:
+              name: ingress
   policyTypes:
     - Ingress
 """
+
 
 @k8s.command()
 def install_network_policy():
