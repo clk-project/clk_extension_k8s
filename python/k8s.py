@@ -12,8 +12,8 @@ from pathlib import Path
 from shlex import split
 
 import click
-from click_project.config import config
-from click_project.decorators import (
+from clk.config import config
+from clk.decorators import (
     argument,
     flag,
     group,
@@ -22,7 +22,7 @@ from click_project.decorators import (
     table_fields,
     table_format,
 )
-from click_project.lib import (
+from clk.lib import (
     call,
     cd,
     check_output,
@@ -41,7 +41,7 @@ from click_project.lib import (
     which,
     TablePrinter,
 )
-from click_project.log import get_logger
+from clk.log import get_logger
 
 LOGGER = get_logger(__name__)
 
