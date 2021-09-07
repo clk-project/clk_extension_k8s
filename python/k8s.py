@@ -848,17 +848,26 @@ spec:
           namespaceSelector:
             matchLabels:
               name: logging
+"""
+
+extra_network_policy = """
         - podSelector: {}
           namespaceSelector:
             matchLabels:
               name: ingress
-  policyTypes:
-    - Ingress
+        - podSelector: {}
+          namespaceSelector:
+            matchLabels:
+              name: default
 """
 
 
 @k8s.command()
-def install_network_policy():
+@option('--strict/--permissive', help="Whether the network policy is permissive or strict")
+def install_network_policy(strict):
     """Isolate the default namespace from the rest"""
-    with temporary_file(content=network_policy) as f:
+    content = network_policy
+    if not strict:
+        content += extra_network_policy
+    with temporary_file(content=content) as f:
         config.kubectl.call(['apply', '-f', f.name])
