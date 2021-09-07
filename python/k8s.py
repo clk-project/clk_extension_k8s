@@ -523,7 +523,8 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
         '--set', 'prometheus.prometheusSpec.retention=' + prometheus_retention,
         '--set', 'prometheus.prometheusSpec.persistentVolume.size=' + prometheus_persistence_size,
         '--set', 'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
-        '--set', 'prometheus-node-exporter.hostRootFsMount=' + str(not (config.k8s.distribution == "docker-desktop")).lower(),
+        '--set', 'prometheus-node-exporter.hostRootFsMount=' +
+                 str(not (config.k8s.distribution == "docker-desktop")).lower(),
         '--set', 'grafana.ingress.enable=true',
         '--set', 'grafana.ingress.hosts[0]=' + str(grafana_host),
         '--set', 'grafana.adminPassword=' + str(grafana_admin_password),
@@ -537,7 +538,8 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
 @option('--version', default='v0.50.0', help="The version of prometheus operator CRDs to install")
 def install_prometheus_operator_crds(version):
     """Install prometheus operator CRDs in the current cluster"""
-    base_url = f'https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/{version}/example/prometheus-operator-crd'
+    base_url = ('https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/' +
+                f'{version}/example/prometheus-operator-crd')
     for crd in [
             'monitoring.coreos.com_alertmanagerconfigs.yaml',
             'monitoring.coreos.com_alertmanagers.yaml',
