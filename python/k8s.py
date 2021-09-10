@@ -185,7 +185,7 @@ def kind(force):
         found_kind_version = re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
     if not force and found_kind_version != kind_version:
         force = True
-        LOGGER.info(f"Found an older version of kind ({found_kind_version}) than the requested one {kind_version}")
+        LOGGER.info(f"Found a different version of kind ({found_kind_version}) than the requested one {kind_version}")
     if force:
         download(kind_url, outdir=bin_dir, outfilename='kind', mode=0o755)
     else:
@@ -204,7 +204,7 @@ def k3d(force):
         found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
     if not force and found_k3d_version != k3d_version:
         force = True
-        LOGGER.info(f"Found an older version of k3d ({found_k3d_version}) than the requested one {k3d_version}")
+        LOGGER.info(f"Found a different version of k3d ({found_k3d_version}) than the requested one {k3d_version}")
     if force:
         download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
     else:
@@ -223,7 +223,7 @@ def helm(force):
         found_helm_version = re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
     if not force and found_helm_version != helm_version:
         force = True
-        LOGGER.info(f"Found an older version of helm ({found_helm_version}) than the requested one {helm_version}")
+        LOGGER.info(f"Found a different version of helm ({found_helm_version}) than the requested one {helm_version}")
     if force:
         with tempdir() as d:
             extract(helm_url, d)
@@ -245,7 +245,7 @@ def tilt(force):
         found_tilt_version = re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
     if not force and found_tilt_version != tilt_version:
         force = True
-        LOGGER.info(f"Found an older version of tilt ({found_tilt_version}) than the requested one {tilt_version}")
+        LOGGER.info(f"Found a different version of tilt ({found_tilt_version}) than the requested one {tilt_version}")
     if force:
         with tempdir() as d:
             extract(tilt_url, d)
@@ -268,7 +268,7 @@ def kubectl(force):
     if not force and found_kubectl_version != kubectl_version:
         force = True
         LOGGER.info(
-            f"Found an older version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}")
+            f"Found a different version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}")
     if force:
         download(kubectl_url, outdir=bin_dir, outfilename='kubectl', mode=0o755)
     else:
@@ -292,7 +292,7 @@ def kubectl_buildkit(force):
         LOGGER.info("Could not find kubectl buildkit")
     if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
         force = True
-        LOGGER.info(f"Found an older version of kubectl buildkit "
+        LOGGER.info(f"Found a different version of kubectl buildkit "
                     f"({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}")
     if force:
         with tempdir() as d:
