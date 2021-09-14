@@ -525,7 +525,7 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
         '--set', 'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
         '--set', 'prometheus-node-exporter.hostRootFsMount=' +
                  str(not (config.k8s.distribution == "docker-desktop")).lower(),
-        '--set', 'grafana.ingress.enable=true',
+        '--set', 'grafana.ingress.enabled=true',
         '--set', 'grafana.ingress.hosts[0]=' + str(grafana_host),
         '--set', 'grafana.adminPassword=' + str(grafana_admin_password),
         '--set', 'grafana.persistence.enabled=true',
