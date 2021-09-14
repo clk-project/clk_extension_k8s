@@ -92,7 +92,7 @@ def k8s():
 bin_dir = Path('~/.local/bin').expanduser()
 k3d_url = 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64'
 kind_url = 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64'
-helm_url = 'https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz'
+helm_url = 'https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz'
 kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
 kubectl_buildkit_url = \
     'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
