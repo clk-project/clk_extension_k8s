@@ -400,6 +400,7 @@ def create_cluster(recreate):
             '--registry-use', 'k3d-registry.localhost:5000',
             '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
             '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
+            '--k3s-server-arg', '--disable-network-policy',
         ])  # yapf: disable
         traefik_conf = ''
         time.sleep(10)
