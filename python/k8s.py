@@ -83,7 +83,7 @@ class KubeCtl:
 
 @group()
 @param_config('kubectl', '--context', '-c', typ=KubeCtl, help="The kubectl context to use")
-@param_config('k8s', '--distribution', '-d', help="Distribution to use", default='k3d',
+@param_config('k8s', '--distribution', '-d', help="Distribution to use", default='kind',
               type=click.Choice(['k3d', 'kind']))  # yapf: disable
 def k8s():
     """Manipulate k8s"""
