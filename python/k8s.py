@@ -13,34 +13,11 @@ from shlex import split
 
 import click
 from clk.config import config
-from clk.decorators import (
-    argument,
-    flag,
-    group,
-    option,
-    param_config,
-    table_fields,
-    table_format,
-)
-from clk.lib import (
-    call,
-    cd,
-    check_output,
-    deepcopy,
-    download,
-    extract,
-    get_keyring,
-    is_port_available,
-    makedirs,
-    move,
-    read,
-    rm,
-    tempdir,
-    temporary_file,
-    updated_env,
-    which,
-    TablePrinter,
-)
+from clk.decorators import (argument, flag, group, option, param_config,
+                            table_fields, table_format)
+from clk.lib import (TablePrinter, call, cd, check_output, deepcopy, download,
+                     extract, get_keyring, is_port_available, makedirs, move,
+                     read, rm, tempdir, temporary_file, updated_env, which)
 from clk.log import get_logger
 
 LOGGER = get_logger(__name__)
@@ -364,8 +341,16 @@ def install_local_registry(reinstall):
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
 @flag('--recreate', help="Recreate it if it already exists")
-def create_cluster(recreate):
+@option(
+    '--volume',
+    help=("Some local directory that will be made available in the cluster."
+          " In docker style format host_path:container_path."
+          " Only implemented for k3d for the time being."),
+)
+def create_cluster(recreate, volume):
     """Create a k3d cluster"""
+    if volume and config.k8s.distribution != "k3d":
+        LOGGER.warning("--local-volume is only implemented in k3d. It will be ignored.")
     if config.k8s.distribution == "k3d":
         name = 'k3s-default'
         if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
@@ -392,7 +377,7 @@ def create_cluster(recreate):
 
     if config.k8s.distribution == "k3d":
         import yaml
-        call([
+        cmd = [
             'k3d', 'cluster', 'create', name,
             '--wait',
             '--port', '80:80@loadbalancer',
@@ -401,7 +386,12 @@ def create_cluster(recreate):
             '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
             '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
             '--k3s-server-arg', '--disable-network-policy',
-        ])  # yapf: disable
+        ]  # yapf: disable
+        if volume:
+            local_volume = volume.split(":")[0]
+            makedirs(local_volume)
+            cmd.extend(['--volume', volume])
+        call(cmd)
         traefik_conf = ''
         time.sleep(10)
         while not traefik_conf:
