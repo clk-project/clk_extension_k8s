@@ -154,6 +154,10 @@ def install_dependency():
 @flag('--force', help="Overwrite the existing binaries")
 def kind(force):
     """Install kind"""
+    if config.k8s.distribution != "kind":
+        LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
+                      " To install kind, run clk k8s --distribution kind install-dependency kind.")
+        return
     kind_version = re.search('/(v[0-9.]+)/', kind_url).group(1)
     if not force and not which("kind"):
         force = True
@@ -173,6 +177,10 @@ def kind(force):
 @flag('--force', help="Overwrite the existing binaries")
 def k3d(force):
     """Install k3d"""
+    if config.k8s.distribution != "k3d":
+        LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
+                      " To install k3d, run clk k8s --distribution k3d install-dependency k3d.")
+        return
     k3d_version = re.search('/(v[0-9.]+)/', k3d_url).group(1)
     if not force and not which("k3d"):
         force = True
