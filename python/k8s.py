@@ -684,6 +684,9 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     chart = yaml.load(chart_path.open(), Loader=yaml.FullLoader)
     # generate the packages
     generated_packages = set()
+    dependencies = [f'{dep["name"]}-{dep["version"]}' for dep in chart.get('dependencies', [])]
+    if dependencies:
+        makedirs(f'{path}/charts')
     with tempdir() as d:
         # call the same command without --package for each package
         for package in packages:
@@ -743,10 +746,11 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
         LOGGER.action(f"touching {touch}")
         os.utime(touch)
     if remove:
-        for archive in os.listdir(f'{path}/charts'):
-            if archive.endswith('.tgz') and archive not in depArchives:
-                LOGGER.warning(f"Removing extra dependency: {archive}")
-                rm(f'{path}/charts/{archive}')
+        if os.path.exists(f'{path}/charts'):
+            for archive in os.listdir(f'{path}/charts'):
+                if archive.endswith('.tgz') and archive not in depArchives:
+                    LOGGER.warning(f"Removing extra dependency: {archive}")
+                    rm(f'{path}/charts/{archive}')
 
 
 @k8s.command()
