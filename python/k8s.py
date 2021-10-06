@@ -701,7 +701,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
             if os.path.exists(f'{path}/charts/{gp}'):
                 rm(f'{path}/charts/{gp}')
             move(f'{d}/{gp}', f'{path}/charts')
-    # check wether we need to update the dependencies or not
+    # check whether we need to update the dependencies or not
     deps_to_update = []
     depArchives = set()
     for dep in chart.get('dependencies', []):
