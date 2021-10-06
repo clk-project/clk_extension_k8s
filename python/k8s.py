@@ -12,6 +12,7 @@ from pathlib import Path
 from shlex import split
 
 import click
+import yaml
 from clk.config import config
 from clk.decorators import (argument, flag, group, option, param_config,
                             table_fields, table_format)
@@ -663,6 +664,66 @@ def ipython():
     IPython.start_ipython(argv=[], user_ns=dict_)
 
 
+class ChartHasNoIndex(BaseException):
+    pass
+
+
+class Chart:
+    @staticmethod
+    def compute_name(metadata):
+        return f'{metadata["name"]}-{metadata["version"]}'
+
+    def __init__(self, location):
+        self.location = Path(location).resolve()
+        self.subcharts_dir = self.location / "charts"
+        self.index_path = self.location / "Chart.yaml"
+        if not self.index_path.exists():
+            raise ChartHasNoIndex(self)
+        self.index = yaml.load(self.index_path.open(), Loader=yaml.FullLoader)
+        self.name = self.compute_name(self.index)
+        self.dependencies = self.index.get('dependencies', [])
+        self.dependencies_fullnames = [self.compute_name(dep) for dep in self.dependencies]
+
+    def loosely_find(self, names):
+        """Find names for which my name is a loose match"""
+        return [name for name in names if name.startswith(self.name)]
+
+    def is_dependency(self, chart):
+        """Find out whether the given chart is a dependency of me
+
+        This means that the given chart provides one of my dependencies.
+        """
+        return chart.loosely_find(self.dependencies_fullnames)
+
+    def package(self, directory=None):
+        directory = directory or os.getcwd()
+        with cd(directory):
+            call(['helm', 'package', self.location])
+
+    def update_dependencies(self, deps_to_update, experimental_oci):
+        # create a copy of Chart.yaml without the dependencies we don't want to redownload
+        # in a temporary directory
+        chart_to_update = deepcopy(self.index)
+        chart_to_update['dependencies'] = deps_to_update
+        with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
+            yaml.dump(chart_to_update, f)
+            # download the dependencies
+            if experimental_oci:
+                with updated_env(HELM_EXPERIMENTAL_OCI='1'):
+                    call(['helm', 'dependency', 'update', d])
+            else:
+                call(['helm', 'dependency', 'update', d])
+            # and move them to the real charts directory
+            generated_dependencies = set(os.listdir(f'{d}/charts'))
+            for gd in generated_dependencies:
+                makedirs(self.subcharts_dir)
+                old_path = Path(d) / "charts" / gd
+                new_path = self.subcharts_dir / gd
+                if new_path.exists():
+                    rm(new_path)
+                move(old_path, new_path)
+
+
 @k8s.command()
 @option('--force/--no-force', '-f', help="Force update")
 @option('--touch', '-t', help="Touch this file or directory when update is complete")
@@ -683,44 +744,41 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     you provide --package some_other_helm_chart, this one will be used instead
     of the one indicated in the Chart.yaml file.
 """
-    chart_path = Path(f'{path}/Chart.yaml')
-    if not chart_path.exists():
+    try:
+        chart = Chart(path)
+    except ChartHasNoIndex:
         raise click.UsageError(f"No file Chart.yaml in the directory {Path(path).resolve()}."
                                " You must provide as argument the path to a"
                                " root helm chart directory (meaning with Chart.yaml inside)")
-    import yaml
+    subchart_sources = [Chart(package) for package in packages]
     ctx = click.get_current_context()
-    chart = yaml.load(chart_path.open(), Loader=yaml.FullLoader)
     # generate the packages
     generated_packages = set()
-    dependencies = [f'{dep["name"]}-{dep["version"]}' for dep in chart.get('dependencies', [])]
-    if dependencies:
+    if chart.dependencies:
         makedirs(f'{path}/charts')
     with tempdir() as d:
-        for package in packages:
-            package_metadata = yaml.load((Path(package) / "Chart.yaml").open(), Loader=yaml.FullLoader)
-            package_name = f'{package_metadata["name"]}-{package_metadata["version"]}'
-            if [dependency for dependency in dependencies if dependency.startswith(package_name)]:
+        for candidate in subchart_sources:
+            if chart.is_dependency(candidate):
                 ctx.invoke(helm_dependency_update,
-                           path=package,
+                           path=candidate.location,
                            packages=packages,
                            force=force,
                            experimental_oci=experimental_oci,
                            remove=remove)
-                pp = os.path.abspath(package)
-                with cd(d):
-                    call(['helm', 'package', pp])
+                candidate.package(d)
         # and move the generated packages to the chart dir
         generated_packages = set(os.listdir(d))
         for gp in generated_packages:
-            if os.path.exists(f'{path}/charts/{gp}'):
-                rm(f'{path}/charts/{gp}')
-            move(f'{d}/{gp}', f'{path}/charts')
+            old_path = Path(d) / gp
+            new_path = chart.subcharts_dir / gp
+            if new_path.exists():
+                rm(new_path)
+            move(old_path, new_path)
     # check whether we need to update the dependencies or not
     deps_to_update = []
     deps_to_keep = set()
-    for dep in chart.get('dependencies', []):
-        name = f'{dep["name"]}-{dep["version"]}.tgz'
+    for dep in chart.dependencies:
+        name = Chart.compute_name(dep) + ".tgz"
         matched_generated_packages = [gp for gp in generated_packages if name.startswith(gp[:-len('.tgz')])]
         if len(matched_generated_packages) > 1:
             raise NotImplementedError()
@@ -739,25 +797,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
             deps_to_keep.add(name)
             deps_to_update.append(dep)
     if deps_to_update:
-        # create a copy of Chart.yaml without the dependencies we don't want to redownload
-        # in a temporary directory
-        chart_to_update = deepcopy(chart)
-        chart_to_update['dependencies'] = deps_to_update
-        with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
-            yaml.dump(chart_to_update, f)
-            # download the dependencies
-            if experimental_oci:
-                with updated_env(HELM_EXPERIMENTAL_OCI='1'):
-                    call(['helm', 'dependency', 'update', d])
-            else:
-                call(['helm', 'dependency', 'update', d])
-            # and move them to the real charts directory
-            generated_dependencies = set(os.listdir(f'{d}/charts'))
-            for gd in generated_dependencies:
-                makedirs(f'{path}/charts')
-                if os.path.exists(f'{path}/charts/{gd}'):
-                    rm(f'{path}/charts/{gd}')
-                move(f'{d}/charts/{gd}', f'{path}/charts/{gd}')
+        chart.update_dependencies(deps_to_update, experimental_oci)
     if (deps_to_update or packages) and touch:
         LOGGER.action(f"touching {touch}")
         os.utime(touch)
