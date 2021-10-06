@@ -717,7 +717,8 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
             depArchives.add(name)
             deps_to_update.append(dep)
         elif matched_generated_packages:
-            LOGGER.warning(f"{name} loosely matched to package {matched_generated_packages[0]}")
+            if name != matched_generated_packages[0]:
+                LOGGER.warning(f"{name} loosely matched to package {matched_generated_packages[0]}")
             depArchives.add(matched_generated_packages[0])
         elif os.path.exists(f'{path}/charts/{name}'):
             depArchives.add(name)
