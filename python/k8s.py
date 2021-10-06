@@ -710,6 +710,9 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     for dep in chart.get('dependencies', []):
         name = f'{dep["name"]}-{dep["version"]}.tgz'
         matched_generated_packages = [gp for gp in generated_packages if name.startswith(gp[:-len('.tgz')])]
+        if len(matched_generated_packages) > 1:
+            raise NotImplementedError()
+
         if force and not matched_generated_packages:
             depArchives.add(name)
             deps_to_update.append(dep)
