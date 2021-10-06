@@ -718,7 +718,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
             move(f'{d}/{gp}', f'{path}/charts')
     # check whether we need to update the dependencies or not
     deps_to_update = []
-    depArchives = set()
+    deps_to_keep = set()
     for dep in chart.get('dependencies', []):
         name = f'{dep["name"]}-{dep["version"]}.tgz'
         matched_generated_packages = [gp for gp in generated_packages if name.startswith(gp[:-len('.tgz')])]
@@ -726,17 +726,17 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
             raise NotImplementedError()
 
         if force and not matched_generated_packages:
-            depArchives.add(name)
+            deps_to_keep.add(name)
             deps_to_update.append(dep)
         elif matched_generated_packages:
             if name != matched_generated_packages[0]:
                 LOGGER.warning(f"{name} loosely matched to package {matched_generated_packages[0]}")
-            depArchives.add(matched_generated_packages[0])
+            deps_to_keep.add(matched_generated_packages[0])
         elif os.path.exists(f'{path}/charts/{name}'):
-            depArchives.add(name)
+            deps_to_keep.add(name)
         else:
             LOGGER.info(f"{name} is missing, updating")
-            depArchives.add(name)
+            deps_to_keep.add(name)
             deps_to_update.append(dep)
     if deps_to_update:
         # create a copy of Chart.yaml without the dependencies we don't want to redownload
@@ -764,7 +764,7 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     if remove:
         if os.path.exists(f'{path}/charts'):
             for archive in os.listdir(f'{path}/charts'):
-                if archive.endswith('.tgz') and archive not in depArchives:
+                if archive.endswith('.tgz') and archive not in deps_to_keep:
                     LOGGER.warning(f"Removing extra dependency: {archive}")
                     rm(f'{path}/charts/{archive}')
 
