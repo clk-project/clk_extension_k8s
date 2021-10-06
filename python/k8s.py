@@ -667,13 +667,22 @@ def ipython():
 @option('--force/--no-force', '-f', help="Force update")
 @option('--touch', '-t', help="Touch this file or directory when update is complete")
 @option('--experimental-oci/--no-experimental-oci', default=True, help="Activate experimental OCI feature")
-@option('packages', '--package', '-p', multiple=True, help="Other helm dir to package and include in the dependencies")
+@option('packages',
+        '--package',
+        '-p',
+        multiple=True,
+        help=('Directory of a helm package that can be used to override the dependency fetching mechanism'))
 @option('--remove/--no-remove', default=True, help="Remove extra dependency that may still be there")
 @argument('path', default='.', required=False, help="Helm chart path")
 def helm_dependency_update(path, force, touch, experimental_oci, packages, remove):
     """Update helm dependencies
 
-    It does the same thing as the command helm dependency update, but better."""
+    It does the same thing as the command helm dependency update, but better.
+
+    It recursively fetches the dependencies and put them as subcharts. In case
+    you provide --package some_other_helm_chart, this one will be used instead
+    of the one indicated in the Chart.yaml file.
+"""
     chart_path = Path(f'{path}/Chart.yaml')
     if not chart_path.exists():
         raise click.UsageError(f"No file Chart.yaml in the directory {Path(path).resolve()}."
@@ -688,16 +697,19 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     if dependencies:
         makedirs(f'{path}/charts')
     with tempdir() as d:
-        # call the same command without --package for each package
         for package in packages:
-            ctx.invoke(helm_dependency_update,
-                       path=package,
-                       force=force,
-                       experimental_oci=experimental_oci,
-                       remove=remove)
-            pp = os.path.abspath(package)
-            with cd(d):
-                call(['helm', 'package', pp])
+            package_metadata = yaml.load((Path(package) / "Chart.yaml").open(), Loader=yaml.FullLoader)
+            package_name = f'{package_metadata["name"]}-{package_metadata["version"]}'
+            if [dependency for dependency in dependencies if dependency.startswith(package_name)]:
+                ctx.invoke(helm_dependency_update,
+                           path=package,
+                           packages=packages,
+                           force=force,
+                           experimental_oci=experimental_oci,
+                           remove=remove)
+                pp = os.path.abspath(package)
+                with cd(d):
+                    call(['helm', 'package', pp])
         # and move the generated packages to the chart dir
         generated_packages = set(os.listdir(d))
         for gp in generated_packages:
