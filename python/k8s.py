@@ -727,7 +727,8 @@ class Chart:
                 move(old_path, new_path)
         LOGGER.status(f"Downloaded {', '.join([self.compute_name(dep) for dep in deps_to_update])} for {self.name}")
 
-    def find_one_source(self, dependency, subchart_sources):
+    @staticmethod
+    def find_one_source(dependency, subchart_sources):
         """If one subchart source is able to fulfill the dependency, return it."""
         match = [chart for chart in subchart_sources if dependency.startswith(chart.name)]
         if len(match) > 1:
