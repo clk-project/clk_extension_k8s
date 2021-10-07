@@ -16,9 +16,10 @@ import yaml
 from clk.config import config
 from clk.decorators import (argument, flag, group, option, param_config,
                             table_fields, table_format)
-from clk.lib import (TablePrinter, call, cd, check_output, deepcopy, download,
-                     extract, get_keyring, is_port_available, makedirs, move,
-                     read, rm, tempdir, temporary_file, updated_env, which)
+from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy,
+                     download, extract, get_keyring, is_port_available,
+                     makedirs, move, read, rm, tempdir, temporary_file,
+                     updated_env, which)
 from clk.log import get_logger
 
 LOGGER = get_logger(__name__)
@@ -726,6 +727,7 @@ class Chart:
                     rm(new_path)
                 move(old_path, new_path)
         LOGGER.status(f"Downloaded {', '.join([self.compute_name(dep) for dep in deps_to_update])} for {self.name}")
+        return generated_dependencies
 
     @staticmethod
     def find_one_source(dependency, subchart_sources):
@@ -750,6 +752,7 @@ class Chart:
         set to True.
         """
         to_fetch_with_helm = []
+        to_resolve = set()
         updated = False
         if self.dependencies:
             makedirs(self.subcharts_dir)
@@ -757,6 +760,7 @@ class Chart:
             dependency_name = f"{self.compute_name(dependency)}.tgz"
             src = self.find_one_source(self.compute_name(dependency), subchart_sources)
             if src is not None:
+                LOGGER.status(f"Using {src.name} (from {src.location}) to fulfill dependency {dependency_name}")
                 src.update_dependencies(subchart_sources, force=force)
                 src.package(self.subcharts_dir)
                 updated = True
@@ -766,11 +770,45 @@ class Chart:
                 to_fetch_with_helm.append(dependency)
             elif (self.subcharts_dir / dependency_name).exists():
                 LOGGER.status(f"{dependency_name} is already an up to date dependency of {self.name}")
+                to_resolve.add(self.subcharts_dir / dependency_name)
             else:
                 to_fetch_with_helm.append(dependency)
+        generated_dependencies = set()
         if to_fetch_with_helm:
-            self.get_dependencies_with_helm(to_fetch_with_helm)
+            generated_dependencies = self.get_dependencies_with_helm(to_fetch_with_helm)
+        if generated_dependencies or to_resolve:
+            with tempdir() as d:
+                for dependency_to_resolve in generated_dependencies | to_resolve:
+                    dependency_chart_location = self.subcharts_dir / dependency_to_resolve
+                    temp_dependency_location = d / Path(dependency_to_resolve).name
+                    import tarfile
+                    with tarfile.open(dependency_chart_location, mode="r:gz") as tar:
+                        tar.extractall(temp_dependency_location)
+                    dependency_chart = Chart(next(temp_dependency_location.iterdir()))
+                    updated_subcharts = dependency_chart.resolve_subcharts(subchart_sources=subchart_sources)
+                    if updated_subcharts:
+                        LOGGER.status(f"In {self.location}, substituting {dependency_chart.name} by the resolved one")
+                        rm(dependency_chart_location)
+                        dependency_chart.package(self.subcharts_dir)
+
             updated = True
+        return updated
+
+    def resolve_subcharts(self, subchart_sources):
+        updated = False
+        if not self.subcharts_dir.exists():
+            return updated
+        for subchart_dir in self.subcharts_dir.iterdir():
+            if subchart_dir.is_dir():
+                subchart = Chart(subchart_dir)
+                src = self.find_one_source(subchart.name, subchart_sources)
+                if src is not None:
+                    LOGGER.status(f"Substituting {subchart.location} by the source {src.name} from {src.location}")
+                    rm(subchart.location)
+                    copy(src.location, subchart.location)
+                    updated = True
+                else:
+                    updated = subchart.resolve_subcharts(subchart_sources=subchart_sources) or updated
         return updated
 
     def clean_dependencies(self):
