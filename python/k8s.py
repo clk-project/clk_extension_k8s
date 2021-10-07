@@ -750,6 +750,7 @@ class Chart:
         set to True.
         """
         to_fetch_with_helm = []
+        updated = False
         if self.dependencies:
             makedirs(self.subcharts_dir)
         for dependency in self.dependencies:
@@ -758,6 +759,7 @@ class Chart:
             if src is not None:
                 src.update_dependencies(subchart_sources, force=force)
                 src.package(self.subcharts_dir)
+                updated = True
             elif force:
                 LOGGER.status(f"I will unconditionally download {dependency_name} as a dependency of {self.name}"
                               " (because of --force)")
@@ -768,7 +770,8 @@ class Chart:
                 to_fetch_with_helm.append(dependency)
         if to_fetch_with_helm:
             self.get_dependencies_with_helm(to_fetch_with_helm)
-        return self.dependencies
+            updated = True
+        return updated
 
     def clean_dependencies(self):
         """Remove any archive in the subcharts that is not fulfilling a dependency"""
