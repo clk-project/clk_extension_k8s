@@ -781,15 +781,15 @@ class Chart:
 @option('--force/--no-force', '-f', help="Force update")
 @option('--touch', '-t', help="Touch this file or directory when update is complete")
 @option('--experimental-oci/--no-experimental-oci', default=True, help="Activate experimental OCI feature")
-@option('packages',
+@option('subchart_sources',
         '--package',
         '-p',
         multiple=True,
         type=Chart,
         help=('Directory of a helm package that can be used to override the dependency fetching mechanism'))
 @option('--remove/--no-remove', default=True, help="Remove extra dependency that may still be there")
-@argument('path', default='.', type=Chart, required=False, help="Helm chart path")
-def helm_dependency_update(path, force, touch, experimental_oci, packages, remove):
+@argument('chart', default='.', type=Chart, required=False, help="Helm chart path")
+def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sources, remove):
     """Update helm dependencies
 
     It downloads the dependencies, like helm does.
@@ -802,8 +802,6 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     appropriately packages and put one into the other.
     """
     config.experimental_oci = experimental_oci
-    chart = path
-    subchart_sources = packages
     updated_something = chart.update_dependencies(subchart_sources, force=force)
     if remove:
         chart.clean_dependencies()
