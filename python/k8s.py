@@ -664,10 +664,6 @@ def ipython():
     IPython.start_ipython(argv=[], user_ns=dict_)
 
 
-class ChartHasNoIndex(BaseException):
-    pass
-
-
 class Chart:
     @staticmethod
     def compute_name(metadata):
@@ -678,41 +674,40 @@ class Chart:
         self.subcharts_dir = self.location / "charts"
         self.index_path = self.location / "Chart.yaml"
         if not self.index_path.exists():
-            raise ChartHasNoIndex(self)
+            raise click.UsageError(f"No file Chart.yaml in the directory {self.location}."
+                                   " You must provide as argument the path to a"
+                                   " root helm chart directory (meaning with Chart.yaml inside)")
         self.index = yaml.load(self.index_path.open(), Loader=yaml.FullLoader)
         self.name = self.compute_name(self.index)
         self.dependencies = self.index.get('dependencies', [])
         self.dependencies_fullnames = [self.compute_name(dep) for dep in self.dependencies]
 
-    def loosely_find(self, names):
-        """Find names for which my name is a loose match"""
-        return [name for name in names if name.startswith(self.name)]
-
-    def is_dependency(self, chart):
-        """Find out whether the given chart is a dependency of me
-
-        This means that the given chart provides one of my dependencies.
-        """
-        return chart.loosely_find(self.dependencies_fullnames)
+    def is_valid_dependency_name(self, name):
+        return [dependency for dependency in self.dependencies_fullnames if dependency.startswith(name)]
 
     def package(self, directory=None):
         directory = directory or os.getcwd()
+        LOGGER.status(f"Packaging {self.name} (from {self.location}) in {directory}")
         with cd(directory):
             call(['helm', 'package', self.location])
 
-    def update_dependencies(self, deps_to_update, experimental_oci):
+    def get_dependencies_with_helm(self, deps_to_update):
         # create a copy of Chart.yaml without the dependencies we don't want to redownload
         # in a temporary directory
+        LOGGER.status(
+            f"Starting to download {', '.join([self.compute_name(dep) for dep in deps_to_update])} for {self.name}")
         chart_to_update = deepcopy(self.index)
         chart_to_update['dependencies'] = deps_to_update
         with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
             yaml.dump(chart_to_update, f)
             # download the dependencies
-            if experimental_oci:
+            LOGGER.status("## The following is some helm logs, don't pay much attention to its gibberish")
+            if config.experimental_oci:
                 with updated_env(HELM_EXPERIMENTAL_OCI='1'):
                     call(['helm', 'dependency', 'update', d])
             else:
                 call(['helm', 'dependency', 'update', d])
+            LOGGER.status("## Done with strange helm logs")
             # and move them to the real charts directory
             generated_dependencies = set(os.listdir(f'{d}/charts'))
             for gd in generated_dependencies:
@@ -722,6 +717,47 @@ class Chart:
                 if new_path.exists():
                     rm(new_path)
                 move(old_path, new_path)
+        LOGGER.status(f"Downloaded {', '.join([self.compute_name(dep) for dep in deps_to_update])} for {self.name}")
+
+    def find_one_source(self, dependency, subchart_sources):
+        match = [chart for chart in subchart_sources if dependency.startswith(chart.name)]
+        if len(match) > 1:
+            raise NotImplementedError()
+        if not match:
+            return None
+        match = match[0]
+        if dependency != match.name:
+            LOGGER.warning(f"I guessed that the provided package {match.name} (available at {match.location})"
+                           f" is a good candidate to fulfill the dependency {dependency}."
+                           " Am I wrong?")
+        return match
+
+    def update_dependencies(self, subchart_sources, force=False):
+        to_fetch_with_helm = []
+        if self.dependencies:
+            makedirs(self.subcharts_dir)
+        for dependency in self.dependencies:
+            dependency_name = f"{self.compute_name(dependency)}.tgz"
+            src = self.find_one_source(self.compute_name(dependency), subchart_sources)
+            if src is not None:
+                src.update_dependencies(subchart_sources, force=force)
+                src.package(self.subcharts_dir)
+            elif force:
+                LOGGER.status(f"I will unconditionally download {dependency_name} as a dependency of {self.name}"
+                              " (because of --force)")
+                to_fetch_with_helm.append(dependency)
+            elif (self.subcharts_dir / dependency_name).exists():
+                LOGGER.status(f"{dependency_name} is already an up to date dependency of {self.name}")
+            else:
+                to_fetch_with_helm.append(dependency)
+        if to_fetch_with_helm:
+            self.get_dependencies_with_helm(to_fetch_with_helm)
+        return self.dependencies
+
+    def clean_dependencies(self):
+        for file in self.subcharts_dir.iterdir():
+            if file.name.endswith(".tgz") and not self.is_valid_dependency_name(file.name[:-len(".tgz")]):
+                rm(file)
 
 
 @k8s.command()
@@ -732,9 +768,10 @@ class Chart:
         '--package',
         '-p',
         multiple=True,
+        type=Chart,
         help=('Directory of a helm package that can be used to override the dependency fetching mechanism'))
 @option('--remove/--no-remove', default=True, help="Remove extra dependency that may still be there")
-@argument('path', default='.', required=False, help="Helm chart path")
+@argument('path', default='.', type=Chart, required=False, help="Helm chart path")
 def helm_dependency_update(path, force, touch, experimental_oci, packages, remove):
     """Update helm dependencies
 
@@ -744,69 +781,15 @@ def helm_dependency_update(path, force, touch, experimental_oci, packages, remov
     you provide --package some_other_helm_chart, this one will be used instead
     of the one indicated in the Chart.yaml file.
 """
-    try:
-        chart = Chart(path)
-    except ChartHasNoIndex:
-        raise click.UsageError(f"No file Chart.yaml in the directory {Path(path).resolve()}."
-                               " You must provide as argument the path to a"
-                               " root helm chart directory (meaning with Chart.yaml inside)")
-    subchart_sources = [Chart(package) for package in packages]
-    ctx = click.get_current_context()
-    # generate the packages
-    generated_packages = set()
-    if chart.dependencies:
-        makedirs(f'{path}/charts')
-    with tempdir() as d:
-        for candidate in subchart_sources:
-            if chart.is_dependency(candidate):
-                ctx.invoke(helm_dependency_update,
-                           path=candidate.location,
-                           packages=packages,
-                           force=force,
-                           experimental_oci=experimental_oci,
-                           remove=remove)
-                candidate.package(d)
-        # and move the generated packages to the chart dir
-        generated_packages = set(os.listdir(d))
-        for gp in generated_packages:
-            old_path = Path(d) / gp
-            new_path = chart.subcharts_dir / gp
-            if new_path.exists():
-                rm(new_path)
-            move(old_path, new_path)
-    # check whether we need to update the dependencies or not
-    deps_to_update = []
-    deps_to_keep = set()
-    for dep in chart.dependencies:
-        name = Chart.compute_name(dep) + ".tgz"
-        matched_generated_packages = [gp for gp in generated_packages if name.startswith(gp[:-len('.tgz')])]
-        if len(matched_generated_packages) > 1:
-            raise NotImplementedError()
-
-        if force and not matched_generated_packages:
-            deps_to_keep.add(name)
-            deps_to_update.append(dep)
-        elif matched_generated_packages:
-            if name != matched_generated_packages[0]:
-                LOGGER.warning(f"{name} loosely matched to package {matched_generated_packages[0]}")
-            deps_to_keep.add(matched_generated_packages[0])
-        elif os.path.exists(f'{path}/charts/{name}'):
-            deps_to_keep.add(name)
-        else:
-            LOGGER.info(f"{name} is missing, updating")
-            deps_to_keep.add(name)
-            deps_to_update.append(dep)
-    if deps_to_update:
-        chart.update_dependencies(deps_to_update, experimental_oci)
-    if (deps_to_update or packages) and touch:
+    config.experimental_oci = experimental_oci
+    chart = path
+    subchart_sources = packages
+    updated_something = chart.update_dependencies(subchart_sources, force=force)
+    if remove:
+        chart.clean_dependencies()
+    if touch and updated_something:
         LOGGER.action(f"touching {touch}")
         os.utime(touch)
-    if remove:
-        if os.path.exists(f'{path}/charts'):
-            for archive in os.listdir(f'{path}/charts'):
-                if archive.endswith('.tgz') and archive not in deps_to_keep:
-                    LOGGER.warning(f"Removing extra dependency: {archive}")
-                    rm(f'{path}/charts/{archive}')
 
 
 @k8s.command()
