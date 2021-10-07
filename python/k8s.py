@@ -683,15 +683,23 @@ class Chart:
         self.dependencies_fullnames = [self.compute_name(dep) for dep in self.dependencies]
 
     def is_valid_dependency_name(self, name):
+        """Check whether name is fulfilling a dependency of mine
+
+        It can either be the exact name of a dependency, or a prefix of a
+        dependency. This allows dependencies like some-dep.develop to be
+        fulfilled by the name some-dep.
+        """
         return [dependency for dependency in self.dependencies_fullnames if dependency.startswith(name)]
 
     def package(self, directory=None):
+        """Package my content into the specified directory (or by default in the current working directory)"""
         directory = directory or os.getcwd()
         LOGGER.status(f"Packaging {self.name} (from {self.location}) in {directory}")
         with cd(directory):
             call(['helm', 'package', self.location])
 
     def get_dependencies_with_helm(self, deps_to_update):
+        """Use helm to download the given dependencies"""
         # create a copy of Chart.yaml without the dependencies we don't want to redownload
         # in a temporary directory
         LOGGER.status(
@@ -720,6 +728,7 @@ class Chart:
         LOGGER.status(f"Downloaded {', '.join([self.compute_name(dep) for dep in deps_to_update])} for {self.name}")
 
     def find_one_source(self, dependency, subchart_sources):
+        """If one subchart source is able to fulfill the dependency, return it."""
         match = [chart for chart in subchart_sources if dependency.startswith(chart.name)]
         if len(match) > 1:
             raise NotImplementedError()
@@ -733,6 +742,12 @@ class Chart:
         return match
 
     def update_dependencies(self, subchart_sources, force=False):
+        """Make sure the dependencies are up-to-date
+
+        Using the subchart_sources to fulfill the dependencies when possible. It
+        does not download dependencies that already are present, unless force is
+        set to True.
+        """
         to_fetch_with_helm = []
         if self.dependencies:
             makedirs(self.subcharts_dir)
@@ -755,6 +770,7 @@ class Chart:
         return self.dependencies
 
     def clean_dependencies(self):
+        """Remove any archive in the subcharts that is not fulfilling a dependency"""
         for file in self.subcharts_dir.iterdir():
             if file.name.endswith(".tgz") and not self.is_valid_dependency_name(file.name[:-len(".tgz")]):
                 rm(file)
@@ -775,12 +791,15 @@ class Chart:
 def helm_dependency_update(path, force, touch, experimental_oci, packages, remove):
     """Update helm dependencies
 
-    It does the same thing as the command helm dependency update, but better.
+    It downloads the dependencies, like helm does.
 
-    It recursively fetches the dependencies and put them as subcharts. In case
-    you provide --package some_other_helm_chart, this one will be used instead
-    of the one indicated in the Chart.yaml file.
-"""
+    If you provide other chart folders using --package, those that will match
+    the dependencies will be packaged instead of downloading the dependency.
+
+    This is done recursively, meaning that you can provide the sources of
+    several dependencies and dependencies of dependencies and they will be
+    appropriately packages and put one into the other.
+    """
     config.experimental_oci = experimental_oci
     chart = path
     subchart_sources = packages
