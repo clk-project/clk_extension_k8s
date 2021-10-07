@@ -836,7 +836,10 @@ class Chart:
 def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sources, remove):
     """Update helm dependencies
 
-    It downloads the dependencies, like helm does.
+    Like `helm dependency update` on steroids.
+
+    It downloads the dependencies, like helm does, but allow you to provide some
+    source of nested dependencies that will be packaged on the fly.
 
     If you provide other chart folders using --package, those that will match
     the dependencies will be packaged instead of downloading the dependency.
@@ -844,6 +847,17 @@ def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sourc
     This is done recursively, meaning that you can provide the sources of
     several dependencies and dependencies of dependencies and they will be
     appropriately packages and put one into the other.
+
+    If you work on A, B and C with A depending on B depending on C. You want to
+    easily package your project A with the sources of B and C automatically
+    packaged into the package A.
+
+    Also, if you work only on C, you'd want that packaging A would substitute on the fly C
+    in the dependencies of B.
+
+    That way, you simply have to run helm-dependency-update --package C A and
+    you get A/charts/B.tgz that contains an updated C.
+
     """
     config.experimental_oci = experimental_oci
     updated_something = chart.update_dependencies(subchart_sources, force=force)
