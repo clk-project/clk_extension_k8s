@@ -682,7 +682,7 @@ class Chart:
         self.dependencies = self.index.get('dependencies', [])
         self.dependencies_fullnames = [self.compute_name(dep) for dep in self.dependencies]
 
-    def is_valid_dependency_name(self, name):
+    def match_to_dependencies(self, name):
         """Check whether name is fulfilling a dependency of mine
 
         It can either be the exact name of a dependency, or a prefix of a
@@ -773,7 +773,7 @@ class Chart:
     def clean_dependencies(self):
         """Remove any archive in the subcharts that is not fulfilling a dependency"""
         for file in self.subcharts_dir.iterdir():
-            if file.name.endswith(".tgz") and not self.is_valid_dependency_name(file.name[:-len(".tgz")]):
+            if file.name.endswith(".tgz") and not self.match_to_dependencies(file.name[:-len(".tgz")]):
                 rm(file)
 
 
