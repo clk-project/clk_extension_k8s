@@ -779,6 +779,9 @@ class Chart:
             if file.name.endswith(".tgz") and not self.match_to_dependencies(file.name[:-len(".tgz")]):
                 rm(file)
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}('{self.location}')>"
+
 
 @k8s.command()
 @option('--force/--no-force', '-f', help="Force update")
