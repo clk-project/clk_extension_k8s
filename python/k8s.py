@@ -347,6 +347,10 @@ def install_local_registry(reinstall):
                 LOGGER.info("A registry with the name k3d-registry.localhost already exists." " Nothing to do.")
                 return
         call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
+    else:
+        LOGGER.info("We did not think it was useful to install a local registry"
+                    f" with the distribution {config.k8s.distribution}."
+                    " You might prefer using kubectl build to speed up deployments.")
 
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
