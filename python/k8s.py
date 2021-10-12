@@ -957,10 +957,12 @@ def create_buildkit_runner(max_parallelism, name):
 
 _features = {
     'kind': {
-        'kubectl_build': True
+        'kubectl_build': True,
+        'local_registry': False,
     },
     'k3d': {
-        'kubectl_build': False
+        'kubectl_build': False,
+        'local_registry': True,
     },
 }
 
@@ -974,6 +976,10 @@ _features = {
           help="Only display these key values. If no key is provided, all the key values are displayed")
 def features(fields, format, keys):
     """Show supported features for the current distribution"""
+    if config.k8s.distribution == "kind":
+        reg_name = f"{config.k8s.distribution}-registry"
+        _features[config.k8s.distribution]['local_registry'] = reg_name in check_output(
+            split("docker ps --format {{.Names}}")).split()
     with TablePrinter(fields, format) as tp:
         fs = _features[config.k8s.distribution]
         keys = keys or sorted(fs.keys())
