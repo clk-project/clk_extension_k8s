@@ -334,7 +334,8 @@ def install_docker_registry_secret(registry_provider, username, password):
 
 @k8s.command(flowdepends=['k8s.install-dependency.all'])
 @flag('--reinstall', help="Reinstall it if it already exists")
-def install_local_registry(reinstall):
+@flag('--force', help="Install it even when we deemed it was not useful")
+def install_local_registry(reinstall, force):
     """Install k3d local registry"""
     if config.k8s.distribution == "k3d":
         if 'k3d-registry.localhost' in [
@@ -348,9 +349,19 @@ def install_local_registry(reinstall):
                 return
         call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
     else:
-        LOGGER.info("We did not think it was useful to install a local registry"
-                    f" with the distribution {config.k8s.distribution}."
-                    " You might prefer using kubectl build to speed up deployments.")
+        if not force:
+            LOGGER.info("We did not think it was useful to install a local registry"
+                        f" with the distribution {config.k8s.distribution}."
+                        " You might prefer using kubectl build to speed up deployments."
+                        " If you still want to install one, use --force.")
+            return
+
+        name = f"{config.k8s.distribution}-registry"
+        exists = name in check_output(split("docker ps --format {{.Names}}")).split()
+        if exists:
+            LOGGER.info(f"A registry with the name {name} already exists.")
+        else:
+            call(split(f"docker run -d --restart=always -p 5000:5000 --name {name} registry:2"))
 
 
 @k8s.command(flowdepends=['k8s.install-local-registry'])
@@ -421,10 +432,35 @@ def create_cluster(recreate, volume):
             config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
         config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
     elif config.k8s.distribution == "kind":
-        with temporary_file() as f:
-            f.write(kind_config.encode('utf8'))
-            f.close()
+        reg_name = f"{config.k8s.distribution}-registry"
+        kind_config_to_use = kind_config
+        using_local_registry = reg_name in check_output(split("docker ps --format {{.Names}}")).split()
+        if using_local_registry:
+            reg_host = check_output(split(f"docker inspect -f '{{{{.NetworkSettings.IPAddress}}}}' {reg_name}")).strip()
+            kind_config_to_use + f"""
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
+    endpoint = ["http://{reg_name}:5000"]
+"""
+        with temporary_file(content=kind_config_to_use) as f:
             call(['kind', 'create', 'cluster', '--config', f.name])
+        if using_local_registry:
+            with temporary_file(content="""apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: "localhost:5000"
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+""") as f:
+                call(['kubectl', 'apply', '-f', f.name])
+            containers = check_output(
+                ["docker", "network", "inspect", "kind", "-f", "{{range .Containers}}{{.Name}} {{end}}"]).split()
+            if reg_name not in containers:
+                call(split(f"docker network connect kind {reg_name}"))
 
 
 @k8s.command(flowdepends=['k8s.install-ingress-nginx'])
@@ -658,6 +694,11 @@ def remove(target):
     elif config.k8s.distribution == "kind":
         if target in ['all', 'cluster']:
             call(['kind', 'delete', 'cluster'])
+        if target in ['all', 'registry']:
+            reg_name = f"{config.k8s.distribution}-registry"
+            if reg_name in check_output(split("docker ps --format {{.Names}}")).split():
+                call(['docker', 'kill', reg_name])
+                call(['docker', 'rm', reg_name])
 
 
 @k8s.command()
