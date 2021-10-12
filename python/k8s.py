@@ -825,7 +825,7 @@ class Chart:
             with tempdir() as d:
                 for dependency_to_resolve in generated_dependencies | to_resolve:
                     dependency_chart_location = self.subcharts_dir / dependency_to_resolve
-                    temp_dependency_location = d / Path(dependency_to_resolve).name
+                    temp_dependency_location = Path(d) / Path(dependency_to_resolve).name
                     import tarfile
                     with tarfile.open(dependency_chart_location, mode="r:gz") as tar:
                         tar.extractall(temp_dependency_location)
