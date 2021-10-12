@@ -331,8 +331,7 @@ def install_docker_registry_secret(registry_provider, username, password):
 
 @k8s.command(flowdepends=['k8s.install-dependency.all'])
 @flag('--reinstall', help="Reinstall it if it already exists")
-@flag('--force', help="Install it even when we deemed it was not useful")
-def install_local_registry(reinstall, force):
+def install_local_registry(reinstall):
     """Install k3d local registry"""
     if config.k8s.distribution == "k3d":
         if 'k3d-registry.localhost' in [
@@ -346,13 +345,6 @@ def install_local_registry(reinstall, force):
                 return
         call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
     else:
-        if not force:
-            LOGGER.info("We did not think it was useful to install a local registry"
-                        f" with the distribution {config.k8s.distribution}."
-                        " You might prefer using kubectl build to speed up deployments."
-                        " If you still want to install one, use --force.")
-            return
-
         name = f"{config.k8s.distribution}-registry"
         exists = name in check_output(split("docker ps --format {{.Names}}")).split()
         if exists:
