@@ -8,11 +8,11 @@ Either:
 
   1. install [[https://github.com/clk-project][clk-project]] and the extension with
 
-     #+BEGIN_SRC shell   
+     #+BEGIN_SRC shell
 curl -sSL https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s bash
      #+END_SRC
 
   2. if you already have click-project, install this extension with
-     #+BEGIN_SRC shell   
+     #+BEGIN_SRC shell
 clk extension install k8s
      #+END_SRC
