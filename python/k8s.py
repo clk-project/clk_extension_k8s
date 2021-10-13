@@ -14,12 +14,9 @@ from shlex import split
 import click
 import yaml
 from clk.config import config
-from clk.decorators import (argument, flag, group, option, param_config,
-                            table_fields, table_format)
-from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy,
-                     download, extract, get_keyring, is_port_available,
-                     makedirs, move, read, rm, tempdir, temporary_file,
-                     updated_env, which)
+from clk.decorators import (argument, flag, group, option, param_config, table_fields, table_format)
+from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy, download, extract, get_keyring,
+                     is_port_available, makedirs, move, read, rm, tempdir, temporary_file, updated_env, which)
 from clk.log import get_logger
 
 LOGGER = get_logger(__name__)
