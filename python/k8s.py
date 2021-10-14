@@ -425,7 +425,7 @@ def create_cluster(recreate, volume):
         kind_config_to_use = kind_config
         using_local_registry = reg_name in check_output(split('docker ps --format {{.Names}}')).split()
         if using_local_registry:
-            kind_config_to_use + f"""
+            kind_config_to_use += f"""
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
