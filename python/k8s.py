@@ -977,7 +977,10 @@ def features(fields, format, keys):
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 def install_cilium():
-    """Install cilium"""
+    """Install cilium
+
+So that you will have an implementation of network policies that actually works.
+"""
     if config.k8s.distribution == 'kind':
         # config.kubectl.call(['apply', '-f',
         # 'https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml'])
@@ -997,6 +1000,10 @@ def install_cilium():
             '--set', 'ipam.mode=kubernetes',
             '--set', 'operator.replicas=1',
         ])  # yapf: disable
+    else:
+        LOGGER.warning('We only install cilium in the kind distribution.'
+                       f' You are currently using {config.k8s.distribution}.'
+                       ' You will likely experience poor network policies support.')
 
 
 network_policy = """kind: NetworkPolicy
