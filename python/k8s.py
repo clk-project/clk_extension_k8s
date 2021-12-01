@@ -1038,7 +1038,7 @@ extra_network_policy = """
 """
 
 
-@k8s.command()
+@k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--strict/--permissive', help='Whether the network policy is permissive or strict')
 def install_network_policy(strict):
     """Isolate the default namespace from the rest"""
