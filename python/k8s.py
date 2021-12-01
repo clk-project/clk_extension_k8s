@@ -16,31 +16,117 @@ import yaml
 from clk.config import config
 from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy, download, extract, get_keyring,
-                     is_port_available, makedirs, move, read, rm, tempdir, temporary_file, updated_env, which)
+                     is_port_available, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
+                     updated_env, which)
 from clk.log import get_logger
+from clk.types import Suggestion
 
 LOGGER = get_logger(__name__)
+
+warned = False
+
+
+def guess_context_and_distribution(context, distribution):
+    warning = None
+    if context is None and distribution is None:
+        LOGGER.debug('Got no hint about the context or the distribution. I will try to guess them'
+                     ' from the current context.')
+        distribution = 'kind'
+        context = None
+        if current_context := config.kubectl.current_context():
+            LOGGER.debug("There is a current context! Let's see whether I can make use of it!")
+            guessed_context, guessed_distribution = guess_context_and_distribution(current_context, None)
+            if guessed_context is not None or guessed_distribution is not None:
+                LOGGER.debug(f'Guessed context {guessed_context} and distribution {distribution}')
+                distribution = guessed_distribution
+                context = guessed_context
+            else:
+                LOGGER.debug('Guessed nothing out of the current context....')
+                warning = ('I could not infer a suitable distribution'
+                           f' that would fit your current context ({current_context}).'
+                           ' I will ignore it and use another one.'
+                           ' See `clk k8s current-context` to know the'
+                           ' inferred context ({context}) and `clk k8s current-context` to know the'
+                           ' inferred distribution ({distribution}).'
+                           ' Finally, use `clk k8s --distribution kind` to avoid this warning.')
+        else:
+            LOGGER.debug(f'No current context, falling back on distribution {distribution}'
+                         ' and trying to infer a suitable context.')
+
+    if context is None and distribution is not None:
+        if distribution == 'k3d':
+            context = 'k3d-k3s-default'
+        if distribution == 'kind':
+            context = 'kind-kind'
+        LOGGER.debug(f'Given the distribution {distribution}, I inferred the context {context}')
+    if context is not None and distribution is None:
+        given_context = context
+        if context.startswith('kind'):
+            distribution = 'kind'
+        elif context.startswith('k3d'):
+            distribution = 'k3d'
+        else:
+            context = None
+            distribution = None
+        if context:
+            LOGGER.debug(f'Given the context {given_context}, I inferred the distribution {distribution}')
+        else:
+            LOGGER.debug(f'Given the context {given_context}, I could not infer any distribution.'
+                         ' Therefore I give up on that context.')
+    global warned
+    if warning and not warned:
+        LOGGER.warning(warning.format(
+            distribution=distribution,
+            context=context,
+        ), )
+        warned = True
+    return context, distribution
+
+
+class K8s:
+    def __init__(self):
+        self._distribution = None
+        self._explicit_distribution = None
+
+    @property
+    def distribution(self):
+        result = guess_context_and_distribution(config.kubectl._explicit_context, self._explicit_distribution)[1]
+        if result is None:
+            raise click.UsageError('I could not infer a suitable distribution. Try providing one explicitly.')
+        return result
+
+    @distribution.setter
+    def distribution(self, value):
+        # this is called only when explicitly set by the user
+        self._explicit_distribution = value
 
 
 class KubeCtl:
     def __init__(self):
-        self._context = None
+        self._explicit_context = None
 
     @property
     def context(self):
-        if self._context is not None:
-            return self._context
-        else:
-            if config.k8s.distribution == 'k3d':
-                return 'k3d-k3s-default'
-            if config.k8s.distribution == 'kind':
-                return 'kind-kind'
-            else:
-                return None
+        result = guess_context_and_distribution(self._explicit_context, config.k8s._explicit_distribution)[0]
+        if result is None:
+            raise click.UsageError('I could not infer a suitable context. Try providing one explicitly.')
+        return result
 
     @context.setter
     def context(self, value):
-        self._context = value
+        # this is called only when explicitly set by the user
+        self._explicit_context = value
+
+    @staticmethod
+    def list_contexts():
+        return [
+            line[1:].split()[0]
+            for line in safe_check_output(['kubectl', 'config', 'get-contexts', '--no-headers']).splitlines()
+        ]
+
+    @staticmethod
+    def current_context():
+        return safe_check_output(['kubectl', 'config', 'current-context']).strip()
 
     def call(self, arguments):
         context = self.context
@@ -58,9 +144,22 @@ class KubeCtl:
 
 
 @group()
-@param_config('kubectl', '--context', '-c', typ=KubeCtl, help='The kubectl context to use')
-@param_config('k8s', '--distribution', '-d', help='Distribution to use', default='kind',
-              type=click.Choice(['k3d', 'kind']))  # yapf: disable
+@param_config(
+    'kubectl',
+    '--context',
+    '-c',
+    typ=KubeCtl,
+    help='The kubectl context to use',
+    type=Suggestion(KubeCtl.list_contexts()),
+)
+@param_config(
+    'k8s',
+    '--distribution',
+    '-d',
+    typ=K8s,
+    help='Distribution to use',
+    type=click.Choice(['k3d', 'kind']),
+)
 def k8s():
     """Manipulate k8s"""
 
@@ -129,6 +228,22 @@ spec:
   ca:
     secretName: ca-key-pair
 '''
+
+
+@k8s.command()
+def current_distribution():
+    """Print the currently used distribution
+
+Useful to ensure we correctly guessed it."""
+    print(config.k8s.distribution)
+
+
+@k8s.command()
+def current_context():
+    """Print the currently used context
+
+Useful to ensure we correctly guessed it."""
+    print(config.kubectl.context)
 
 
 @k8s.command()
