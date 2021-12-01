@@ -165,13 +165,15 @@ def k8s():
 
 
 bin_dir = Path('~/.local/bin').expanduser()
-k3d_url = 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64'
-kind_url = 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64'
-helm_url = 'https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz'
-kubectl_url = 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl'
-kubectl_buildkit_url = \
-    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz'
-tilt_url = 'https://github.com/tilt-dev/tilt/releases/download/v0.22.7/tilt.0.22.7.linux.x86_64.tar.gz'
+urls = {
+    'k3d': 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64',
+    'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
+    'helm': 'https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz',
+    'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
+    'kubectl_buildkit':
+    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz',
+    'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.22.7/tilt.0.22.7.linux.x86_64.tar.gz',
+}
 kind_config = """
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -272,7 +274,7 @@ def kind(force):
         LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
                       ' To install kind, run clk k8s --distribution kind install-dependency kind.')
         return
-    kind_version = re.search('/(v[0-9.]+)/', kind_url).group(1)
+    kind_version = re.search('/(v[0-9.]+)/', urls['kind']).group(1)
     if not force and not which('kind'):
         force = True
         LOGGER.info('Could not find kind')
@@ -282,7 +284,7 @@ def kind(force):
         force = True
         LOGGER.info(f'Found a different version of kind ({found_kind_version}) than the requested one {kind_version}')
     if force:
-        download(kind_url, outdir=bin_dir, outfilename='kind', mode=0o755)
+        download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
     else:
         LOGGER.info('No need to install kind, force with --force')
 
@@ -295,7 +297,7 @@ def k3d(force):
         LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
                       ' To install k3d, run clk k8s --distribution k3d install-dependency k3d.')
         return
-    k3d_version = re.search('/(v[0-9.]+)/', k3d_url).group(1)
+    k3d_version = re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
     if not force and not which('k3d'):
         force = True
         LOGGER.info('Could not find k3d')
@@ -305,7 +307,7 @@ def k3d(force):
         force = True
         LOGGER.info(f'Found a different version of k3d ({found_k3d_version}) than the requested one {k3d_version}')
     if force:
-        download(k3d_url, outdir=bin_dir, outfilename='k3d', mode=0o755)
+        download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
     else:
         LOGGER.info('No need to install k3d, force with --force')
 
@@ -314,7 +316,7 @@ def k3d(force):
 @flag('--force', help='Overwrite the existing binaries')
 def helm(force):
     """Install helm"""
-    helm_version = re.search('helm-(v[0-9.]+)', helm_url).group(1)
+    helm_version = re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
     if not force and not which('helm'):
         force = True
         LOGGER.info('Could not find helm')
@@ -325,7 +327,7 @@ def helm(force):
         LOGGER.info(f'Found a different version of helm ({found_helm_version}) than the requested one {helm_version}')
     if force:
         with tempdir() as d:
-            extract(helm_url, d)
+            extract(urls['helm'], d)
             move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
             (bin_dir / 'helm').chmod(0o755)
     else:
@@ -336,7 +338,7 @@ def helm(force):
 @flag('--force', help='Overwrite the existing binaries')
 def tilt(force):
     """Install tilt"""
-    tilt_version = re.search('/(v[0-9.]+)/', tilt_url).group(1)
+    tilt_version = re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
     if not force and not which('tilt'):
         force = True
         LOGGER.info('Could not find tilt')
@@ -347,7 +349,7 @@ def tilt(force):
         LOGGER.info(f'Found a different version of tilt ({found_tilt_version}) than the requested one {tilt_version}')
     if force:
         with tempdir() as d:
-            extract(tilt_url, d)
+            extract(urls['tilt'], d)
             move(Path(d) / 'tilt', bin_dir / 'tilt')
     else:
         LOGGER.info('No need to install tilt, force with --force')
@@ -357,7 +359,7 @@ def tilt(force):
 @flag('--force', help='Overwrite the existing binaries')
 def kubectl(force):
     """Install kubectl"""
-    kubectl_version = re.search('/(v[0-9.]+)/', kubectl_url).group(1)
+    kubectl_version = re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
     if not force and not which('kubectl'):
         force = True
         LOGGER.info('Could not find kubectl')
@@ -369,7 +371,7 @@ def kubectl(force):
         LOGGER.info(
             f'Found a different version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}')
     if force:
-        download(kubectl_url, outdir=bin_dir, outfilename='kubectl', mode=0o755)
+        download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
     else:
         LOGGER.info('No need to install kubectl, force with --force')
 
@@ -378,7 +380,7 @@ def kubectl(force):
 @flag('--force', help='Overwrite the existing binaries')
 def kubectl_buildkit(force):
     """Install kubectl buildkit"""
-    kubectl_buildkit_version = re.search('/(v[0-9.]+)/', kubectl_buildkit_url).group(1)
+    kubectl_buildkit_version = re.search('/(v[0-9.]+)/', urls['kubectl_buildkit']).group(1)
     found_kubectl_buildkit_version = False
     try:
         found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'])
@@ -395,7 +397,7 @@ def kubectl_buildkit(force):
                     f'({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}')
     if force:
         with tempdir() as d:
-            extract(kubectl_buildkit_url, d)
+            extract(urls['kubectl_buildkit'], d)
             move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
             move(Path(d) / 'kubectl-buildkit', bin_dir / 'kubectl-buildkit')
     else:
