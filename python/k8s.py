@@ -691,6 +691,11 @@ def remove(target):
 
 @k8s.command()
 def ipython():
+    """Run a ipython interpreter
+
+    Useful to help developing the module.
+
+    """
     import IPython
 
     dict_ = globals()
