@@ -1097,6 +1097,16 @@ def features(fields, format, keys):
             tp.echo(k, fs[k])
 
 
+@k8s.command(handle_dry_run=True)
+@table_format(default='key_value')
+@table_fields(choices=['dependency', 'url'])
+def show_dependencies(fields, format):
+    """Print our dependencies."""
+    with TablePrinter(fields, format) as tp:
+        for dependency, url in urls.items():
+            tp.echo(dependency, url)
+
+
 @k8s.command(flowdepends=['k8s.create-cluster'])
 def install_cilium():
     """Install cilium
