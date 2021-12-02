@@ -120,13 +120,13 @@ class KubeCtl:
     @staticmethod
     def list_contexts():
         return [
-            line[1:].split()[0]
-            for line in safe_check_output(['kubectl', 'config', 'get-contexts', '--no-headers']).splitlines()
+            line[1:].split()[0] for line in safe_check_output(['kubectl', 'config', 'get-contexts', '--no-headers'],
+                                                              internal=True).splitlines()
         ]
 
     @staticmethod
     def current_context():
-        return safe_check_output(['kubectl', 'config', 'current-context']).strip()
+        return safe_check_output(['kubectl', 'config', 'current-context'], internal=True).strip()
 
     def call(self, arguments):
         context = self.context
@@ -268,9 +268,12 @@ def install_dependency(force):
     config.k8s.install_dependencies_force = force
 
 
-@install_dependency.command()
+@install_dependency.command(handle_dry_run=True)
 def kind():
     """Install kind"""
+    if config.dry_run:
+        LOGGER.info(f"(dry-run) download kind from {urls['kind']}")
+        return
     force = config.k8s.install_dependencies_force
     if config.k8s.distribution != 'kind':
         LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
@@ -291,9 +294,12 @@ def kind():
         LOGGER.info('No need to install kind, force with --force')
 
 
-@install_dependency.command()
+@install_dependency.command(handle_dry_run=True)
 def k3d():
     """Install k3d"""
+    if config.dry_run:
+        LOGGER.info(f"(dry-run) download k3d from {urls['k3d']}")
+        return
     force = config.k8s.install_dependencies_force
     if config.k8s.distribution != 'k3d':
         LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
@@ -314,9 +320,12 @@ def k3d():
         LOGGER.info('No need to install k3d, force with --force')
 
 
-@install_dependency.command()
+@install_dependency.command(handle_dry_run=True)
 def helm():
     """Install helm"""
+    if config.dry_run:
+        LOGGER.info(f"(dry-run) download helm from {urls['helm']}")
+        return
     force = config.k8s.install_dependencies_force
     helm_version = re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
     if not force and not which('helm'):
@@ -336,9 +345,12 @@ def helm():
         LOGGER.info('No need to install helm, force with --force')
 
 
-@install_dependency.command()
+@install_dependency.command(handle_dry_run=True)
 def tilt():
     """Install tilt"""
+    if config.dry_run:
+        LOGGER.info(f"(dry-run) download tilt from {urls['tilt']}")
+        return
     force = config.k8s.install_dependencies_force
     tilt_version = re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
     if not force and not which('tilt'):
@@ -357,9 +369,12 @@ def tilt():
         LOGGER.info('No need to install tilt, force with --force')
 
 
-@install_dependency.command()
+@install_dependency.command(handle_dry_run=True)
 def kubectl():
     """Install kubectl"""
+    if config.dry_run:
+        LOGGER.info(f"(dry-run) download kubectl from {urls['kubectl']}")
+        return
     force = config.k8s.install_dependencies_force
     kubectl_version = re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
     if not force and not which('kubectl'):
@@ -378,9 +393,12 @@ def kubectl():
         LOGGER.info('No need to install kubectl, force with --force')
 
 
-@install_dependency.command()
+@install_dependency.command(handle_dry_run=True)
 def kubectl_buildkit():
     """Install kubectl buildkit"""
+    if config.dry_run:
+        LOGGER.info(f"(dry-run) download kubectl_buildkit from {urls['kubectl_buildkit']}")
+        return
     force = config.k8s.install_dependencies_force
     kubectl_buildkit_version = re.search('/(v[0-9.]+)/', urls['kubectl_buildkit']).group(1)
     found_kubectl_buildkit_version = False
@@ -406,14 +424,17 @@ def kubectl_buildkit():
         LOGGER.info('No need to install kubectl buildkit, force with --force')
 
 
-@install_dependency.flow_command(flowdepends=[
-    'k8s.install-dependency.kubectl',
-    'k8s.install-dependency.kubectl-buildkit',
-    'k8s.install-dependency.helm',
-    'k8s.install-dependency.tilt',
-    'k8s.install-dependency.k3d',
-    'k8s.install-dependency.kind',
-])
+@install_dependency.flow_command(
+    flowdepends=[
+        'k8s.install-dependency.kubectl',
+        'k8s.install-dependency.kubectl-buildkit',
+        'k8s.install-dependency.helm',
+        'k8s.install-dependency.tilt',
+        'k8s.install-dependency.k3d',
+        'k8s.install-dependency.kind',
+    ],
+    handle_dry_run=True,
+)
 def _all():
     """Install all the dependencies"""
 
@@ -447,11 +468,22 @@ def install_docker_registry_secret(registry_provider, username, password):
         LOGGER.status('No registry provider given, doing nothing.')
 
 
-@k8s.command(flowdepends=['k8s.install-dependency.all'])
+@k8s.command(flowdepends=['k8s.install-dependency.all'], handle_dry_run=True)
 @flag('--reinstall', help='Reinstall it if it already exists')
 def install_local_registry(reinstall):
     """Install k3d local registry"""
     if config.k8s.distribution == 'k3d':
+        command = [
+            'k3d',
+            'registry',
+            'create',
+            'registry.localhost',
+            '-p',
+            '5000',
+        ]
+        if config.dry_run:
+            LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
+            return
         if 'k3d-registry.localhost' in [
                 registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
         ]:
@@ -461,17 +493,24 @@ def install_local_registry(reinstall):
             else:
                 LOGGER.info('A registry with the name k3d-registry.localhost already exists.' ' Nothing to do.')
                 return
-        call(['k3d', 'registry', 'create', 'registry.localhost', '-p', '5000'])
+        call(command)
     else:
         name = f'{config.k8s.distribution}-registry'
+        command = f'docker run -d --restart=always -p 5000:5000 --name {name} registry:2'
+        if config.dry_run:
+            LOGGER.info(f'(dry-run) run: {command}')
+            return
         exists = name in check_output(split('docker ps --format {{.Names}}')).split()
         if exists:
             LOGGER.info(f'A registry with the name {name} already exists.')
         else:
-            call(split(f'docker run -d --restart=always -p 5000:5000 --name {name} registry:2'))
+            call(split(command))
 
 
-@k8s.command(flowdepends=['k8s.install-local-registry'])
+@k8s.command(
+    flowdepends=['k8s.install-local-registry'],
+    handle_dry_run=True,
+)
 @flag('--recreate', help='Recreate it if it already exists')
 @option(
     '--volume',
@@ -481,6 +520,14 @@ def install_local_registry(reinstall):
 )
 def create_cluster(recreate, volume):
     """Create a k3d cluster"""
+    if config.dry_run:
+        LOGGER.info(f'(dry-run) create a {config.k8s.distribution} cluster.'
+                    ' Here, there are many subtle hacks that'
+                    ' are done before and after creating the cluster.'
+                    ' Therefore I cannot describe it in dry-run mode.'
+                    ' Please take a look at the code'
+                    ' to find out what it does.')
+        return
     if volume and config.k8s.distribution != 'k3d':
         LOGGER.warning('--local-volume is only implemented in k3d. It will be ignored.')
     if config.k8s.distribution == 'k3d':
@@ -569,7 +616,7 @@ data:
                 call(split(f'docker network connect kind {reg_name}'))
 
 
-@k8s.command(flowdepends=['k8s.install-ingress-nginx'])
+@k8s.command(flowdepends=['k8s.install-ingress-nginx'], handle_dry_run=True)
 @option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
@@ -583,7 +630,16 @@ def install_cert_manager(version):
         '--set', 'ingressShim.defaultIssuerName=local',
         '--set', 'ingressShim.defaultIssuerKind=ClusterIssuer',
     ])  # yapf: disable
-    # generate a certificate authority for the cert-manager
+
+
+@k8s.command(flowdepends=['k8s.install-cert-manager'], handle_dry_run=True)
+def generate_certificate_authority():
+    """Generate a certificate authority for cert-manager to use."""
+    if config.dry_run:
+        LOGGER.info('(dry-run) generating a certificate authority.'
+                    ' I cannot describe in short what is done there.'
+                    ' Please take a look at the code if you want to know more.')
+        return
     with tempdir() as d, cd(d):
         ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'])
         with open('ca.key', 'w') as f:
@@ -615,7 +671,7 @@ def install_cert_manager(version):
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
 
-@k8s.command(flowdepends=['k8s.install-cilium'])
+@k8s.command(flowdepends=['k8s.install-cilium'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
 def install_ingress_nginx(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
@@ -636,7 +692,7 @@ def install_ingress_nginx(version):
         ] + helm_extra_args)  # yapf: disable
 
 
-@k8s.command()
+@k8s.command(handle_dry_run=True)
 @option('--version', default='v18.0.2', help='The version of kube-prometheus-stack chart to install')
 @option('--alertmanager/--no-alertmanager', help='Enable alertmanager')
 @option('--pushgateway/--no-pushgateway', help='Enable pushgateway')
@@ -681,7 +737,7 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
     ])  # yapf: disable
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
+@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option('--version', default='v0.50.0', help='The version of prometheus operator CRDs to install')
 def install_prometheus_operator_crds(version):
     """Install prometheus operator CRDs in the current cluster"""
@@ -700,7 +756,7 @@ def install_prometheus_operator_crds(version):
         config.kubectl.output(['apply', '-f', f'{base_url}/{crd}'])
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
+@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option('--version', default='v0.0.99', help='The version of reloader chart to install')
 def install_reloader(version):
     """Install a reloader in the current cluster"""
@@ -779,10 +835,10 @@ def add_domain(domain, ip):
 
 
 @k8s.flow_command(flowdepends=[
-    'k8s.install-cert-manager',
+    'k8s.generate-certificate-authority',
     'k8s.install-prometheus-operator-crds',
     'k8s.install-network-policy',
-])  # yapf: disable
+], handle_dry_run=True,)  # yapf: disable
 def flow():
     """Run the full k8s setup flow"""
     LOGGER.status('Everything worked well. Now enjoy your new cluster ready to go!')
@@ -1108,7 +1164,7 @@ def show_dependencies(fields, format):
             tp.echo(dependency, url)
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
+@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 def install_cilium():
     """Install cilium
 
@@ -1171,10 +1227,14 @@ extra_network_policy = """
 """
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
+@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option('--strict/--permissive', help='Whether the network policy is permissive or strict')
 def install_network_policy(strict):
     """Isolate the default namespace from the rest"""
+    if config.dry_run:
+        LOGGER.info('(dry-run) run kubectl apply to install some network policies. '
+                    ' Take a look at the code to understand what is installed exactly.')
+        return
     content = network_policy
     if not strict:
         content += extra_network_policy
