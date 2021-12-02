@@ -261,15 +261,17 @@ def doctor():
 
 
 @k8s.group(default_command='all')
-def install_dependency():
+@flag('--force', help='Overwrite the existing binaries')
+def install_dependency(force):
     """Install the dependencies needed to setup the stack"""
     # call(['sudo', 'apt', 'install', 'libnss-myhostname', 'docker.io'])
+    config.k8s.install_dependencies_force = force
 
 
 @install_dependency.command()
-@flag('--force', help='Overwrite the existing binaries')
-def kind(force):
+def kind():
     """Install kind"""
+    force = config.k8s.install_dependencies_force
     if config.k8s.distribution != 'kind':
         LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
                       ' To install kind, run clk k8s --distribution kind install-dependency kind.')
@@ -290,9 +292,9 @@ def kind(force):
 
 
 @install_dependency.command()
-@flag('--force', help='Overwrite the existing binaries')
-def k3d(force):
+def k3d():
     """Install k3d"""
+    force = config.k8s.install_dependencies_force
     if config.k8s.distribution != 'k3d':
         LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
                       ' To install k3d, run clk k8s --distribution k3d install-dependency k3d.')
@@ -313,9 +315,9 @@ def k3d(force):
 
 
 @install_dependency.command()
-@flag('--force', help='Overwrite the existing binaries')
-def helm(force):
+def helm():
     """Install helm"""
+    force = config.k8s.install_dependencies_force
     helm_version = re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
     if not force and not which('helm'):
         force = True
@@ -335,9 +337,9 @@ def helm(force):
 
 
 @install_dependency.command()
-@flag('--force', help='Overwrite the existing binaries')
-def tilt(force):
+def tilt():
     """Install tilt"""
+    force = config.k8s.install_dependencies_force
     tilt_version = re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
     if not force and not which('tilt'):
         force = True
@@ -356,9 +358,9 @@ def tilt(force):
 
 
 @install_dependency.command()
-@flag('--force', help='Overwrite the existing binaries')
-def kubectl(force):
+def kubectl():
     """Install kubectl"""
+    force = config.k8s.install_dependencies_force
     kubectl_version = re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
     if not force and not which('kubectl'):
         force = True
@@ -377,9 +379,9 @@ def kubectl(force):
 
 
 @install_dependency.command()
-@flag('--force', help='Overwrite the existing binaries')
-def kubectl_buildkit(force):
+def kubectl_buildkit():
     """Install kubectl buildkit"""
+    force = config.k8s.install_dependencies_force
     kubectl_buildkit_version = re.search('/(v[0-9.]+)/', urls['kubectl_buildkit']).group(1)
     found_kubectl_buildkit_version = False
     try:
@@ -404,17 +406,16 @@ def kubectl_buildkit(force):
         LOGGER.info('No need to install kubectl buildkit, force with --force')
 
 
-@install_dependency.command()
-@flag('--force', help='Overwrite the existing binaries')
-def _all(force):
+@install_dependency.flow_command(flowdepends=[
+    'k8s.install-dependency.kubectl',
+    'k8s.install-dependency.kubectl-buildkit',
+    'k8s.install-dependency.helm',
+    'k8s.install-dependency.tilt',
+    'k8s.install-dependency.k3d',
+    'k8s.install-dependency.kind',
+])
+def _all():
     """Install all the dependencies"""
-    ctx = click.get_current_context()
-    ctx.invoke(kubectl, force=force)
-    ctx.invoke(kubectl_buildkit, force=force)
-    ctx.invoke(helm, force=force)
-    ctx.invoke(tilt, force=force)
-    ctx.invoke(k3d, force=force)
-    ctx.invoke(kind, force=force)
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
