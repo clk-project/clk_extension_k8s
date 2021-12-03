@@ -841,7 +841,8 @@ def add_domain(domain, ip):
 ], handle_dry_run=True,)  # yapf: disable
 def flow():
     """Run the full k8s setup flow"""
-    LOGGER.status('Everything worked well. Now enjoy your new cluster ready to go!')
+    if not config.dry_run:
+        LOGGER.status('Everything worked well. Now enjoy your new cluster ready to go!')
 
 
 @k8s.command()
