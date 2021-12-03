@@ -257,6 +257,21 @@ def doctor():
     if sys.platform == 'linux':
         if 'docker' not in [grp.getgrgid(g).gr_name for g in os.getgroups()]:
             raise click.UsageError('You need to add the current user in the docker group')
+    if kube_context := config.kubectl.current_context():
+        LOGGER.info(f'Trying to play with the kubernetes available with the context {kube_context}')
+        LOGGER.info('I will check that kubectl build works correctly.' ' It is a bit long and verbose. Please wait.')
+        with tempdir() as d:
+            (Path(d) / 'Dockerfile').write_text("""FROM alpine
+RUN apk add busybox
+""")
+            try:
+                call(['kubectl', 'build', d])
+            except Exception:
+                LOGGER.warning('I could not run kubectl build.'
+                               " This is not a blocker but you won't be able to take advantage of fast builds.")
+    else:
+        LOGGER.warning('It looks like there is no kubernetes available so far.'
+                       ' Run this command again after having started your stack so that I can make more tests.')
     LOGGER.info('We did not find a reason to believe you will have trouble playing with the stack')
 
 
