@@ -251,6 +251,7 @@ Useful to ensure we correctly guessed it."""
 @k8s.command()
 def doctor():
     """Check if you have everything needed to run the stack."""
+    warnings = 0
     docker = which('docker')
     if docker is None:
         raise click.UsageError('You need to install docker')
@@ -267,12 +268,16 @@ RUN apk add busybox
             try:
                 call(['kubectl', 'build', d])
             except Exception:
+                warnings += 1
                 LOGGER.warning('I could not run kubectl build.'
                                " This is not a blocker but you won't be able to take advantage of fast builds.")
     else:
         LOGGER.warning('It looks like there is no kubernetes available so far.'
                        ' Run this command again after having started your stack so that I can make more tests.')
-    LOGGER.info('We did not find a reason to believe you will have trouble playing with the stack')
+    if warnings:
+        LOGGER.info(f"We found {warnings} reason{'s' if warnings else ''} for you to worry about the stack.")
+    else:
+        LOGGER.info('We did not find a reason to believe you will have trouble playing with the stack')
 
 
 @k8s.group(default_command='all')
