@@ -1158,12 +1158,22 @@ _features = {
 @k8s.command(handle_dry_run=True)
 @table_format(default='key_value')
 @table_fields(choices=['variable', 'value'])
+@option(
+    '--set-key',
+    help=('Make the command output the given key with the given value.'
+          'This is useful when you want to force the system as believing a feature is available in the parameters'),
+    type=(str, bool),
+    multiple=True,
+)
 @argument('keys',
           type=click.Choice(list(_features['kind'].keys())),
           nargs=-1,
           help='Only display these key values. If no key is provided, all the key values are displayed')
-def features(fields, format, keys):
+def features(fields, format, keys, set_key):
     """Show supported features for the current distribution"""
+    for set_key_item in set_key:
+        key, value = set_key_item
+        _features[config.k8s.distribution][key] = value
     if config.k8s.distribution == 'kind':
         reg_name = f'{config.k8s.distribution}-registry'
         _features[config.k8s.distribution]['local_registry'] = reg_name in check_output(
