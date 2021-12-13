@@ -171,7 +171,7 @@ urls = {
     'helm': 'https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz',
     'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
     'kubectl_buildkit':
-    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.3/linux-v0.1.3.tgz',
+    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
     'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.22.7/tilt.0.22.7.linux.x86_64.tar.gz',
 }
 kind_config = """
