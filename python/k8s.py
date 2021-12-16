@@ -423,8 +423,10 @@ def kubectl_buildkit():
     kubectl_buildkit_version = re.search('/(v[0-9.]+)/', urls['kubectl_buildkit']).group(1)
     found_kubectl_buildkit_version = False
     try:
-        found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'])
+        found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version']).splitlines()[0]
         found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
+        if 'Client:' in found_kubectl_buildkit_version:
+            found_kubectl_buildkit_version = found_kubectl_buildkit_version.replace('Client:', '').strip()
     except subprocess.CalledProcessError:
         found_kubectl_buildkit_version = False
 
