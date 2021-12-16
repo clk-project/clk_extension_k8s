@@ -1205,6 +1205,7 @@ So that you will have an implementation of network policies that actually works.
         # config.kubectl.call(['apply', '-f',
         # 'https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml'])
         call(['helm', 'repo', 'add', 'cilium', 'https://helm.cilium.io/'])
+        call(['helm', 'repo', 'update'])
         call([
             'helm', '--kube-context', config.kubectl.context, 'upgrade', '--install', '--wait',
             'cilium', 'cilium/cilium', '--version', '1.9.10',
