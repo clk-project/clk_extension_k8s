@@ -1242,22 +1242,22 @@ spec:
         - podSelector: {}
           namespaceSelector:
             matchLabels:
-              name: monitoring
+              kubernetes.io/metadata.name: monitoring
         - podSelector: {}
           namespaceSelector:
             matchLabels:
-              name: logging
+              kubernetes.io/metadata.name: logging
 """
 
 extra_network_policy = """
         - podSelector: {}
           namespaceSelector:
             matchLabels:
-              name: ingress
+              kubernetes.io/metadata.name: ingress
         - podSelector: {}
           namespaceSelector:
             matchLabels:
-              name: default
+              kubernetes.io/metadata.name: default
 """
 
 
