@@ -83,6 +83,7 @@ def guess_context_and_distribution(context, distribution):
 
 
 class K8s:
+
     def __init__(self):
         self._distribution = None
         self._explicit_distribution = None
@@ -101,6 +102,7 @@ class K8s:
 
 
 class KubeCtl:
+
     def __init__(self):
         self._explicit_context = None
 
@@ -259,7 +261,8 @@ def doctor():
             raise click.UsageError('You need to add the current user in the docker group')
     if kube_context := config.kubectl.current_context():
         LOGGER.info(f'Trying to play with the kubernetes available with the context {kube_context}')
-        LOGGER.info('I will check that kubectl build works correctly.' ' It is a bit long and verbose. Please wait.')
+        LOGGER.info('I will check that kubectl build works correctly.'
+                    ' It is a bit long and verbose. Please wait.')
         with tempdir() as d:
             (Path(d) / 'Dockerfile').write_text("""FROM alpine
 RUN apk add busybox
@@ -512,7 +515,8 @@ def install_local_registry(reinstall):
                 ctx = click.get_current_context()
                 ctx.invoke(remove, target='registry')
             else:
-                LOGGER.info('A registry with the name k3d-registry.localhost already exists.' ' Nothing to do.')
+                LOGGER.info('A registry with the name k3d-registry.localhost already exists.'
+                            ' Nothing to do.')
                 return
         call(command)
     else:
@@ -890,6 +894,7 @@ def ipython():
 
 
 class Chart:
+
     @staticmethod
     def compute_name(metadata):
         return f'{metadata["name"]}-{metadata["version"]}'
