@@ -7,7 +7,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 from pathlib import Path
 from shlex import split
 
@@ -166,7 +165,7 @@ def k8s():
 
 bin_dir = Path('~/.local/bin').expanduser()
 urls = {
-    'k3d': 'https://github.com/rancher/k3d/releases/download/v4.4.4/k3d-linux-amd64',
+    'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
     'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
     'helm': 'https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz',
     'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
@@ -577,36 +576,26 @@ def create_cluster(recreate, volume):
         raise click.ClickException('Port 443 is already in use by another process. Please stop this process and retry.')
 
     if config.k8s.distribution == 'k3d':
-        import yaml
+        k3s_manifests = Path(__file__).parent.parent / 'k3s-manifests'
         cmd = [
             'k3d', 'cluster', 'create', name,
             '--wait',
             '--port', '80:80@loadbalancer',
             '--port', '443:443@loadbalancer',
             '--registry-use', 'k3d-registry.localhost:5000',
-            '--k3s-agent-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%',
-            '--k3s-agent-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%',
-            '--k3s-server-arg', '--disable-network-policy',
+            '--k3s-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%@agent:*',
+            '--k3s-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
+            '--k3s-arg', '--flannel-backend=none@server:*',
+            '--k3s-arg', '--disable-network-policy@server:*',
         ]  # yapf: disable
+        for manifest in k3s_manifests.iterdir():
+            cmd.extend(['--volume', f'{manifest}:/var/lib/rancher/k3s/server/manifests/{manifest.name}'])
         if volume:
             local_volume = volume.split(':')[0]
             makedirs(local_volume)
             cmd.extend(['--volume', volume])
         call(cmd)
-        traefik_conf = ''
-        time.sleep(10)
-        while not traefik_conf:
-            try:
-                traefik_conf = config.kubectl.output(['get', 'cm', 'traefik', '-n', 'kube-system', '-o', 'yaml'])
-            except subprocess.CalledProcessError:
-                time.sleep(5)
-        traefik_conf = yaml.load(traefik_conf, Loader=yaml.FullLoader)
-        traefik_conf['data']['traefik.toml'] = ('insecureSkipVerify = true\n' + traefik_conf['data']['traefik.toml'])
-        with temporary_file() as f:
-            f.write(yaml.dump(traefik_conf).encode('utf8'))
-            f.close()
-            config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-        config.kubectl.call(['delete', 'pod', '-l', 'app=traefik', '-n', 'kube-system'])
+
     elif config.k8s.distribution == 'kind':
         reg_name = f'{config.k8s.distribution}-registry'
         kind_config_to_use = kind_config
