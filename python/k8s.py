@@ -632,7 +632,7 @@ data:
                 call(split(f'docker network connect kind {reg_name}'))
 
 
-@k8s.command(flowdepends=['k8s.install-ingress-nginx'], handle_dry_run=True)
+@k8s.command(flowdepends=['k8s.install-ingress-controller'], handle_dry_run=True)
 @option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
@@ -687,9 +687,9 @@ def generate_certificate_authority():
         config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
 
-@k8s.command(flowdepends=['k8s.install-cilium'], handle_dry_run=True)
+@k8s.command(flowdepends=['k8s.install-networkpolicies-controller'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
-def install_ingress_nginx(version):
+def install_ingress_controller(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
     call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
     helm_extra_args = []
@@ -1193,7 +1193,7 @@ def show_dependencies(fields, format):
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-def install_cilium():
+def install_networkpolicies_controller():
     """Install cilium
 
 So that you will have an implementation of network policies that actually works.
