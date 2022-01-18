@@ -1219,10 +1219,8 @@ So that you will have an implementation of network policies that actually works.
             '--set', 'operator.replicas=1',
         ])  # yapf: disable
     else:
-        LOGGER.warning('We only took the time to install cilium in the kind distribution.'
-                       f' You are currently using {config.k8s.distribution}.'
-                       ' You will likely experience poor network policies support'
-                       ' until some nice person submit a pull request for this distribution.')
+        LOGGER.info('Nothing to be done in k3d to install a policy network controler.'
+                    ' We already installed calico when creating the server.')
 
 
 network_policy = """kind: NetworkPolicy
