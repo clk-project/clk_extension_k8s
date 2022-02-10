@@ -704,6 +704,7 @@ def install_ingress_nginx(version):
         '--namespace', 'ingress',
         '--version', version,
         '--set', 'rbac.create=true',
+        '--set', 'controller.extraArgs.enable-ssl-passthrough=',
     ] + helm_extra_args)  # yapf: disable
 
 
