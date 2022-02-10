@@ -591,6 +591,7 @@ def create_cluster(recreate, volume):
             '--k3s-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
             '--k3s-arg', '--flannel-backend=none@server:*',
             '--k3s-arg', '--disable-network-policy@server:*',
+            '--k3s-arg', '--no-deploy=traefik@server:*',
         ]  # yapf: disable
         for manifest in k3s_manifests.iterdir():
             cmd.extend(['--volume', f'{manifest}:/var/lib/rancher/k3s/server/manifests/{manifest.name}'])
@@ -690,21 +691,20 @@ def generate_certificate_authority():
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
 def install_ingress_nginx(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
-    if config.k8s.distribution != 'k3d':
-        call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
-        helm_extra_args = []
-        if config.k8s.distribution == 'kind':
-            helm_extra_args += [
-                '--set', 'controller.service.type=NodePort',
-                '--set', 'controller.hostPort.enabled=true',
-            ]  # yapf: disable
-        call([
-            'helm', '--kube-context', config.kubectl.context,
-            'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
-            '--namespace', 'ingress',
-            '--version', version,
-            '--set', 'rbac.create=true'
-        ] + helm_extra_args)  # yapf: disable
+    call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
+    helm_extra_args = []
+    if config.k8s.distribution == 'kind':
+        helm_extra_args += [
+            '--set', 'controller.service.type=NodePort',
+            '--set', 'controller.hostPort.enabled=true',
+        ]  # yapf: disable
+    call([
+        'helm', '--kube-context', config.kubectl.context,
+        'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
+        '--namespace', 'ingress',
+        '--version', version,
+        '--set', 'rbac.create=true',
+    ] + helm_extra_args)  # yapf: disable
 
 
 @k8s.command(handle_dry_run=True)
