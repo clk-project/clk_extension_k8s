@@ -854,6 +854,7 @@ def add_domain(domain, ip):
     'k8s.generate-certificate-authority',
     'k8s.install-prometheus-operator-crds',
     'k8s.install-network-policy',
+    'k8s.setup-credentials',
 ], handle_dry_run=True,)  # yapf: disable
 def flow():
     """Run the full k8s setup flow"""
@@ -1098,7 +1099,32 @@ def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sourc
         os.utime(touch)
 
 
-@k8s.command()
+@k8s.command(flowdepends=['k8s.create-cluster'])
+def setup_credentials():
+    """Placeholder command to setup the secrets
+
+    This command does nothing but may be overridden by an alias or a customcommand
+    to setup your secrets once the cluster is setup.
+
+    In case you want to setup some secret after the cluster is created, this is
+    as simple as running `clk command create bash k8s.setup-credentials` and
+    write whatever behavior you want.
+
+    You will likely want to make this new command have `k8s.create-cluster` in
+    its flow, by adding the line `flowdepends: k8s.create-cluster` in its
+    description for instance.
+
+    You might want to take advantage of `clk k8s docker-credentials` and `clk
+    k8s install-docker-registry-secret` in this command.
+
+    """
+    LOGGER.info('No credentials added in the cluster.'
+                ' You might want to customize this to automatically'
+                ' setup your credentials. See `clk k8s setup-credentials --help`'
+                ' for more information.')
+
+
+@k8s.command(flowdepends=['k8s.install-docker-registry-secret'])
 @option('--docker-login/--no-docker-login', '-d', help='Also log into docker')
 @option('--helm-login/--no-helm-login', '-h', help='Also log into helm')
 @option('--export-password', '-p', help='Export the passwords that directory, with the registry host as name')
