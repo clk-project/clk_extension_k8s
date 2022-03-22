@@ -479,7 +479,7 @@ def _all():
           ' (in case of gitlab, an API key with read_registry grants'
           ' generated using https://gitlab.com/-/profile/personal_access_tokens)'),
 )
-def install_docker_registry_secret(registry_provider, username, password):
+def install_docker_registry_credentials(registry_provider, username, password):
     """Install the credential to get access to the given registry provider."""
     registries = {
         'gitlab': {
@@ -1127,7 +1127,7 @@ def setup_credentials():
     description for instance.
 
     You might want to take advantage of `clk k8s docker-credentials` and `clk
-    k8s install-docker-registry-secret` in this command.
+    k8s install-docker-registry-credentials` in this command.
 
     """
     LOGGER.info('No credentials added in the cluster.'
@@ -1136,7 +1136,7 @@ def setup_credentials():
                 ' for more information.')
 
 
-@k8s.command(flowdepends=['k8s.install-docker-registry-secret'])
+@k8s.command(flowdepends=['k8s.install-docker-registry-credentials'])
 @option('--docker-login/--no-docker-login', '-d', help='Also log into docker')
 @option('--helm-login/--no-helm-login', '-h', help='Also log into helm')
 @option('--export-password', '-p', help='Export the passwords that directory, with the registry host as name')
