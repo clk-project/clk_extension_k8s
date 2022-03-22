@@ -464,9 +464,21 @@ def _all():
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
-@option('--registry-provider', type=click.Choice(['gitlab']), help='What registry provider to connect to')
-@option('--username', help='The username of the provider registry')
-@option('--password', help='The password of the provider registry')
+@option('--registry-provider',
+        type=click.Choice(['gitlab']),
+        help='What registry provider to connect to',
+        default='gitlab')
+@option(
+    '--username',
+    help=('The username of the provider registry'
+          ' (your gitlab id in case you use gitlab)'),
+)
+@option(
+    '--password',
+    help=('The password of the provider registry'
+          ' (in case of gitlab, an API key with read_registry grants'
+          ' generated using https://gitlab.com/-/profile/personal_access_tokens)'),
+)
 def install_docker_registry_secret(registry_provider, username, password):
     """Install the credential to get access to the given registry provider."""
     registries = {
