@@ -556,7 +556,7 @@ def install_local_registry(reinstall):
           ' Only implemented for k3d for the time being.'),
 )
 def create_cluster(recreate, volume):
-    """Create a k3d cluster"""
+    """Create a k8s cluster"""
     if config.dry_run:
         LOGGER.info(f'(dry-run) create a {config.k8s.distribution} cluster.'
                     ' Here, there are many subtle hacks that'
