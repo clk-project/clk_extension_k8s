@@ -1140,7 +1140,7 @@ def setup_credentials():
 @option('--docker-login/--no-docker-login', '-d', help='Also log into docker')
 @option('--helm-login/--no-helm-login', '-h', help='Also log into helm')
 @option('--export-password', '-p', help='Export the passwords that directory, with the registry host as name')
-@argument('secret', help='K8s secret to use')
+@argument('secret', help='Name of the k8s secret to use')
 def docker_credentials(docker_login, helm_login, secret, export_password):
     """Extract the docker credentials from a k8s secret"""
     creds = config.kubectl.output(
