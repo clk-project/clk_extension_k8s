@@ -1245,7 +1245,7 @@ So that you will have an implementation of network policies that actually works.
             '--set', 'operator.replicas=1',
         ])  # yapf: disable
     else:
-        LOGGER.info('Nothing to be done in k3d to install a policy network controler.'
+        LOGGER.info('Nothing to be done in k3d to install a policy network controller.'
                     ' We already installed calico when creating the server.')
 
 
