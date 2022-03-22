@@ -313,7 +313,7 @@ def kind():
     if force:
         download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
     else:
-        LOGGER.info('No need to install kind, force with --force')
+        LOGGER.status('No need to install kind, force with --force')
 
 
 @install_dependency.command(handle_dry_run=True)
@@ -339,7 +339,7 @@ def k3d():
     if force:
         download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
     else:
-        LOGGER.info('No need to install k3d, force with --force')
+        LOGGER.status('No need to install k3d, force with --force')
 
 
 @install_dependency.command(handle_dry_run=True)
@@ -364,7 +364,7 @@ def helm():
             move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
             (bin_dir / 'helm').chmod(0o755)
     else:
-        LOGGER.info('No need to install helm, force with --force')
+        LOGGER.status('No need to install helm, force with --force')
 
 
 @install_dependency.command(handle_dry_run=True)
@@ -388,7 +388,7 @@ def tilt():
             extract(urls['tilt'], d)
             move(Path(d) / 'tilt', bin_dir / 'tilt')
     else:
-        LOGGER.info('No need to install tilt, force with --force')
+        LOGGER.status('No need to install tilt, force with --force')
 
 
 @install_dependency.command(handle_dry_run=True)
@@ -412,7 +412,7 @@ def kubectl():
     if force:
         download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
     else:
-        LOGGER.info('No need to install kubectl, force with --force')
+        LOGGER.status('No need to install kubectl, force with --force')
 
 
 @install_dependency.command(handle_dry_run=True)
@@ -445,7 +445,7 @@ def kubectl_buildkit():
             move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
             move(Path(d) / 'kubectl-buildkit', bin_dir / 'kubectl-buildkit')
     else:
-        LOGGER.info('No need to install kubectl buildkit, force with --force')
+        LOGGER.status('No need to install kubectl buildkit, force with --force')
 
 
 @install_dependency.flow_command(
@@ -527,8 +527,8 @@ def install_local_registry(reinstall):
                 ctx = click.get_current_context()
                 ctx.invoke(remove, target='registry')
             else:
-                LOGGER.info('A registry with the name k3d-registry.localhost already exists.'
-                            ' Nothing to do.')
+                LOGGER.status('A registry with the name k3d-registry.localhost already exists.'
+                              ' Nothing to do.')
                 return
         call(command)
     else:
@@ -539,7 +539,7 @@ def install_local_registry(reinstall):
             return
         exists = name in check_output(split('docker ps --format {{.Names}}')).split()
         if exists:
-            LOGGER.info(f'A registry with the name {name} already exists.')
+            LOGGER.status(f'A registry with the name {name} already exists.')
         else:
             call(split(command))
 
@@ -575,13 +575,13 @@ def create_cluster(recreate, volume):
             if recreate:
                 call(['k3d', 'cluster', 'delete', name])
             else:
-                LOGGER.info(f'A cluster with the name {name} already exists.')
+                LOGGER.status(f'A cluster with the name {name} already exists.')
                 cluster = already_existing_clusters[0]
                 if cluster['serversRunning'] == 0:
-                    LOGGER.info('Starting it!')
+                    LOGGER.status('Starting it!')
                     call(['k3d', 'cluster', 'start', name])
                 else:
-                    LOGGER.info('Nothing to do!')
+                    LOGGER.status('Nothing to do!')
                 return
     elif config.k8s.distribution == 'kind':
         name = 'kind'
@@ -589,7 +589,7 @@ def create_cluster(recreate, volume):
             if recreate:
                 call(['kind', 'delete', 'clusters', name])
             else:
-                LOGGER.info(f'A cluster with the name {name} already exists. Nothing to do.')
+                LOGGER.status(f'A cluster with the name {name} already exists. Nothing to do.')
                 return
     else:
         raise click.ClickException('Unsupported distribution')
@@ -1175,10 +1175,10 @@ def setup_credentials():
     k8s install-docker-registry-credentials` in this command.
 
     """
-    LOGGER.info('No credentials added in the cluster.'
-                ' You might want to customize this to automatically'
-                ' setup your credentials. See `clk k8s setup-credentials --help`'
-                ' for more information.')
+    LOGGER.debug('No credentials added in the cluster.'
+                 ' You might want to customize this to automatically'
+                 ' setup your credentials. See `clk k8s setup-credentials --help`'
+                 ' for more information.')
 
 
 @k8s.command(flowdepends=['k8s.install-docker-registry-credentials'])
@@ -1302,8 +1302,8 @@ So that you will have an implementation of network policies that actually works.
             '--set', 'operator.replicas=1',
         ])  # yapf: disable
     else:
-        LOGGER.info('Nothing to be done in k3d to install a policy network controller.'
-                    ' We already installed calico when creating the server.')
+        LOGGER.status('Nothing to be done in k3d to install a policy network controller.'
+                      ' We already installed calico when creating the server.')
 
 
 network_policy = """kind: NetworkPolicy
