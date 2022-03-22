@@ -656,12 +656,12 @@ data:
 @option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
-    call(['helm', 'repo', 'add', 'jetstack', 'https://charts.jetstack.io'])
     call([
         'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'cert-manager', 'jetstack/cert-manager',
+        'upgrade', '--install', '--create-namespace', '--wait', 'cert-manager', 'cert-manager',
         '--namespace', 'cert-manager',
         '--version', version,
+        '--repo', 'https://charts.jetstack.io',
         '--set', 'installCRDs=true',
         '--set', 'ingressShim.defaultIssuerName=local',
         '--set', 'ingressShim.defaultIssuerKind=ClusterIssuer',
@@ -709,37 +709,8 @@ def generate_certificate_authority():
 
 @k8s.command(flowdepends=['k8s.install-networkpolicies-controller'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
-@option(
-    '--update-helm-repo',
-    help=('In case there is already an helm repo for'
-          ' ingress with another url, update it.'),
-)
-def install_ingress_controller(version, update_helm_repo):
+def install_ingress_controller(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
-    name, url = 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'
-    matching_repos = [
-        repo for repo in json.loads(check_output(['helm', 'repo', 'list', '--output', 'json']))
-        if repo['name'] == 'ingress-nginx'
-    ]
-
-    def update_repo():
-        call(['helm', 'repo', 'add', name, url])
-
-    if matching_repos:
-        if matching_repos[0]['url'] != url:
-            if update_helm_repo:
-                call(['helm', 'repo', 'remove', name])
-                update_repo()
-            else:
-                raise click.UsageError(
-                    f'An helm repo associated with name {name}'
-                    f' already exists and is not associated with the url {url}'
-                    f' ({matching_repos["url"]})'
-                    ' You can run this command with --update-helm-repo'
-                    f' or manually helm repo remove {name}'
-                    ' to fix this issue.', )
-    else:
-        update_repo()
     releases = [
         release for release in json.loads(check_output(['helm', 'list', '--namespace', 'ingress', '--output', 'json']))
         if release['name'] == 'ingress-nginx'
@@ -757,8 +728,9 @@ def install_ingress_controller(version, update_helm_repo):
         ]  # yapf: disable
     call([
         'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx/ingress-nginx',
+        'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx',
         '--namespace', 'ingress',
+        '--repo', 'https://kubernetes.github.io/ingress-nginx',
         '--version', version,
         '--set', 'rbac.create=true',
         '--set', 'controller.extraArgs.enable-ssl-passthrough=',
@@ -782,14 +754,13 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
                                   kube_controller_manager, prometheus_retention, prometheus_persistence_size,
                                   grafana_host, grafana_persistence_size, grafana_admin_password):
     """Install a kube-prometheus-stack instance in the current cluster"""
-    call(['helm', 'repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'])
-    call(['helm', 'repo', 'update'])
     call([
         'helm', '--kube-context', config.kubectl.context,
         'upgrade', '--install', '--create-namespace', '--wait', 'kube-prometheus-stack',
-        'prometheus-community/kube-prometheus-stack',
+        'kube-prometheus-stack',
         '--namespace', 'monitoring',
         '--version', version,
+        '--repo', 'https://prometheus-community.github.io/helm-charts',
         '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
         '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
         '--set', 'coreDns.enabled=' + str(coredns).lower(),
@@ -833,10 +804,10 @@ def install_prometheus_operator_crds(version):
 @option('--version', default='v0.0.99', help='The version of reloader chart to install')
 def install_reloader(version):
     """Install a reloader in the current cluster"""
-    call(['helm', 'repo', 'add', 'stakater', 'https://stakater.github.io/stakater-charts'])
     call([
         'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'reloader', 'stakater/reloader',
+        'upgrade', '--install', '--create-namespace', '--wait', 'reloader', 'reloader',
+        '--repo', 'https://stakater.github.io/stakater-charts',
         '--namespace', 'reloader',
         '--version', version,
     ])  # yapf: disable
@@ -1282,13 +1253,10 @@ def install_networkpolicies_controller():
 So that you will have an implementation of network policies that actually works.
 """
     if config.k8s.distribution == 'kind':
-        # config.kubectl.call(['apply', '-f',
-        # 'https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml'])
-        call(['helm', 'repo', 'add', 'cilium', 'https://helm.cilium.io/'])
-        call(['helm', 'repo', 'update'])
         call([
             'helm', '--kube-context', config.kubectl.context, 'upgrade', '--install', '--wait',
-            'cilium', 'cilium/cilium', '--version', '1.9.10',
+            'cilium', 'cilium', '--version', '1.9.10',
+            '--repo', 'https://helm.cilium.io/',
             '--namespace', 'kube-system',
             '--set', 'nodeinit.enabled=true',
             '--set', 'kubeProxyReplacement=partial',
