@@ -569,11 +569,19 @@ def create_cluster(recreate, volume):
         LOGGER.warning('--local-volume is only implemented in k3d. It will be ignored.')
     if config.k8s.distribution == 'k3d':
         name = 'k3s-default'
-        if name in [cluster['name'] for cluster in json.loads(check_output(split('k3d cluster list -o json')))]:
+        clusters = json.loads(check_output(split('k3d cluster list -o json')))
+        already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
+        if already_existing_clusters:
             if recreate:
                 call(['k3d', 'cluster', 'delete', name])
             else:
-                LOGGER.info(f'A cluster with the name {name} already exists. Nothing to do.')
+                LOGGER.info(f'A cluster with the name {name} already exists.')
+                cluster = already_existing_clusters[0]
+                if cluster['serversRunning'] == 0:
+                    LOGGER.info('Starting it!')
+                    call(['k3d', 'cluster', 'start', name])
+                else:
+                    LOGGER.info('Nothing to do!')
                 return
     elif config.k8s.distribution == 'kind':
         name = 'kind'
