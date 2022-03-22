@@ -709,9 +709,46 @@ def generate_certificate_authority():
 
 @k8s.command(flowdepends=['k8s.install-networkpolicies-controller'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
-def install_ingress_controller(version):
+@option(
+    '--update-helm-repo',
+    help=('In case there is already an helm repo for'
+          ' ingress with another url, update it.'),
+)
+def install_ingress_controller(version, update_helm_repo):
     """Install an ingress (ingress-nginx) in the current cluster"""
-    call(['helm', 'repo', 'add', 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'])
+    name, url = 'ingress-nginx', 'https://kubernetes.github.io/ingress-nginx'
+    matching_repos = [
+        repo for repo in json.loads(check_output(['helm', 'repo', 'list', '--output', 'json']))
+        if repo['name'] == 'ingress-nginx'
+    ]
+
+    def update_repo():
+        call(['helm', 'repo', 'add', name, url])
+
+    if matching_repos:
+        if matching_repos[0]['url'] != url:
+            if update_helm_repo:
+                call(['helm', 'repo', 'remove', name])
+                update_repo()
+            else:
+                raise click.UsageError(
+                    f'An helm repo associated with name {name}'
+                    f' already exists and is not associated with the url {url}'
+                    f' ({matching_repos["url"]})'
+                    ' You can run this command with --update-helm-repo'
+                    f' or manually helm repo remove {name}'
+                    ' to fix this issue.', )
+    else:
+        update_repo()
+    releases = [
+        release for release in json.loads(check_output(['helm', 'list', '--namespace', 'ingress', '--output', 'json']))
+        if release['name'] == 'ingress-nginx'
+    ]
+    if releases:
+        release = releases[0]
+        installed_version = release['chart'].split('-')[-1]
+        if 'v' + installed_version == version:
+            return
     helm_extra_args = []
     if config.k8s.distribution == 'kind':
         helm_extra_args += [
