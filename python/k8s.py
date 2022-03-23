@@ -136,12 +136,19 @@ class KubeCtl:
         else:
             call(['kubectl'] + arguments)
 
-    def output(self, arguments):
+    def get(self, kind, name, namespace='default'):
+        return [
+            secret for secret in json.loads(
+                config.kubectl.output(['get', kind, '--namespace', namespace, '--output', 'json']))['items']
+            if secret['metadata']['name'] == name
+        ]
+
+    def output(self, arguments, **kwargs):
         context = self.context
         if context is not None:
-            return check_output(['kubectl', '--context', context] + arguments)
+            return check_output(['kubectl', '--context', context] + arguments, **kwargs)
         else:
-            return check_output(['kubectl'] + arguments)
+            return check_output(['kubectl'] + arguments, **kwargs)
 
 
 @group()
@@ -656,10 +663,15 @@ data:
 @option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
 def install_cert_manager(version):
     """Install a certificate manager in the current cluster"""
+    namespace, name = 'cert-manager', 'cert-manager'
+    if _helm_already_installed(namespace, name, version):
+        LOGGER.status(f'{name} already installed in {namespace} with version {version}')
+        return
+
     call([
         'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'cert-manager', 'cert-manager',
-        '--namespace', 'cert-manager',
+        'upgrade', '--install', '--create-namespace', '--wait', name, name,
+        '--namespace', namespace,
         '--version', version,
         '--repo', 'https://charts.jetstack.io',
         '--set', 'installCRDs=true',
@@ -676,50 +688,65 @@ def generate_certificate_authority():
                     ' I cannot describe in short what is done there.'
                     ' Please take a look at the code if you want to know more.')
         return
-    with tempdir() as d, cd(d):
-        ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'])
-        with open('ca.key', 'w') as f:
-            f.write(ca_key)
+    secret_name = 'ca-key-pair'
+    if config.kubectl.get('secret', secret_name, 'cert-manager'):
+        LOGGER.debug(f'Already have a secret with name {secret_name}')
+    else:
+        with tempdir() as d, cd(d):
+            ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'], nostderr=True)
+            with open('ca.key', 'w') as f:
+                f.write(ca_key)
 
-        ca_crt = check_output([
-            'docker', 'run', '--rm', '--entrypoint', '/bin/sh', 'alpine/openssl', '-c',
-            'echo -e "' + '\\n'.join(ca_key.split(sep='\n')) +
-            '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650' +
-            ' -reqexts v3_req -extensions v3_ca',
-        ])  # yapf: disable
-        with open('ca.crt', 'w') as f:
-            f.write(ca_crt)
+            ca_crt = check_output([
+                'docker', 'run', '--rm', '--entrypoint', '/bin/sh', 'alpine/openssl', '-c',
+                'echo -e "' + '\\n'.join(ca_key.split(sep='\n')) +
+                '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650' +
+                ' -reqexts v3_req -extensions v3_ca',
+            ])  # yapf: disable
+            with open('ca.crt', 'w') as f:
+                f.write(ca_crt)
 
-        ca_secret = config.kubectl.output([
-            'create', 'secret', 'tls', 'ca-key-pair',
-            '--cert=ca.crt',
-            '--key=ca.key',
-            '--namespace=cert-manager',
-            '--dry-run=client',
-            '-o', 'yaml',
-        ])  # yapf: disable
-    with temporary_file() as f:
-        f.write(f'''{ca_secret}
+            ca_secret = config.kubectl.output([
+                'create', 'secret', 'tls', secret_name,
+                '--cert=ca.crt',
+                '--key=ca.key',
+                '--namespace=cert-manager',
+                '--dry-run=client',
+                '-o', 'yaml',
+            ])  # yapf: disable
+    if config.kubectl.get('clusterissuer', 'local', 'cert-manager'):
+        LOGGER.debug('Already have a cluster issuer with name local')
+    else:
+        with temporary_file() as f:
+            f.write(f'''{ca_secret}
 ---
 {cluster_issuer}
 '''.encode('utf8'))
-        f.close()
-        config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
+            f.close()
+            config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
+
+
+def _helm_already_installed(namespace, name, version):
+    releases = [
+        release for release in json.loads(check_output(['helm', 'list', '--namespace', namespace, '--output', 'json']))
+        if release['name'] == name
+    ]
+    if releases:
+        release = releases[0]
+        installed_version = release['chart'].split('-')[-1]
+        if installed_version == version or 'v' + installed_version == version:
+            return True
+    return False
 
 
 @k8s.command(flowdepends=['k8s.install-networkpolicies-controller'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
 def install_ingress_controller(version):
     """Install an ingress (ingress-nginx) in the current cluster"""
-    releases = [
-        release for release in json.loads(check_output(['helm', 'list', '--namespace', 'ingress', '--output', 'json']))
-        if release['name'] == 'ingress-nginx'
-    ]
-    if releases:
-        release = releases[0]
-        installed_version = release['chart'].split('-')[-1]
-        if 'v' + installed_version == version:
-            return
+    namespace, name = 'ingress', 'ingress-nginx'
+    if _helm_already_installed(namespace, name, version):
+        LOGGER.status(f'{name} already installed in {namespace} with version {version}')
+        return
     helm_extra_args = []
     if config.k8s.distribution == 'kind':
         helm_extra_args += [
@@ -728,8 +755,8 @@ def install_ingress_controller(version):
         ]  # yapf: disable
     call([
         'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'ingress-nginx', 'ingress-nginx',
-        '--namespace', 'ingress',
+        'upgrade', '--install', '--create-namespace', '--wait', name, name,
+        '--namespace', namespace,
         '--repo', 'https://kubernetes.github.io/ingress-nginx',
         '--version', version,
         '--set', 'rbac.create=true',
@@ -1313,8 +1340,12 @@ def install_network_policy(strict):
         LOGGER.info('(dry-run) run kubectl apply to install some network policies. '
                     ' Take a look at the code to understand what is installed exactly.')
         return
-    content = network_policy
-    if not strict:
-        content += extra_network_policy
-    with temporary_file(content=content) as f:
-        config.kubectl.call(['apply', '-f', f.name])
+    name = 'deny-from-other-namespaces'
+    if config.kubectl.get('NetworkPolicy', name):
+        LOGGER.debug(f'A network policy already exists with name {name}')
+    else:
+        content = network_policy
+        if not strict:
+            content += extra_network_policy
+        with temporary_file(content=content) as f:
+            config.kubectl.call(['apply', '-f', f.name])
