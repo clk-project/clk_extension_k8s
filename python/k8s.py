@@ -578,7 +578,7 @@ def create_cluster(recreate, volume):
                 LOGGER.status(f'A cluster with the name {name} already exists.')
                 cluster = already_existing_clusters[0]
                 if cluster['serversRunning'] == 0:
-                    LOGGER.status('Starting it!')
+                    LOGGER.info('Starting k3d!')
                     call(['k3d', 'cluster', 'start', name])
                 else:
                     LOGGER.status('Nothing to do!')
