@@ -181,6 +181,7 @@ urls = {
     'kubectl_buildkit':
     'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
     'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.25.2/tilt.0.25.2.linux.x86_64.tar.gz',
+    'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-linux-amd64',
 }
 kind_config = """
 kind: Cluster
@@ -399,6 +400,29 @@ def tilt():
 
 
 @install_dependency.command(handle_dry_run=True)
+def earthly():
+    """Install earthly"""
+    if config.dry_run:
+        LOGGER.info(f"(dry-run) download earthly from {urls['earthly']}")
+        return
+    force = config.k8s.install_dependencies_force
+    earthly_version = re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
+    if not force and not which('earthly'):
+        force = True
+        LOGGER.info('Could not find earthly')
+    if which('earthly'):
+        found_earthly_version = re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
+    if not force and found_earthly_version != earthly_version:
+        force = True
+        LOGGER.info(
+            f'Found a different version of earthly ({found_earthly_version}) than the requested one {earthly_version}')
+    if force:
+        download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
+    else:
+        LOGGER.status('No need to install earthly, force with --force')
+
+
+@install_dependency.command(handle_dry_run=True)
 def kubectl():
     """Install kubectl"""
     if config.dry_run:
@@ -461,6 +485,7 @@ def kubectl_buildkit():
         'k8s.install-dependency.kubectl-buildkit',
         'k8s.install-dependency.helm',
         'k8s.install-dependency.tilt',
+        'k8s.install-dependency.earthly',
         'k8s.install-dependency.k3d',
         'k8s.install-dependency.kind',
     ],
