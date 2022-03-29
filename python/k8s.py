@@ -180,7 +180,7 @@ urls = {
     'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
     'kubectl_buildkit':
     'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
-    'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.25.2/tilt.0.25.2.linux.x86_64.tar.gz',
+    'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.26.3/tilt.0.26.3.linux.x86_64.tar.gz',
     'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-linux-amd64',
 }
 kind_config = """
