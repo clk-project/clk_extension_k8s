@@ -1,0 +1,38 @@
+clk_k8s = 'clk -a --force-color k8s -c ' + k8s_context() + ' '
+
+
+def has_local_registry():
+    return str(
+        local(clk_k8s + 'features --field value --format plain local_registry',
+              quiet=True)).strip() == "True"
+
+
+def build_chart_update_command(
+    location,
+    dependencies,
+    force=False,
+    touched_file=None,
+):
+    command = clk_k8s + 'helm-dependency-update ' + location
+    for dependency in dependencies:
+        command += ' --package ' + dependency
+    if force:
+        command += ' --force '
+    if touched_file:
+        command += ' --touch="{}"'.format(touched_file)
+    return command
+
+
+def update_helm_chart(
+    location,
+    dependencies,
+    force=False,
+    touched_file=None,
+):
+    command = build_chart_update_command(
+        location,
+        dependencies,
+        force=False,
+        touched_file=None,
+    )
+    local(command)
