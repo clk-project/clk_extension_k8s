@@ -975,6 +975,10 @@ def ipython():
     IPython.start_ipython(argv=[], user_ns=dict_)
 
 
+class ChartNotUpdatedYet(Exception):
+    pass
+
+
 class Chart:
 
     @staticmethod
@@ -993,6 +997,13 @@ class Chart:
         self.name = self.compute_name(self.index)
         self.dependencies = self.index.get('dependencies', [])
         self.dependencies_fullnames = [self.compute_name(dep) for dep in self.dependencies]
+        self._actual_dependencies = None
+
+    @property
+    def actual_dependencies(self):
+        if self._actual_dependencies is None:
+            raise ChartNotUpdatedYet()
+        return self._actual_dependencies
 
     def match_to_dependencies(self, name):
         """Check whether name is fulfilling a dependency of mine
@@ -1067,6 +1078,7 @@ class Chart:
         updated = False
         if self.dependencies:
             makedirs(self.subcharts_dir)
+        self._actual_dependencies = set()
         for dependency in self.dependencies:
             dependency_name = f'{self.compute_name(dependency)}.tgz'
             src = self.find_one_source(self.compute_name(dependency), subchart_sources)
@@ -1075,15 +1087,23 @@ class Chart:
                 src.update_dependencies(subchart_sources, force=force)
                 src.package(self.subcharts_dir)
                 updated = True
+                actual_dependency = src.name
             elif force:
                 LOGGER.status(f'I will unconditionally download {dependency_name} as a dependency of {self.name}'
                               ' (because of --force)')
                 to_fetch_with_helm.append(dependency)
+                actual_dependency = self.compute_name(dependency)
             elif (self.subcharts_dir / dependency_name).exists():
                 LOGGER.status(f'{dependency_name} is already an up to date dependency of {self.name}')
                 to_resolve.add(self.subcharts_dir / dependency_name)
+                actual_dependency = self.compute_name(dependency)
             else:
                 to_fetch_with_helm.append(dependency)
+                actual_dependency = self.compute_name(dependency)
+            if actual_dependency in self._actual_dependencies:
+                raise NotImplementedError("I don't know how to handle"
+                                          ' two identical dependencies')
+            self._actual_dependencies.add(actual_dependency)
         generated_dependencies = set()
         if to_fetch_with_helm:
             generated_dependencies = self.get_dependencies_with_helm(to_fetch_with_helm)
@@ -1123,9 +1143,12 @@ class Chart:
         return updated
 
     def clean_dependencies(self):
-        """Remove any archive in the subcharts that is not fulfilling a dependency"""
+        """Remove any archive in the subcharts that is not fulfilling a
+        dependency"""
         for file in self.subcharts_dir.iterdir():
-            if file.name.endswith('.tgz') and not self.match_to_dependencies(file.name[:-len('.tgz')]):
+            name = file.name[:-len('.tgz')]
+            if name not in self.actual_dependencies:
+                LOGGER.status(f'Removing {file}, not an actual dependency')
                 rm(file)
 
     def __repr__(self):
