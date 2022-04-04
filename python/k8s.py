@@ -1397,3 +1397,9 @@ def install_network_policy(strict):
             content += extra_network_policy
         with temporary_file(content=content) as f:
             config.kubectl.call(['apply', '-f', f.name])
+
+
+@k8s.command(flowdepends=['k8s.flow'])
+def _tilt():
+    'Run whatever is needed to run tilt'
+    call(['tilt', 'up'])
