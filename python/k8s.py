@@ -435,7 +435,7 @@ def kubectl():
         LOGGER.info('Could not find kubectl')
     if which('kubectl'):
         found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
-                                         check_output(['kubectl', 'version', '--client=true'], failok=True)).group(1)
+                                         safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
     if not force and found_kubectl_version != kubectl_version:
         force = True
         LOGGER.info(
