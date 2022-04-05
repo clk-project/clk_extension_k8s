@@ -7,7 +7,7 @@ import os
 import re
 import subprocess
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from shlex import split
 
@@ -1093,8 +1093,17 @@ class Chart:
         if self.dependencies:
             makedirs(self.subcharts_dir)
         self._actual_dependencies = set()
+        deps_to_seen_aliases = defaultdict(set)
         for dependency in self.dependencies:
             dependency_name = f'{self.compute_name(dependency)}.tgz'
+            alias = dependency.get('alias')
+            if alias in deps_to_seen_aliases[dependency_name]:
+                raise NotImplementedError(
+                    "I don't know how to handle"
+                    ' two identical dependencies'
+                    f'({dependency["name"]}-{dependency["alias"]}'
+                    f' as {dependency.get("alias")})', )
+
             src = self.find_one_source(self.compute_name(dependency), subchart_sources)
             if src is not None:
                 LOGGER.status(f'Using {src.name} (from {src.location}) to fulfill dependency {dependency_name}')
@@ -1114,9 +1123,6 @@ class Chart:
             else:
                 to_fetch_with_helm.add(dependency)
                 actual_dependency = self.compute_name(dependency)
-            if actual_dependency in self._actual_dependencies:
-                raise NotImplementedError("I don't know how to handle"
-                                          ' two identical dependencies')
             self._actual_dependencies.add(actual_dependency)
         generated_dependencies = set()
         if to_fetch_with_helm:
