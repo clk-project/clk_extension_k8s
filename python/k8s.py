@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 from shlex import split
 
@@ -979,6 +980,10 @@ class ChartNotUpdatedYet(Exception):
     pass
 
 
+class ChartDuplicatedDependencies(Exception):
+    pass
+
+
 class Chart:
 
     @staticmethod
@@ -996,8 +1001,17 @@ class Chart:
         self.index = yaml.load(self.index_path.open(), Loader=yaml.FullLoader)
         self.name = self.compute_name(self.index)
         self.dependencies = self.index.get('dependencies', [])
+        self.sanity_check_dependencies()
         self.dependencies_fullnames = [self.compute_name(dep) for dep in self.dependencies]
         self._actual_dependencies = None
+
+    def sanity_check_dependencies(self):
+        deps = Counter([(dependency['name'], dependency['version'], dependency.get('alias'))
+                        for dependency in self.dependencies])
+        non_unique_deps = [f'{key[0]}-{key[1]} as {key[2]}' for key, value in deps.items() if value > 1]
+        if non_unique_deps:
+            raise ChartDuplicatedDependencies(f"{', '.join(non_unique_deps)} are non unique"
+                                              f' in {self.location}')
 
     @property
     def actual_dependencies(self):
