@@ -1028,7 +1028,7 @@ class Chart:
         LOGGER.status(
             f"Starting to download {', '.join([self.compute_name(dep) for dep in deps_to_update])} for {self.name}")
         chart_to_update = deepcopy(self.index)
-        chart_to_update['dependencies'] = deps_to_update
+        chart_to_update['dependencies'] = list(deps_to_update)
         with tempdir() as d, open(f'{d}/Chart.yaml', 'w') as f:
             yaml.dump(chart_to_update, f)
             # download the dependencies
@@ -1073,7 +1073,7 @@ class Chart:
         does not download dependencies that already are present, unless force is
         set to True.
         """
-        to_fetch_with_helm = []
+        to_fetch_with_helm = set()
         to_resolve = set()
         updated = False
         if self.dependencies:
@@ -1091,14 +1091,14 @@ class Chart:
             elif force:
                 LOGGER.status(f'I will unconditionally download {dependency_name} as a dependency of {self.name}'
                               ' (because of --force)')
-                to_fetch_with_helm.append(dependency)
+                to_fetch_with_helm.add(dependency)
                 actual_dependency = self.compute_name(dependency)
             elif (self.subcharts_dir / dependency_name).exists():
                 LOGGER.status(f'{dependency_name} is already an up to date dependency of {self.name}')
                 to_resolve.add(self.subcharts_dir / dependency_name)
                 actual_dependency = self.compute_name(dependency)
             else:
-                to_fetch_with_helm.append(dependency)
+                to_fetch_with_helm.add(dependency)
                 actual_dependency = self.compute_name(dependency)
             if actual_dependency in self._actual_dependencies:
                 raise NotImplementedError("I don't know how to handle"
