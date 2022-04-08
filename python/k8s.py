@@ -1427,7 +1427,8 @@ def install_network_policy(strict):
             config.kubectl.call(['apply', '-f', f.name])
 
 
-@k8s.command(flowdepends=['k8s.flow'])
-def _tilt():
+@k8s.command(flowdepends=['k8s.flow'], ignore_unknown_options=True)
+@argument('tilt-args', help='Arguments to give tilt', nargs=-1)
+def _tilt(tilt_args):
     'Run whatever is needed to run tilt'
-    call(['tilt', 'up'])
+    call(['tilt', 'up'] + list(tilt_args))
