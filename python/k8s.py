@@ -934,6 +934,7 @@ def add_domain(domain, ip):
 @k8s.flow_command(flowdepends=[
     'k8s.generate-certificate-authority',
     'k8s.install-prometheus-operator-crds',
+    'k8s.install-reloader',
     'k8s.install-network-policy',
     'k8s.setup-credentials',
 ], handle_dry_run=True,)  # yapf: disable
