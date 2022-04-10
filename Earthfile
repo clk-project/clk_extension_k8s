@@ -15,3 +15,7 @@ test:
 		&& while ! kubectl get pod | grep -q Running;do echo wait for pod;sleep 2;done \
 		&& echo "A pod is running!"
 	END
+
+test-all:
+	BUILD +test --distribution=kind
+	BUILD +test --distribution=k3d
