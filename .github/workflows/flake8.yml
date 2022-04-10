@@ -1,8 +1,0 @@
-on: push
-jobs:
-  flake8:
-    runs-on: ubuntu-latest
-    container: alpine/flake8
-    steps:
-      - uses: actions/checkout@v2
-      - run: flake8

@@ -1,5 +1,33 @@
 IMPORT github.com/Konubinix/Earthfile AS e
 
+pre-commit-base:
+    FROM python:slim
+    RUN apt-get update && apt-get install --yes git
+    DO e+USE_USER
+    RUN python3 -m pip install pre-commit
+    WORKDIR /app
+
+export-pre-commit-update:
+    FROM +pre-commit-base
+    RUN git init
+    COPY --dir .pre-commit-config.yaml .
+    RUN --no-cache pre-commit autoupdate
+    SAVE ARTIFACT .pre-commit-config.yaml AS LOCAL .pre-commit-config.yaml
+
+pre-commit-cache:
+    FROM +pre-commit-base
+    RUN git init
+    COPY --dir .pre-commit-config.yaml .
+    RUN pre-commit run -a
+    SAVE ARTIFACT ${HOME}/.cache/pre-commit cache
+
+check-quality:
+    FROM +pre-commit-base
+    COPY --dir .pre-commit-config.yaml .
+    COPY +pre-commit-cache/cache $HOME/.cache/pre-commit
+    COPY . .
+    RUN pre-commit run -a
+
 test:
     FROM earthly/dind:alpine
     RUN apk add --update git
@@ -17,5 +45,6 @@ test:
     END
 
 test-all:
+    BUILD +check-quality
     BUILD +test --distribution=kind
     BUILD +test --distribution=k3d
