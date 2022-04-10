@@ -6,7 +6,7 @@
 
 Either:
 
-  1. install [[https://github.com/clk-project][clk-project]] and the extension with
+  1. install [[https://clk-project.org/][clk-project]] and the extension with
 
      #+BEGIN_SRC shell
 curl -sSL https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s bash
