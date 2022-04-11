@@ -886,7 +886,8 @@ def install_dnsmasq():
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @argument('domain', help='The domain name to define')
 @argument('ip', default='172.17.0.1', help='The IP address for this domain')
-def add_domain(domain, ip):
+@flag('--reset', help='Remove previous domains set by this command')
+def add_domain(domain, ip, reset):
     """Add a new domain entry in K8s dns"""
     import yaml
 
@@ -894,13 +895,24 @@ def add_domain(domain, ip):
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
         data = f'{ip} {domain}'
-        if data not in coredns_conf['data']['NodeHosts'].split('\n'):
-            coredns_conf['data']['NodeHosts'] = data + '\n' + coredns_conf['data']['NodeHosts']
+        watermark = 'LINE ADDED BY CLK K8S'
+        added_data = data + f' # {watermark}'
+        dns_lines = coredns_conf['data']['NodeHosts'].split('\n')
+        update = False
+        if reset:
+            dns_lines = [dns_line for dns_line in dns_lines if not re.match('.+' + watermark, dns_line)]
+            update = True
+        if (data not in dns_lines and added_data not in dns_lines):
+            coredns_conf['data']['NodeHosts'] = added_data + '\n' + '\n'.join(dns_lines)
+            update = True
+        if update:
             with temporary_file() as f:
                 f.write(yaml.dump(coredns_conf).encode('utf8'))
                 f.close()
                 config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
     if config.k8s.distribution == 'kind':
+        if reset:
+            LOGGER.warn('In, clk k8s add-domain, --reset only works with k3d for the time being')
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
         top_level_domain = domain.split('.')[-1]
@@ -921,7 +933,8 @@ def add_domain(domain, ip):
             coredns_conf['data']['Corefile'], re.DOTALL).groups()
         if f'{data}\n' not in hosts:
             update = True
-            coredns_conf['data']['Corefile'] = header + hosts + f'        {data}\n' + footer
+            coredns_conf['data']['Corefile'] = (header + hosts + '# LINE ADDED BY CLK K8S\n' + f'        {data}\n' +
+                                                footer)
 
         if update:
             with temporary_file() as f:
