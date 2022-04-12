@@ -16,7 +16,7 @@ import yaml
 from clk.config import config
 from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy, download, extract, get_keyring,
-                     is_port_available, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
+                     is_port_available, ln, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
                      updated_env, which)
 from clk.log import get_logger
 from clk.types import Suggestion
@@ -457,12 +457,18 @@ def kubectl_buildkit():
     kubectl_buildkit_version = re.search('/(v[0-9.]+)/', urls['kubectl_buildkit']).group(1)
     found_kubectl_buildkit_version = False
     try:
-        found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version']).splitlines()[0]
+        found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'], nostderr=True).splitlines()[0]
         found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
         if 'Client:' in found_kubectl_buildkit_version:
             found_kubectl_buildkit_version = found_kubectl_buildkit_version.replace('Client:', '').strip()
     except subprocess.CalledProcessError:
         found_kubectl_buildkit_version = False
+        if location := which('kubectl-buildkit'):
+            location = Path(location)
+            if location.is_symlink():
+                name = location.readlink().name
+                if m := re.match('kubectl-buildkit-(.+)', name):
+                    found_kubectl_buildkit_version = m.group(1)
 
     if not force and not found_kubectl_buildkit_version:
         force = True
@@ -475,7 +481,12 @@ def kubectl_buildkit():
         with tempdir() as d:
             extract(urls['kubectl_buildkit'], d)
             move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
-            move(Path(d) / 'kubectl-buildkit', bin_dir / 'kubectl-buildkit')
+            location = bin_dir / f'kubectl-buildkit-{kubectl_buildkit_version}'
+            move(Path(d) / 'kubectl-buildkit', location)
+            link_location = bin_dir / 'kubectl-buildkit'
+            if link_location.exists():
+                rm(link_location)
+            ln(location, link_location)
     else:
         LOGGER.status('No need to install kubectl buildkit, force with --force')
 
