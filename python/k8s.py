@@ -610,7 +610,10 @@ def create_cluster(recreate, volume):
                     ' to find out what it does.')
         return
     if volume and config.k8s.distribution != 'k3d':
-        LOGGER.warning('--local-volume is only implemented in k3d. It will be ignored.')
+        LOGGER.warning('--local-volume is only implemented in k3d. It will be ignored.'
+                       ' It can be easily implemented (https://stackoverflow.com/questions'
+                       '/62694361/how-to-reference-a-local-volume-in-kind-kubernetes-in-docker)'
+                       ' so please submit a pull request if you need it.')
     if config.k8s.distribution == 'k3d':
         name = 'k3s-default'
         clusters = json.loads(check_output(split('k3d cluster list -o json')))
@@ -928,6 +931,13 @@ def add_domain(domain, ip, reset):
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
         top_level_domain = domain.split('.')[-1]
         update = False
+        watermark = 'LINE ADDED BY CLK K8S'
+        if reset:
+            new_value = '\n'.join(
+                [line for line in coredns_conf['data']['Corefile'].splitlines() if not line.endswith(watermark)])
+            if coredns_conf['data']['Corefile'] != new_value:
+                coredns_conf['data']['Corefile'] = new_value
+                update = True
         if f'hosts custom.hosts {top_level_domain}' not in coredns_conf['data']['Corefile']:
             data = '''
         hosts custom.hosts %s {
@@ -938,14 +948,13 @@ def add_domain(domain, ip, reset):
             last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
             coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n'
             update = True
-        data = f'{ip} {domain}'
+        data = f'{ip} {domain} # {watermark}'
         header, hosts, footer = re.match(
             r'^(.+hosts custom.hosts ' + top_level_domain + r' \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
             coredns_conf['data']['Corefile'], re.DOTALL).groups()
         if f'{data}\n' not in hosts:
             update = True
-            coredns_conf['data']['Corefile'] = (header + hosts + '# LINE ADDED BY CLK K8S\n' + f'        {data}\n' +
-                                                footer)
+            coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'        {data}\n' + footer)
 
         if update:
             with temporary_file() as f:
