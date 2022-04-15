@@ -1273,6 +1273,13 @@ def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sourc
         os.utime(touch)
 
 
+@k8s.command(ignore_unknown_options=True)
+@argument('args', nargs=-1, help='Helm args')
+def helm_template(args):
+    """Run `helm template`, so that you can easily add parameters to it"""
+    call(['helm', 'template'] + list(args))
+
+
 @k8s.command(flowdepends=['k8s.create-cluster'])
 def setup_credentials():
     """Placeholder command to setup the secrets
