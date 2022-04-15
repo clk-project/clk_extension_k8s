@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import tarfile
 import webbrowser
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -1174,7 +1175,6 @@ class Chart:
                 for dependency_to_resolve in generated_dependencies | to_resolve:
                     dependency_chart_location = self.subcharts_dir / dependency_to_resolve
                     temp_dependency_location = Path(d) / Path(dependency_to_resolve).name
-                    import tarfile
                     with tarfile.open(dependency_chart_location, mode='r:gz') as tar:
                         tar.extractall(temp_dependency_location)
                     dependency_chart = Chart(next(temp_dependency_location.iterdir()))
@@ -1186,6 +1186,11 @@ class Chart:
 
             updated = True
         return updated
+
+    def uncompress_dependencies(self):
+        for dependency in self.subcharts_dir.iterdir():
+            if dependency.name.endswith('tgz'):
+                tarfile.open(name=str(dependency)).extractall(self.subcharts_dir)
 
     def resolve_subcharts(self, subchart_sources):
         updated = False
@@ -1228,8 +1233,10 @@ class Chart:
         type=Chart,
         help=('Directory of a helm package that can be used to override the dependency fetching mechanism'))
 @option('--remove/--no-remove', default=True, help='Remove extra dependency that may still be there')
+@flag('--uncompress', help=('Also leave out an uncompressed version.'
+                            ' Ideal for grepping into them.'))
 @argument('chart', default='.', type=Chart, required=False, help='Helm chart path')
-def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sources, remove):
+def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sources, remove, uncompress):
     """Update helm dependencies
 
     Like `helm dependency update` on steroids.
@@ -1259,6 +1266,8 @@ def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sourc
     updated_something = chart.update_dependencies(subchart_sources, force=force)
     if remove:
         chart.clean_dependencies()
+    if uncompress:
+        chart.uncompress_dependencies()
     if touch and updated_something:
         LOGGER.action(f'touching {touch}')
         os.utime(touch)
