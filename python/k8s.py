@@ -1464,8 +1464,15 @@ def install_network_policy(strict):
 @k8s.command(flowdepends=['k8s.flow'], ignore_unknown_options=True)
 @argument('tilt-args', help='Arguments to give tilt', nargs=-1)
 @flag('--open', help='Open the url in a browser')
-def _tilt(tilt_args, open):
+@flag('--use-context', help='Try to use the appropriate context before running tilt')
+def _tilt(tilt_args, open, use_context):
     'Run whatever is needed to run tilt'
     if open:
         webbrowser.open('http://localhost:10350')
+    if use_context:
+        context = {
+            'k3d': 'k3d-k3s-default',
+            'kind': 'kind-kind',
+        }[config.k8s.distribution]
+        call(['kubectl', 'config', 'use-context', context])
     call(['tilt', 'up'] + list(tilt_args))
