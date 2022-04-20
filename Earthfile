@@ -37,7 +37,14 @@ test:
     # ARG shell=sh
     RUN apt-get update && apt-get install --yes git wget python3-distutils
     DO e+USE_USER
-    RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s ${shell}
+    ARG from=source
+    IF [ "${from}" = "source" ]
+        RUN wget -O - https://clk-project.org/install.sh | ${shell}
+        COPY . /k8s
+        RUN clk extension install /k8s
+    ELSE
+        RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s ${shell}
+    END
     ARG distribution=kind
     RUN clk k8s --distribution=$distribution install-dependency all
     # make sure the workaround about buildkit still works
