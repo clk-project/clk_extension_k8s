@@ -468,7 +468,7 @@ def kubectl_buildkit():
         if location := which('kubectl-buildkit'):
             location = Path(location)
             if location.is_symlink():
-                name = location.readlink().name
+                name = Path(os.readlink(location)).name
                 if m := re.match('kubectl-buildkit-(.+)', name):
                     found_kubectl_buildkit_version = m.group(1)
 
