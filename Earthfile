@@ -29,8 +29,10 @@ check-quality:
     RUN pre-commit run -a
 
 test:
-    FROM earthly/dind:alpine
-    RUN apk add --update git
+    FROM earthly/dind:ubuntu # this one currently ships with python3.8
+    RUN python3 --version | grep 'Python 3.8' # make sure we have python 3.8
+    # RUN apk add --update git
+    RUN apt-get update && apt-get install --yes git
     DO e+USE_USER
     RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s sh
     ARG distribution=kind
