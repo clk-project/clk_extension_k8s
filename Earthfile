@@ -50,3 +50,8 @@ test-all:
     BUILD +check-quality
     BUILD +test --distribution=kind
     BUILD +test --distribution=k3d
+
+test-n-push:
+    BUILD +test-all
+    LOCALLY
+    RUN git push
