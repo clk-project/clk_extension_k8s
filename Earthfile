@@ -40,6 +40,8 @@ test:
     RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s ${shell}
     ARG distribution=kind
     RUN clk k8s --distribution=$distribution install-dependency all
+    # make sure the workaround about buildkit still works
+    RUN clk k8s --distribution=$distribution install-dependency kubectl-buildkit
     USER root
     COPY hello hello
     WITH DOCKER
