@@ -1,3 +1,4 @@
+VERSION 0.6
 IMPORT github.com/Konubinix/Earthfile AS e
 
 pre-commit-base:
@@ -50,8 +51,3 @@ test-all:
     BUILD +check-quality
     BUILD +test --distribution=kind
     BUILD +test --distribution=k3d
-
-test-n-push:
-    BUILD +test-all
-    LOCALLY
-    RUN git push
