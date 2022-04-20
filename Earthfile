@@ -35,7 +35,7 @@ test:
     RUN python3 --version | grep 'Python 3.8' # make sure we have python 3.8
     # RUN apk add --update git
     # ARG shell=sh
-    RUN apt-get update && apt-get install --yes git wget
+    RUN apt-get update && apt-get install --yes git wget python3-distutils
     DO e+USE_USER
     RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s ${shell}
     ARG distribution=kind
