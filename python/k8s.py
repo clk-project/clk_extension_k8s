@@ -1492,7 +1492,8 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
             'kind': 'kind-kind',
         }[config.k8s.distribution]
         call(['kubectl', 'config', 'use-context', context])
-    call([
-        'tilt',
-        'up',
-    ] + split(' '.join(tilt_arg)) + ['--'] + list(tiltfile_args))
+    with cd(config.project):
+        call([
+            'tilt',
+            'up',
+        ] + split(' '.join(tilt_arg)) + ['--'] + list(tiltfile_args))
