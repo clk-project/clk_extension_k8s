@@ -315,7 +315,7 @@ def kind():
     kind_version = re.search('/(v[0-9.]+)/', urls['kind']).group(1)
     if not force and not which('kind'):
         force = True
-        LOGGER.info('Could not find kind')
+        LOGGER.info('Could not find kind, let me install it for you')
     if which('kind'):
         found_kind_version = re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
     if not force and found_kind_version != kind_version:
@@ -341,7 +341,7 @@ def k3d():
     k3d_version = re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
     if not force and not which('k3d'):
         force = True
-        LOGGER.info('Could not find k3d')
+        LOGGER.info('Could not find k3d, let me install it for you')
     if which('k3d'):
         found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
     if not force and found_k3d_version != k3d_version:
@@ -363,7 +363,7 @@ def helm():
     helm_version = re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
     if not force and not which('helm'):
         force = True
-        LOGGER.info('Could not find helm')
+        LOGGER.info('Could not find helm, let me install it for you')
     if which('helm'):
         found_helm_version = re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
     if not force and found_helm_version != helm_version:
@@ -388,7 +388,7 @@ def tilt():
     tilt_version = re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
     if not force and not which('tilt'):
         force = True
-        LOGGER.info('Could not find tilt')
+        LOGGER.info('Could not find tilt, let me install it for you')
     if which('tilt'):
         found_tilt_version = re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
     if not force and found_tilt_version != tilt_version:
@@ -412,7 +412,7 @@ def earthly():
     earthly_version = re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
     if not force and not which('earthly'):
         force = True
-        LOGGER.info('Could not find earthly')
+        LOGGER.info('Could not find earthly, let me install it for you')
     if which('earthly'):
         found_earthly_version = re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
     if not force and found_earthly_version != earthly_version:
@@ -435,7 +435,7 @@ def kubectl():
     kubectl_version = re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
     if not force and not which('kubectl'):
         force = True
-        LOGGER.info('Could not find kubectl')
+        LOGGER.info('Could not find kubectl, let me install it for you')
     if which('kubectl'):
         found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
                                          safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
@@ -474,7 +474,7 @@ def kubectl_buildkit():
 
     if not force and not found_kubectl_buildkit_version:
         force = True
-        LOGGER.info('Could not find kubectl buildkit')
+        LOGGER.info('Could not find kubectl buildkit, let me install it for you')
     if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
         force = True
         LOGGER.info(f'Found a different version of kubectl buildkit '
