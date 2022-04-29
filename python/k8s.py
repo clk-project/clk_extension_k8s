@@ -873,11 +873,16 @@ def install_prometheus_operator_crds(version):
 @option('--version', default='v0.0.99', help='The version of reloader chart to install')
 def install_reloader(version):
     """Install a reloader in the current cluster"""
+    namespace = 'reloader'
+    name = 'reloader'
+    if _helm_already_installed(namespace, name, version):
+        LOGGER.status(f'{name} already installed in {namespace} with version {version}')
+        return
     call([
         'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'reloader', 'reloader',
+        'upgrade', '--install', '--create-namespace', '--wait', name, name,
         '--repo', 'https://stakater.github.io/stakater-charts',
-        '--namespace', 'reloader',
+        '--namespace', namespace,
         '--version', version,
     ])  # yapf: disable
 
