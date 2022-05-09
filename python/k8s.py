@@ -1489,6 +1489,7 @@ def install_network_policy(strict):
 @flag('--use-context', help='Try to use the appropriate context before running tilt')
 def _tilt(open, use_context, tilt_arg, tiltfile_args):
     'Run whatever is needed to run tilt'
+    config.require_project()
     if open:
         webbrowser.open('http://localhost:10350')
     if use_context:
