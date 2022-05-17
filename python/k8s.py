@@ -702,9 +702,14 @@ data:
                 call(split(f'docker network connect kind {reg_name}'))
 
 
-@k8s.command(flowdepends=['k8s.install-ingress-controller'], handle_dry_run=True)
+@k8s.group()
+def cert_manager():
+    'Commands to deal with cert-manager'
+
+
+@cert_manager.command(flowdepends=['k8s.install-ingress-controller'], handle_dry_run=True)
 @option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
-def install_cert_manager(version):
+def _install(version):
     """Install a certificate manager in the current cluster"""
     namespace, name = 'cert-manager', 'cert-manager'
     if _helm_already_installed(namespace, name, version):
@@ -723,7 +728,7 @@ def install_cert_manager(version):
     ])  # yapf: disable
 
 
-@k8s.command(flowdepends=['k8s.install-cert-manager'], handle_dry_run=True)
+@cert_manager.command(flowdepends=['k8s.cert-manager.install'], handle_dry_run=True)
 def generate_certificate_authority():
     """Generate a certificate authority for cert-manager to use."""
     if config.dry_run:
@@ -765,12 +770,12 @@ def generate_certificate_authority():
             config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
 
-@k8s.command(flowdepends=['k8s.generate-certificate-authority'])
+@cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 def dump_local_certificate():
     """Expose the local certificate to import in your browser
 
     See it in more detail using
-    clk k8s dump-local-certificate | openssl x509 -in i -text
+    clk k8s cert-manager dump-local-certificate | openssl x509 -in i -text
     """
     click.echo(base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt']))
 
@@ -979,7 +984,7 @@ def add_domain(domain, ip, reset):
 
 
 @k8s.flow_command(flowdepends=[
-    'k8s.generate-certificate-authority',
+    'k8s.cert-manager.generate-certificate-authority',
     'k8s.install-prometheus-operator-crds',
     'k8s.install-reloader',
     'k8s.install-network-policy',
