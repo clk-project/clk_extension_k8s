@@ -748,22 +748,18 @@ def generate_certificate_authority():
             with open('ca.crt', 'w') as f:
                 f.write(ca_crt)
 
-            ca_secret = config.kubectl.output([
+            config.kubectl.output([
                 'create', 'secret', 'tls', secret_name,
                 '--cert=ca.crt',
                 '--key=ca.key',
                 '--namespace=cert-manager',
-                '--dry-run=client',
                 '-o', 'yaml',
             ])  # yapf: disable
     if config.kubectl.get('clusterissuer', 'local', 'cert-manager'):
         LOGGER.debug('Already have a cluster issuer with name local')
     else:
         with temporary_file() as f:
-            f.write(f'''{ca_secret}
----
-{cluster_issuer}
-'''.encode('utf8'))
+            f.write(cluster_issuer.encode('utf8'))
             f.close()
             config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
 
