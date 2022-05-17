@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import base64
 import grp
 import json
 import os
@@ -762,6 +763,16 @@ def generate_certificate_authority():
             f.write(cluster_issuer.encode('utf8'))
             f.close()
             config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
+
+
+@k8s.command(flowdepends=['k8s.generate-certificate-authority'])
+def dump_local_certificate():
+    """Expose the local certificate to import in your browser
+
+    See it in more detail using
+    clk k8s dump-local-certificate | openssl x509 -in i -text
+    """
+    click.echo(base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt']))
 
 
 def _helm_already_installed(namespace, name, version):
