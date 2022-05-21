@@ -780,6 +780,19 @@ def dump_local_certificate():
     click.echo(base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt']))
 
 
+@cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
+def install_local_certificate():
+    """Install the local certificate in a way webkit browsers will fin it"""
+    cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
+    with temporary_file() as f:
+        f.write(cert)
+        f.close()
+        call([
+            'certutil', '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d',
+            f"sql:{os.environ['HOME']}/.pki/nssdb/"
+        ])
+
+
 def _helm_already_installed(namespace, name, version):
     releases = [
         release for release in json.loads(check_output(['helm', 'list', '--namespace', namespace, '--output', 'json']))
