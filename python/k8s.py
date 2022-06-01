@@ -782,7 +782,7 @@ def dump_local_certificate():
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 def install_local_certificate():
-    """Install the local certificate in a way webkit browsers will fin it"""
+    """Install the local certificate in a way webkit browsers will find it"""
     cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
     with temporary_file() as f:
         f.write(cert)
