@@ -783,12 +783,17 @@ def dump_local_certificate():
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 def install_local_certificate():
     """Install the local certificate in a way webkit browsers will find it"""
+    certutil = which('certutil')
+    if certutil is None:
+        LOGGER.error('You have to install certutil to use this command.'
+                     ' Hint: sudo apt install libnss3-tools')
+        exit(1)
     cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
     with temporary_file() as f:
         f.write(cert)
         f.close()
         call([
-            'certutil', '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d',
+            certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d',
             f"sql:{os.environ['HOME']}/.pki/nssdb/"
         ])
 
