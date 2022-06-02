@@ -783,11 +783,9 @@ def dump_local_certificate():
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 @option(
     '--client',
-    type=click.Choice(['webkit', 'mozilla']),
+    type=click.Choice(['webkit', 'mozilla', 'firefox', 'chrome', 'chromium']),
     default='webkit',
-    help=('Install the certificate for the given client.'
-          ' For Firefox, use mozilla.'
-          ' For chrome and chromium, use webkit.'),
+    help=('Install the certificate for the given client.'),
 )
 def install_local_certificate(client):
     """Install the local certificate in a way webkit browsers will find it"""
@@ -804,13 +802,15 @@ def install_local_certificate(client):
     with temporary_file() as f:
         f.write(cert)
         f.close()
-        if client == 'webkit':
+        if client in ('webkit', 'chrome', 'chromium'):
             install_with_certutil(f"sql:{os.environ['HOME']}/.pki/nssdb/")
-        elif client == 'mozilla':
+        elif client in ('mozilla', 'firefox'):
             # https://stackoverflow.com/questions/1435000/programmatically-install-certificate-into-mozilla
             for directory, _, filenames in os.walk(Path(os.environ['HOME']) / '.mozilla'):
                 if 'cert9.db' in filenames:
                     install_with_certutil(f'sql:{directory}/')
+        else:
+            raise NotImplementedError(f'Sounds like we forgot to deal with the client {client}')
 
 
 def _helm_already_installed(namespace, name, version):
