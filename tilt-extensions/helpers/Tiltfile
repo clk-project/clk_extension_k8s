@@ -2,9 +2,7 @@ clk_k8s = 'clk -a --force-color k8s -c ' + k8s_context() + ' '
 
 
 def has_local_registry():
-    return str(
-        local(clk_k8s + 'features --field value --format plain local_registry',
-              quiet=True)).strip() == "True"
+    return str(local(clk_k8s + 'features --field value --format plain local_registry', quiet=True)).strip() == "True"
 
 
 def build_chart_update_command(
