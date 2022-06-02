@@ -1,3 +1,5 @@
+if k8s_context() == "":
+    fail("No k8s server to play with. Hint: clk k8s flow")
 clk_k8s = 'clk -a --force-color k8s -c ' + k8s_context() + ' '
 
 
