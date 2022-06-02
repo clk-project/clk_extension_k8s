@@ -781,7 +781,15 @@ def dump_local_certificate():
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
-def install_local_certificate():
+@option(
+    '--client',
+    type=click.Choice(['webkit', 'mozilla']),
+    default='webkit',
+    help=('Install the certificate for the given client.'
+          ' For Firefox, use mozilla.'
+          ' For chrome and chromium, use webkit.'),
+)
+def install_local_certificate(client):
     """Install the local certificate in a way webkit browsers will find it"""
     certutil = which('certutil')
     if certutil is None:
@@ -789,13 +797,20 @@ def install_local_certificate():
                      ' Hint: sudo apt install libnss3-tools')
         exit(1)
     cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
+
+    def install_with_certutil(directory):
+        call([certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', directory])
+
     with temporary_file() as f:
         f.write(cert)
         f.close()
-        call([
-            certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d',
-            f"sql:{os.environ['HOME']}/.pki/nssdb/"
-        ])
+        if client == 'webkit':
+            install_with_certutil(f"sql:{os.environ['HOME']}/.pki/nssdb/")
+        elif client == 'mozilla':
+            # https://stackoverflow.com/questions/1435000/programmatically-install-certificate-into-mozilla
+            for directory, _, filenames in os.walk(Path(os.environ['HOME']) / '.mozilla'):
+                if 'cert9.db' in filenames:
+                    install_with_certutil(f'sql:{directory}/')
 
 
 def _helm_already_installed(namespace, name, version):
