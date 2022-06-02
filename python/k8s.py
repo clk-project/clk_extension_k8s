@@ -783,10 +783,11 @@ def dump_local_certificate():
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 @option(
     '--client',
-    type=click.Choice(['webkit', 'mozilla', 'firefox', 'chrome', 'chromium', 'all']),
-    default='webkit',
+    type=click.Choice(['webkit', 'mozilla', 'firefox', 'chrome', 'chromium', 'all', 'browsers']),
+    default='browsers',
     help=('Install the certificate for the given client.'
-          ' Use all to install for all of them.'),
+          ' Use all to install for all of them.'
+          ' Use browsers to install only for the web browsers.'),
 )
 def install_local_certificate(client):
     """Install the local certificate in a way webkit browsers will find it"""
@@ -804,10 +805,10 @@ def install_local_certificate(client):
         f.write(cert)
         f.close()
         did_something = False
-        if client in ('webkit', 'chrome', 'chromium', 'all'):
+        if client in ('webkit', 'chrome', 'chromium', 'all', 'browsers'):
             install_with_certutil(f"sql:{os.environ['HOME']}/.pki/nssdb/")
             did_something = True
-        if client in ('mozilla', 'firefox', 'all'):
+        if client in ('mozilla', 'firefox', 'all', 'browsers'):
             # https://stackoverflow.com/questions/1435000/programmatically-install-certificate-into-mozilla
             for directory, _, filenames in os.walk(Path(os.environ['HOME']) / '.mozilla'):
                 if 'cert9.db' in filenames:
