@@ -997,10 +997,11 @@ def add_domain(domain, ip, reset):
                 update = True
         if f'hosts custom.hosts {top_level_domain}' not in coredns_conf['data']['Corefile']:
             data = '''
-        hosts custom.hosts localhost {
+        hosts custom.hosts %s {
             fallthrough
         }
             '''
+            data = data % top_level_domain
             last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
             coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n'
             update = True
