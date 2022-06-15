@@ -986,7 +986,6 @@ def add_domain(domain, ip, reset):
             LOGGER.warn('In, clk k8s add-domain, --reset only works with k3d for the time being')
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
-        top_level_domain = domain.split('.')[-1]
         update = False
         watermark = 'LINE ADDED BY CLK K8S'
         if reset:
@@ -995,23 +994,22 @@ def add_domain(domain, ip, reset):
             if coredns_conf['data']['Corefile'] != new_value:
                 coredns_conf['data']['Corefile'] = new_value
                 update = True
-        if f'hosts custom.hosts {top_level_domain}' not in coredns_conf['data']['Corefile']:
+        if 'hosts {' not in coredns_conf['data']['Corefile']:
             data = '''
-        hosts custom.hosts %s {
+        hosts {
             fallthrough
         }
             '''
-            data = data % top_level_domain
             last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
             coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n'
             update = True
         data = f'{ip} {domain} # {watermark}'
         header, hosts, footer = re.match(
-            r'^(.+hosts custom.hosts ' + top_level_domain + r' \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
+            r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
             coredns_conf['data']['Corefile'], re.DOTALL).groups()
         if f'{data}\n' not in hosts:
             update = True
-            coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'        {data}\n' + footer)
+            coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'            {data}\n' + footer)
 
         if update:
             with temporary_file() as f:
