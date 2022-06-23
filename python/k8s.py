@@ -1551,3 +1551,56 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
             'tilt',
             'up',
         ] + split(' '.join(tilt_arg)) + ['--'] + list(tiltfile_args))
+
+
+
+@k8s.command()
+@argument('name', help="The user name")
+@option('-n', '--namespace', default='default', help="The namespace where the user will be created")
+@option('-r', '--role', default='view', help="The cluster role to bin to that user")
+def create_user(namespace, name, role):
+    """Create a user"""
+    config.kubectl.call(['create', '-n', namespace, 'sa', name])
+    cluster_role_binding = f"""kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {name}
+subjects:
+  - kind: ServiceAccount
+    name: {name}
+    namespace: {namespace}
+roleRef:
+  kind: ClusterRole
+  name: {role}
+  apiGroup: rbac.authorization.k8s.io
+"""
+    with temporary_file(content=cluster_role_binding) as f:
+        config.kubectl.call(['apply', '-n', namespace, '-f', f.name])
+    secret_name = config.kubectl.output(['-n', namespace, 'get', 'sa', name, '-o', 'jsonpath={.secrets[0].name}'])
+    secret = json.loads(config.kubectl.output(['get', '-n', namespace, f'secret/{secret_name}', '-o', 'json']))
+    ca = secret['data']['ca.crt']
+    token = base64.b64decode(secret['data']['token']).decode('utf-8')
+    cluster_name = clear_ansi_color_codes(config.kubectl.output(['config', 'current-context']))
+    k8s_url = re.match('Kubernetes control plane is running at (.+)',
+                       clear_ansi_color_codes(config.kubectl.output(['cluster-info']))).group(1)
+    kube_config = f"""---
+apiVersion: v1
+kind: Config
+clusters:
+  - name: {cluster_name}
+    cluster:
+      certificate-authority-data: {ca}
+      server: {k8s_url}
+contexts:
+  - name: {name}@{cluster_name}
+    context:
+      cluster: {cluster_name}
+      namespace: {namespace}
+      user: {name}
+users:
+  - name: {name}
+    user:
+      token: {token}
+current-context: {name}@{cluster_name}
+"""
+    print(kube_config)
