@@ -54,7 +54,7 @@ test:
     WITH DOCKER
         RUN clk k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all \
         && helm upgrade --install hello hello \
-        && while ! kubectl get pod | grep -q Running;do echo wait for pod;sleep 2;done \
+        && timeout 2m bash -c 'while ! kubectl get pod | grep -q Running;do echo wait for pod;sleep 2;done' \
         && echo "A pod is running!"
     END
 
