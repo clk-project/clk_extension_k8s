@@ -833,10 +833,11 @@ def _helm_already_installed(namespace, name, version):
 
 @k8s.command(flowdepends=['k8s.install-networkpolicies-controller'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
-def install_ingress_controller(version):
+@flag('--force', help='Install even if already present')
+def install_ingress_controller(version, force):
     """Install an ingress (ingress-nginx) in the current cluster"""
     namespace, name = 'ingress', 'ingress-nginx'
-    if _helm_already_installed(namespace, name, version):
+    if _helm_already_installed(namespace, name, version) and not force:
         LOGGER.status(f'{name} already installed in {namespace} with version {version}')
         return
     helm_extra_args = []
