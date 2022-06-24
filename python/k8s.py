@@ -1265,6 +1265,8 @@ class Chart:
     def clean_dependencies(self):
         """Remove any archive in the subcharts that is not fulfilling a
         dependency"""
+        if not self.subcharts_dir.exists():
+            return
         for file in self.subcharts_dir.iterdir():
             name = file.name[:-len('.tgz')]
             if name not in self.actual_dependencies:
