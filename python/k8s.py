@@ -373,6 +373,7 @@ def helm():
     if force:
         with tempdir() as d:
             extract(urls['helm'], d)
+            makedirs(bin_dir)
             move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
             (bin_dir / 'helm').chmod(0o755)
     else:
@@ -398,6 +399,7 @@ def tilt():
     if force:
         with tempdir() as d:
             extract(urls['tilt'], d)
+            makedirs(bin_dir)
             move(Path(d) / 'tilt', bin_dir / 'tilt')
     else:
         LOGGER.status('No need to install tilt, force with --force')
@@ -421,6 +423,7 @@ def earthly():
         LOGGER.info(
             f'Found a different version of earthly ({found_earthly_version}) than the requested one {earthly_version}')
     if force:
+        makedirs(bin_dir)
         download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
     else:
         LOGGER.status('No need to install earthly, force with --force')
@@ -482,6 +485,7 @@ def kubectl_buildkit():
                     f'({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}')
     if force:
         with tempdir() as d:
+            makedirs(bin_dir)
             extract(urls['kubectl_buildkit'], d)
             move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
             location = bin_dir / f'kubectl-buildkit-{kubectl_buildkit_version}'
@@ -1005,9 +1009,8 @@ def add_domain(domain, ip, reset):
             coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n'
             update = True
         data = f'{ip} {domain} # {watermark}'
-        header, hosts, footer = re.match(
-            r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
-            coredns_conf['data']['Corefile'], re.DOTALL).groups()
+        header, hosts, footer = re.match(r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
+                                         coredns_conf['data']['Corefile'], re.DOTALL).groups()
         if f'{data}\n' not in hosts:
             update = True
             coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'            {data}\n' + footer)
