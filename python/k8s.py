@@ -1465,11 +1465,17 @@ def install_networkpolicies_controller():
 So that you will have an implementation of network policies that actually works.
 """
     if config.k8s.distribution == 'kind':
+        namespace = 'kube-system'
+        name = 'cilium'
+        version = '1.9.10'
+        if _helm_already_installed(namespace, name, version):
+            LOGGER.status(f'{name} already installed in {namespace} with version {version}')
+            return
         call([
             'helm', '--kube-context', config.kubectl.context, 'upgrade', '--install', '--wait',
-            'cilium', 'cilium', '--version', '1.9.10',
+            name, name, '--version', version,
             '--repo', 'https://helm.cilium.io/',
-            '--namespace', 'kube-system',
+            '--namespace', namespace,
             '--set', 'nodeinit.enabled=true',
             '--set', 'kubeProxyReplacement=partial',
             '--set', 'hostServices.enabled=false',
