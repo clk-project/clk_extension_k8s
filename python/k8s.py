@@ -1460,10 +1460,7 @@ def show_dependencies(fields, format):
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 def install_networkpolicies_controller():
-    """Install cilium
-
-So that you will have an implementation of network policies that actually works.
-"""
+    """Install something to deal with network policies"""
     if config.k8s.distribution == 'kind':
         namespace = 'kube-system'
         name = 'cilium'
