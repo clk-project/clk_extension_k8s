@@ -28,6 +28,8 @@ LOGGER = get_logger(__name__)
 
 warned = False
 
+CLUSTER_NAME = 'clk-k8s'
+
 
 def guess_context_and_distribution(context, distribution):
     warning = None
@@ -58,9 +60,9 @@ def guess_context_and_distribution(context, distribution):
 
     if context is None and distribution is not None:
         if distribution == 'k3d':
-            context = 'k3d-k3s-default'
+            context = f'k3d-{CLUSTER_NAME}'
         if distribution == 'kind':
-            context = 'kind-kind'
+            context = f'kind-{CLUSTER_NAME}'
         LOGGER.debug(f'Given the distribution {distribution}, I inferred the context {context}')
     if context is not None and distribution is None:
         given_context = context
@@ -622,7 +624,7 @@ def create_cluster(recreate, volume):
                        '/62694361/how-to-reference-a-local-volume-in-kind-kubernetes-in-docker)'
                        ' so please submit a pull request if you need it.')
     if config.k8s.distribution == 'k3d':
-        name = 'k3s-default'
+        name = CLUSTER_NAME
         clusters = json.loads(check_output(split('k3d cluster list -o json')))
         already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
         if already_existing_clusters:
@@ -638,7 +640,7 @@ def create_cluster(recreate, volume):
                     LOGGER.status('Nothing to do!')
                 return
     elif config.k8s.distribution == 'kind':
-        name = 'kind'
+        name = CLUSTER_NAME
         if name in check_output('kind get clusters'.split()).split('\n'):
             if recreate:
                 call(['kind', 'delete', 'clusters', name])
@@ -687,7 +689,7 @@ containerdConfigPatches:
     endpoint = ["http://{reg_name}:5000"]
 """
         with temporary_file(content=kind_config_to_use) as f:
-            call(['kind', 'create', 'cluster', '--config', f.name])
+            call(['kind', 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name])
         if using_local_registry:
             with temporary_file(content="""apiVersion: v1
 kind: ConfigMap
@@ -1042,12 +1044,12 @@ def remove(target):
     """Remove the k8s cluster"""
     if config.k8s.distribution == 'k3d':
         if target in ['all', 'cluster']:
-            call(['k3d', 'cluster', 'delete'])
+            call(['k3d', 'cluster', 'delete', CLUSTER_NAME])
         if target in ['all', 'registry']:
             call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
     elif config.k8s.distribution == 'kind':
         if target in ['all', 'cluster']:
-            call(['kind', 'delete', 'cluster'])
+            call(['kind', 'delete', 'cluster', '--name', CLUSTER_NAME])
         if target in ['all', 'registry']:
             reg_name = f'{config.k8s.distribution}-registry'
             if reg_name in check_output(split('docker ps --format {{.Names}}')).split():
@@ -1551,8 +1553,8 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
         webbrowser.open('http://localhost:10350')
     if use_context:
         context = {
-            'k3d': 'k3d-k3s-default',
-            'kind': 'kind-kind',
+            'k3d': f'k3d-{CLUSTER_NAME}',
+            'kind': f'kind-{CLUSTER_NAME}',
         }[config.k8s.distribution]
         call(['kubectl', 'config', 'use-context', context])
     with cd(config.project):
