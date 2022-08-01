@@ -20,7 +20,7 @@ from clk.config import config
 from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy, download, extract, get_keyring,
                      is_port_available, ln, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
-                     updated_env, which)
+                     updated_env, which, clear_ansi_color_codes)
 from clk.log import get_logger
 from clk.types import Suggestion
 
@@ -706,6 +706,8 @@ data:
                 ['docker', 'network', 'inspect', 'kind', '-f', '{{range .Containers}}{{.Name}} {{end}}']).split()
             if reg_name not in containers:
                 call(split(f'docker network connect kind {reg_name}'))
+        # install calico
+        config.kubectl.call(['apply', '-f', 'https://docs.projectcalico.org/v3.23/manifests/calico.yaml'])
 
 
 @k8s.group()
@@ -837,7 +839,7 @@ def _helm_already_installed(namespace, name, version):
     return False
 
 
-@k8s.command(flowdepends=['k8s.install-networkpolicies-controller'], handle_dry_run=True)
+@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
 @flag('--force', help='Install even if already present')
 def install_ingress_controller(version, force):
@@ -1458,37 +1460,6 @@ def show_dependencies(fields, format):
     with TablePrinter(fields, format) as tp:
         for dependency, url in urls.items():
             tp.echo(dependency, url)
-
-
-@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-def install_networkpolicies_controller():
-    """Install something to deal with network policies"""
-    if config.k8s.distribution == 'kind':
-        namespace = 'kube-system'
-        name = 'cilium'
-        version = '1.9.10'
-        if _helm_already_installed(namespace, name, version):
-            LOGGER.status(f'{name} already installed in {namespace} with version {version}')
-            return
-        call([
-            'helm', '--kube-context', config.kubectl.context, 'upgrade', '--install', '--wait',
-            name, name, '--version', version,
-            '--repo', 'https://helm.cilium.io/',
-            '--namespace', namespace,
-            '--set', 'nodeinit.enabled=true',
-            '--set', 'kubeProxyReplacement=partial',
-            '--set', 'hostServices.enabled=false',
-            '--set', 'externalIPs.enabled=true',
-            '--set', 'nodePort.enabled=true',
-            '--set', 'hostPort.enabled=true',
-            '--set', 'bpf.masquerade=false',
-            '--set', 'image.pullPolicy=IfNotPresent',
-            '--set', 'ipam.mode=kubernetes',
-            '--set', 'operator.replicas=1',
-        ])  # yapf: disable
-    else:
-        LOGGER.status('Nothing to be done in k3d to install a policy network controller.'
-                      ' We already installed calico when creating the server.')
 
 
 network_policy = """kind: NetworkPolicy
