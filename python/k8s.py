@@ -5,6 +5,7 @@ import base64
 import grp
 import json
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -318,14 +319,22 @@ def kind():
     kind_version = re.search('/(v[0-9.]+)/', urls['kind']).group(1)
     if not force and not which('kind'):
         force = True
-        LOGGER.info('Could not find kind, let me install it for you')
+        LOGGER.info('Could not find kind')
+    found_kind_version = None
     if which('kind'):
         found_kind_version = re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
     if not force and found_kind_version != kind_version:
         force = True
         LOGGER.info(f'Found a different version of kind ({found_kind_version}) than the requested one {kind_version}')
     if force:
-        download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
+        if platform.system().lower() != 'linux':
+            LOGGER.warning("I don't know how to install kind on your computer."
+                           f' Please install the appropriate version ({kind_version}).')
+            if found_kind_version is not None and found_kind_version.split('.')[1] in ('12', '13', '14'):
+                LOGGER.error(f'clk k8s is known not to work with versions of kind greater than {kind_version}')
+        else:
+            LOGGER.info('Let me install kind for you at the appropriate version')
+            download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
     else:
         LOGGER.status('No need to install kind, force with --force')
 
@@ -344,14 +353,19 @@ def k3d():
     k3d_version = re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
     if not force and not which('k3d'):
         force = True
-        LOGGER.info('Could not find k3d, let me install it for you')
+        LOGGER.info('Could not find k3d')
     if which('k3d'):
         found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
     if not force and found_k3d_version != k3d_version:
         force = True
         LOGGER.info(f'Found a different version of k3d ({found_k3d_version}) than the requested one {k3d_version}')
     if force:
-        download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
+        if platform.system().lower() != 'linux':
+            LOGGER.warning("I don't know how to install k3d on your computer."
+                           f' Please install the appropriate version ({k3d_version}).')
+        else:
+            LOGGER.info('Let me install k3d for you at the appropriate version')
+            download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
     else:
         LOGGER.status('No need to install k3d, force with --force')
 
@@ -366,18 +380,23 @@ def helm():
     helm_version = re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
     if not force and not which('helm'):
         force = True
-        LOGGER.info('Could not find helm, let me install it for you')
+        LOGGER.info('Could not find helm')
     if which('helm'):
         found_helm_version = re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
     if not force and found_helm_version != helm_version:
         force = True
         LOGGER.info(f'Found a different version of helm ({found_helm_version}) than the requested one {helm_version}')
     if force:
-        with tempdir() as d:
-            extract(urls['helm'], d)
-            makedirs(bin_dir)
-            move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
-            (bin_dir / 'helm').chmod(0o755)
+        if platform.system().lower() != 'linux':
+            LOGGER.warning("I don't know how to install helm on your computer."
+                           f' Please install the appropriate version ({helm_version}).')
+        else:
+            LOGGER.info('Let me install helm for you at the appropriate version')
+            with tempdir() as d:
+                extract(urls['helm'], d)
+                makedirs(bin_dir)
+                move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
+                (bin_dir / 'helm').chmod(0o755)
     else:
         LOGGER.status('No need to install helm, force with --force')
 
@@ -392,17 +411,22 @@ def tilt():
     tilt_version = re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
     if not force and not which('tilt'):
         force = True
-        LOGGER.info('Could not find tilt, let me install it for you')
+        LOGGER.info('Could not find tilt')
     if which('tilt'):
         found_tilt_version = re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
     if not force and found_tilt_version != tilt_version:
         force = True
         LOGGER.info(f'Found a different version of tilt ({found_tilt_version}) than the requested one {tilt_version}')
     if force:
-        with tempdir() as d:
-            extract(urls['tilt'], d)
-            makedirs(bin_dir)
-            move(Path(d) / 'tilt', bin_dir / 'tilt')
+        if platform.system().lower() != 'linux':
+            LOGGER.warning("I don't know how to install tilt on your computer."
+                           f' Please install the appropriate version ({tilt_version}).')
+        else:
+            LOGGER.info('Let me install tilt for you at the appropriate version')
+            with tempdir() as d:
+                extract(urls['tilt'], d)
+                makedirs(bin_dir)
+                move(Path(d) / 'tilt', bin_dir / 'tilt')
     else:
         LOGGER.status('No need to install tilt, force with --force')
 
@@ -417,7 +441,7 @@ def earthly():
     earthly_version = re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
     if not force and not which('earthly'):
         force = True
-        LOGGER.info('Could not find earthly, let me install it for you')
+        LOGGER.info('Could not find earthly')
     if which('earthly'):
         found_earthly_version = re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
     if not force and found_earthly_version != earthly_version:
@@ -425,8 +449,13 @@ def earthly():
         LOGGER.info(
             f'Found a different version of earthly ({found_earthly_version}) than the requested one {earthly_version}')
     if force:
-        makedirs(bin_dir)
-        download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
+        if platform.system().lower() != 'linux':
+            LOGGER.warning("I don't know how to install earthly on your computer."
+                           f' Please install the appropriate version ({earthly_version}).')
+        else:
+            LOGGER.info('Let me install earthly for you at the appropriate version')
+            makedirs(bin_dir)
+            download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
     else:
         LOGGER.status('No need to install earthly, force with --force')
 
@@ -441,7 +470,7 @@ def kubectl():
     kubectl_version = re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
     if not force and not which('kubectl'):
         force = True
-        LOGGER.info('Could not find kubectl, let me install it for you')
+        LOGGER.info('Could not find kubectl')
     if which('kubectl'):
         found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
                                          safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
@@ -450,7 +479,12 @@ def kubectl():
         LOGGER.info(
             f'Found a different version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}')
     if force:
-        download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
+        if platform.system().lower() != 'linux':
+            LOGGER.warning("I don't know how to install kubectl on your computer."
+                           f' Please install the appropriate version ({kubectl_version}).')
+        else:
+            LOGGER.info('Let me install kubectl for you at the appropriate version')
+            download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
     else:
         LOGGER.status('No need to install kubectl, force with --force')
 
@@ -480,22 +514,27 @@ def kubectl_buildkit():
 
     if not force and not found_kubectl_buildkit_version:
         force = True
-        LOGGER.info('Could not find kubectl buildkit, let me install it for you')
+        LOGGER.info('Could not find kubectl buildkit')
     if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
         force = True
         LOGGER.info(f'Found a different version of kubectl buildkit '
                     f'({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}')
     if force:
-        with tempdir() as d:
-            makedirs(bin_dir)
-            extract(urls['kubectl_buildkit'], d)
-            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
-            location = bin_dir / f'kubectl-buildkit-{kubectl_buildkit_version}'
-            move(Path(d) / 'kubectl-buildkit', location)
-            link_location = bin_dir / 'kubectl-buildkit'
-            if link_location.exists():
-                rm(link_location)
-            ln(location, link_location)
+        if platform.system().lower() != 'linux':
+            LOGGER.warning("I don't know how to install kubectl buildkit on your computer."
+                           f' Please install the appropriate version ({kubectl_buildkit_version}).')
+        else:
+            LOGGER.info('Let me install kubectl buildkit for you at the appropriate version')
+            with tempdir() as d:
+                makedirs(bin_dir)
+                extract(urls['kubectl_buildkit'], d)
+                move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
+                location = bin_dir / f'kubectl-buildkit-{kubectl_buildkit_version}'
+                move(Path(d) / 'kubectl-buildkit', location)
+                link_location = bin_dir / 'kubectl-buildkit'
+                if link_location.exists():
+                    rm(link_location)
+                ln(location, link_location)
     else:
         LOGGER.status('No need to install kubectl buildkit, force with --force')
 
