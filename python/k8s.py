@@ -180,7 +180,7 @@ def k8s():
 
 
 bin_dir = Path('~/.local/bin').expanduser()
-urls = {
+linux_amd64_urls = {
     'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
     'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
     'helm': 'https://get.helm.sh/helm-v3.8.1-linux-amd64.tar.gz',
@@ -190,6 +190,23 @@ urls = {
     'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.linux.x86_64.tar.gz',
     'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-linux-amd64',
 }
+darwin_amd64_urls = {
+    'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
+    'helm': 'https://get.helm.sh/helm-v3.8.1-darwin-amd64.tar.gz',
+    'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
+    'kubectl_buildkit':
+    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
+    'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.mac.x86_64.tar.gz',
+    'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-darwin-amd64',
+}
+if platform.system().lower() == 'linux':
+    urls = linux_amd64_urls
+elif platform.system().lower() == 'darwin':
+    urls = darwin_amd64_urls
+else:
+    LOGGER.warning("Unsupported platform")
+    urls = {}
+
 kind_config = """
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -327,7 +344,7 @@ def kind():
         force = True
         LOGGER.info(f'Found a different version of kind ({found_kind_version}) than the requested one {kind_version}')
     if force:
-        if platform.system().lower() != 'linux':
+        if not urls.get('kind'):
             LOGGER.warning("I don't know how to install kind on your computer."
                            f' Please install the appropriate version ({kind_version}).')
             if found_kind_version is not None and found_kind_version.split('.')[1] in ('12', '13', '14'):
@@ -360,7 +377,7 @@ def k3d():
         force = True
         LOGGER.info(f'Found a different version of k3d ({found_k3d_version}) than the requested one {k3d_version}')
     if force:
-        if platform.system().lower() != 'linux':
+        if not urls.get('k3d'):
             LOGGER.warning("I don't know how to install k3d on your computer."
                            f' Please install the appropriate version ({k3d_version}).')
         else:
@@ -387,7 +404,7 @@ def helm():
         force = True
         LOGGER.info(f'Found a different version of helm ({found_helm_version}) than the requested one {helm_version}')
     if force:
-        if platform.system().lower() != 'linux':
+        if not urls.get('helm'):
             LOGGER.warning("I don't know how to install helm on your computer."
                            f' Please install the appropriate version ({helm_version}).')
         else:
@@ -418,7 +435,7 @@ def tilt():
         force = True
         LOGGER.info(f'Found a different version of tilt ({found_tilt_version}) than the requested one {tilt_version}')
     if force:
-        if platform.system().lower() != 'linux':
+        if not urls.get('tilt'):
             LOGGER.warning("I don't know how to install tilt on your computer."
                            f' Please install the appropriate version ({tilt_version}).')
         else:
@@ -449,7 +466,7 @@ def earthly():
         LOGGER.info(
             f'Found a different version of earthly ({found_earthly_version}) than the requested one {earthly_version}')
     if force:
-        if platform.system().lower() != 'linux':
+        if not urls.get('earthly'):
             LOGGER.warning("I don't know how to install earthly on your computer."
                            f' Please install the appropriate version ({earthly_version}).')
         else:
@@ -479,7 +496,7 @@ def kubectl():
         LOGGER.info(
             f'Found a different version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}')
     if force:
-        if platform.system().lower() != 'linux':
+        if not urls.get('kubectl'):
             LOGGER.warning("I don't know how to install kubectl on your computer."
                            f' Please install the appropriate version ({kubectl_version}).')
         else:
@@ -520,7 +537,7 @@ def kubectl_buildkit():
         LOGGER.info(f'Found a different version of kubectl buildkit '
                     f'({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}')
     if force:
-        if platform.system().lower() != 'linux':
+        if not urls.get('kind'):
             LOGGER.warning("I don't know how to install kubectl buildkit on your computer."
                            f' Please install the appropriate version ({kubectl_buildkit_version}).')
         else:
