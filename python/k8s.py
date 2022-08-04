@@ -21,7 +21,7 @@ from clk.config import config
 from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy, download, extract, get_keyring,
                      is_port_available, ln, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
-                     updated_env, which, clear_ansi_color_codes)
+                     updated_env, which)
 from clk.log import get_logger
 from clk.types import Suggestion
 
@@ -204,7 +204,7 @@ if platform.system().lower() == 'linux':
 elif platform.system().lower() == 'darwin':
     urls = darwin_amd64_urls
 else:
-    LOGGER.warning("Unsupported platform")
+    LOGGER.warning('Unsupported platform')
     urls = {}
 
 kind_config = """
@@ -322,38 +322,82 @@ def install_dependency(force):
     config.k8s.install_dependencies_force = force
 
 
-@install_dependency.command(handle_dry_run=True)
-def kind():
+class InstallDependency:
+
+    def precondition(self):
+        return True
+
+    def compute_needed_version(self):
+        raise NotImplementedError()
+
+    def compute_version(self):
+        raise NotImplementedError()
+
+    def install(self):
+        raise NotImplementedError()
+
+    def __init__(self, handle_dry_run=True):
+        self.handle_dry_run = handle_dry_run
+        self.name = self.__class__.__name__.lower()
+        self.program_name = self.name
+
+        def wrapper(*args, **kwargs):
+            if config.dry_run:
+                LOGGER.info(f'(dry-run) download {self.name} from {urls[self.name]}')
+                return
+            if not self.precondition():
+                return
+            force = config.k8s.install_dependencies_force
+            program_path = which(self.program_name)
+            if not force and not program_path:
+                force = True
+                LOGGER.info(f'Could not find {self.program_name}')
+
+            self.needed_version = self.compute_needed_version()
+            self.found_version = self.compute_version()
+            if program_path and self.found_version is None:
+                LOGGER.warning(f'I could not find the version of {self.program_name}')
+            if not force and self.found_version != self.needed_version:
+                force = True
+                LOGGER.info(f'Found a different version of {self.name} ({self.found_version})'
+                            f' than the requested one {self.needed_version}')
+            if force:
+                self.install()
+            else:
+                LOGGER.status(f'No need to install {self.name}, force with --force')
+
+        install_dependency.command(handle_dry_run=self.handle_dry_run, name=self.name, help=self.__doc__)(wrapper)
+
+
+class Kind(InstallDependency):
     """Install kind"""
-    if config.dry_run:
-        LOGGER.info(f"(dry-run) download kind from {urls['kind']}")
-        return
-    force = config.k8s.install_dependencies_force
-    if config.k8s.distribution != 'kind':
-        LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
-                      ' To install kind, run clk k8s --distribution kind install-dependency kind.')
-        return
-    kind_version = re.search('/(v[0-9.]+)/', urls['kind']).group(1)
-    if not force and not which('kind'):
-        force = True
-        LOGGER.info('Could not find kind')
-    found_kind_version = None
-    if which('kind'):
-        found_kind_version = re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
-    if not force and found_kind_version != kind_version:
-        force = True
-        LOGGER.info(f'Found a different version of kind ({found_kind_version}) than the requested one {kind_version}')
-    if force:
+
+    def precondition(self):
+        if config.k8s.distribution != 'kind':
+            LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
+                          ' To install kind, run clk k8s --distribution kind install-dependency kind.')
+            return False
+        return True
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['kind']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
+
+    def install(self):
         if not urls.get('kind'):
             LOGGER.warning("I don't know how to install kind on your computer."
-                           f' Please install the appropriate version ({kind_version}).')
-            if found_kind_version is not None and found_kind_version.split('.')[1] in ('12', '13', '14'):
-                LOGGER.error(f'clk k8s is known not to work with versions of kind greater than {kind_version}')
+                           f' Please install the appropriate version ({self.needed_version}).')
+            if self.found_version is not None and self.found_version.split('.')[1] in ('12', '13', '14'):
+                LOGGER.error(f'clk k8s is known not to work with versions of kind greater than {self.needed_version}')
         else:
-            LOGGER.info('Let me install kind for you at the appropriate version')
+            LOGGER.info(f'Let me install kind for you at the version {self.needed_version}')
             download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
-    else:
-        LOGGER.status('No need to install kind, force with --force')
+
+
+Kind(handle_dry_run=True)
 
 
 @install_dependency.command(handle_dry_run=True)
