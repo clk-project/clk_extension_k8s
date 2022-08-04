@@ -899,6 +899,9 @@ def _helm_already_installed(namespace, name, version):
         release = releases[0]
         installed_version = release['chart'].split('-')[-1]
         if installed_version == version or 'v' + installed_version == version:
+            if release['status'] != 'deployed':
+                LOGGER.warning(f'{name} was already installed, but it had the status {release["status"]}')
+                return False
             return True
     return False
 
