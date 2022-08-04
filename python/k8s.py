@@ -186,7 +186,7 @@ platforms = {
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
         'helm': 'https://get.helm.sh/helm-v3.8.1-linux-amd64.tar.gz',
         'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
-        'kubectl_buildkit':
+        'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
         'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.linux.x86_64.tar.gz',
         'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-linux-amd64',
@@ -195,7 +195,7 @@ platforms = {
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
         'helm': 'https://get.helm.sh/helm-v3.8.1-darwin-amd64.tar.gz',
         'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
-        'kubectl_buildkit':
+        'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
         'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.mac.x86_64.tar.gz',
         'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-darwin-amd64',
@@ -322,6 +322,8 @@ def install_dependency(force):
 
 
 class InstallDependency:
+    name = None
+    program_name = None
 
     def precondition(self):
         return True
@@ -340,8 +342,8 @@ class InstallDependency:
 
     def __init__(self, handle_dry_run=True):
         self.handle_dry_run = handle_dry_run
-        self.name = self.__class__.__name__.lower()
-        self.program_name = self.name
+        self.name = self.name or self.__class__.__name__.lower()
+        self.program_name = self.program_name or self.name
 
         def wrapper(*args, **kwargs):
             if urls is None:
@@ -411,204 +413,147 @@ class Kind(InstallDependency):
 Kind(handle_dry_run=True)
 
 
-@install_dependency.command(handle_dry_run=True)
-def k3d():
+class K3d(InstallDependency):
     """Install k3d"""
-    if config.dry_run:
-        LOGGER.info(f"(dry-run) download k3d from {urls['k3d']}")
-        return
-    force = config.k8s.install_dependencies_force
-    if config.k8s.distribution != 'k3d':
-        LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
-                      ' To install k3d, run clk k8s --distribution k3d install-dependency k3d.')
-        return
-    k3d_version = re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
-    if not force and not which('k3d'):
-        force = True
-        LOGGER.info('Could not find k3d')
-    if which('k3d'):
-        found_k3d_version = re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
-    if not force and found_k3d_version != k3d_version:
-        force = True
-        LOGGER.info(f'Found a different version of k3d ({found_k3d_version}) than the requested one {k3d_version}')
-    if force:
-        if not urls.get('k3d'):
-            LOGGER.warning("I don't know how to install k3d on your computer."
-                           f' Please install the appropriate version ({k3d_version}).')
-        else:
-            LOGGER.info('Let me install k3d for you at the appropriate version')
-            download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
-    else:
-        LOGGER.status('No need to install k3d, force with --force')
+
+    def precondition(self):
+        if config.k8s.distribution != 'k3d':
+            LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
+                          ' To install k3d, run clk k8s --distribution k3d install-dependency k3d.')
+            return False
+        return True
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
+
+    def install(self):
+        download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
 
 
-@install_dependency.command(handle_dry_run=True)
-def helm():
+K3d(handle_dry_run=True)
+
+
+class Helm(InstallDependency):
     """Install helm"""
-    if config.dry_run:
-        LOGGER.info(f"(dry-run) download helm from {urls['helm']}")
-        return
-    force = config.k8s.install_dependencies_force
-    helm_version = re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
-    if not force and not which('helm'):
-        force = True
-        LOGGER.info('Could not find helm')
-    if which('helm'):
-        found_helm_version = re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
-    if not force and found_helm_version != helm_version:
-        force = True
-        LOGGER.info(f'Found a different version of helm ({found_helm_version}) than the requested one {helm_version}')
-    if force:
-        if not urls.get('helm'):
-            LOGGER.warning("I don't know how to install helm on your computer."
-                           f' Please install the appropriate version ({helm_version}).')
-        else:
-            LOGGER.info('Let me install helm for you at the appropriate version')
-            with tempdir() as d:
-                extract(urls['helm'], d)
-                makedirs(bin_dir)
-                move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
-                (bin_dir / 'helm').chmod(0o755)
-    else:
-        LOGGER.status('No need to install helm, force with --force')
 
+    def compute_needed_version(self):
+        return re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
 
-@install_dependency.command(handle_dry_run=True)
-def tilt():
-    """Install tilt"""
-    if config.dry_run:
-        LOGGER.info(f"(dry-run) download tilt from {urls['tilt']}")
-        return
-    force = config.k8s.install_dependencies_force
-    tilt_version = re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
-    if not force and not which('tilt'):
-        force = True
-        LOGGER.info('Could not find tilt')
-    if which('tilt'):
-        found_tilt_version = re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
-    if not force and found_tilt_version != tilt_version:
-        force = True
-        LOGGER.info(f'Found a different version of tilt ({found_tilt_version}) than the requested one {tilt_version}')
-    if force:
-        if not urls.get('tilt'):
-            LOGGER.warning("I don't know how to install tilt on your computer."
-                           f' Please install the appropriate version ({tilt_version}).')
-        else:
-            LOGGER.info('Let me install tilt for you at the appropriate version')
-            with tempdir() as d:
-                extract(urls['tilt'], d)
-                makedirs(bin_dir)
-                move(Path(d) / 'tilt', bin_dir / 'tilt')
-    else:
-        LOGGER.status('No need to install tilt, force with --force')
+    def compute_version(self):
+        if which(self.program_name):
+            return re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
 
-
-@install_dependency.command(handle_dry_run=True)
-def earthly():
-    """Install earthly"""
-    if config.dry_run:
-        LOGGER.info(f"(dry-run) download earthly from {urls['earthly']}")
-        return
-    force = config.k8s.install_dependencies_force
-    earthly_version = re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
-    if not force and not which('earthly'):
-        force = True
-        LOGGER.info('Could not find earthly')
-    if which('earthly'):
-        found_earthly_version = re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
-    if not force and found_earthly_version != earthly_version:
-        force = True
-        LOGGER.info(
-            f'Found a different version of earthly ({found_earthly_version}) than the requested one {earthly_version}')
-    if force:
-        if not urls.get('earthly'):
-            LOGGER.warning("I don't know how to install earthly on your computer."
-                           f' Please install the appropriate version ({earthly_version}).')
-        else:
-            LOGGER.info('Let me install earthly for you at the appropriate version')
+    def install(self):
+        with tempdir() as d:
+            extract(urls['helm'], d)
             makedirs(bin_dir)
-            download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
-    else:
-        LOGGER.status('No need to install earthly, force with --force')
+            move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
+            (bin_dir / 'helm').chmod(0o755)
 
 
-@install_dependency.command(handle_dry_run=True)
-def kubectl():
+Helm(handle_dry_run=True)
+
+
+class Tilt(InstallDependency):
+    """Install tilt"""
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
+
+    def install(self):
+        with tempdir() as d:
+            extract(urls['tilt'], d)
+            makedirs(bin_dir)
+            move(Path(d) / 'tilt', bin_dir / 'tilt')
+
+
+Tilt(handle_dry_run=True)
+
+
+class Earthly(InstallDependency):
+    """Install earthly"""
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
+
+    def install(self):
+        makedirs(bin_dir)
+        download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
+
+
+Earthly(handle_dry_run=True)
+
+
+class Kubectl(InstallDependency):
     """Install kubectl"""
-    if config.dry_run:
-        LOGGER.info(f"(dry-run) download kubectl from {urls['kubectl']}")
-        return
-    force = config.k8s.install_dependencies_force
-    kubectl_version = re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
-    if not force and not which('kubectl'):
-        force = True
-        LOGGER.info('Could not find kubectl')
-    if which('kubectl'):
-        found_kubectl_version = re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
-                                         safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
-    if not force and found_kubectl_version != kubectl_version:
-        force = True
-        LOGGER.info(
-            f'Found a different version of kubectl ({found_kubectl_version}) than the requested one {kubectl_version}')
-    if force:
-        if not urls.get('kubectl'):
-            LOGGER.warning("I don't know how to install kubectl on your computer."
-                           f' Please install the appropriate version ({kubectl_version}).')
-        else:
-            LOGGER.info('Let me install kubectl for you at the appropriate version')
-            download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
-    else:
-        LOGGER.status('No need to install kubectl, force with --force')
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
+                            safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
+
+    def install(self):
+        download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
 
 
-@install_dependency.command(handle_dry_run=True)
-def kubectl_buildkit():
+Kubectl(handle_dry_run=True)
+
+
+class KubectlBuildkit(InstallDependency):
     """Install kubectl buildkit"""
-    if config.dry_run:
-        LOGGER.info(f"(dry-run) download kubectl_buildkit from {urls['kubectl_buildkit']}")
-        return
-    force = config.k8s.install_dependencies_force
-    kubectl_buildkit_version = re.search('/(v[0-9.]+)/', urls['kubectl_buildkit']).group(1)
-    found_kubectl_buildkit_version = False
-    try:
-        found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'], nostderr=True).splitlines()[0]
-        found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
-        if 'Client:' in found_kubectl_buildkit_version:
-            found_kubectl_buildkit_version = found_kubectl_buildkit_version.replace('Client:', '').strip()
-    except subprocess.CalledProcessError:
-        found_kubectl_buildkit_version = False
-        if location := which('kubectl-buildkit'):
-            location = Path(location)
-            if location.is_symlink():
-                name = Path(os.readlink(location)).name
-                if m := re.match('kubectl-buildkit-(.+)', name):
-                    found_kubectl_buildkit_version = m.group(1)
+    name = 'kubectl-buildkit'
 
-    if not force and not found_kubectl_buildkit_version:
-        force = True
-        LOGGER.info('Could not find kubectl buildkit')
-    if not force and found_kubectl_buildkit_version != kubectl_buildkit_version:
-        force = True
-        LOGGER.info(f'Found a different version of kubectl buildkit '
-                    f'({found_kubectl_buildkit_version}) than the requested one {kubectl_buildkit_version}')
-    if force:
-        if not urls.get('kind'):
-            LOGGER.warning("I don't know how to install kubectl buildkit on your computer."
-                           f' Please install the appropriate version ({kubectl_buildkit_version}).')
-        else:
-            LOGGER.info('Let me install kubectl buildkit for you at the appropriate version')
-            with tempdir() as d:
-                makedirs(bin_dir)
-                extract(urls['kubectl_buildkit'], d)
-                move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
-                location = bin_dir / f'kubectl-buildkit-{kubectl_buildkit_version}'
-                move(Path(d) / 'kubectl-buildkit', location)
-                link_location = bin_dir / 'kubectl-buildkit'
-                if link_location.exists():
-                    rm(link_location)
-                ln(location, link_location)
-    else:
-        LOGGER.status('No need to install kubectl buildkit, force with --force')
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['kubectl-buildkit']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            found_kubectl_buildkit_version = False
+            try:
+                found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'],
+                                                              nostderr=True).splitlines()[0]
+                found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
+                if 'Client:' in found_kubectl_buildkit_version:
+                    found_kubectl_buildkit_version = found_kubectl_buildkit_version.replace('Client:', '').strip()
+            except subprocess.CalledProcessError:
+                found_kubectl_buildkit_version = False
+                if location := which('kubectl-buildkit'):
+                    location = Path(location)
+                    if location.is_symlink():
+                        name = Path(os.readlink(location)).name
+                        if m := re.match('kubectl-buildkit-(.+)', name):
+                            found_kubectl_buildkit_version = m.group(1)
+            return found_kubectl_buildkit_version
+
+    def install(self):
+        with tempdir() as d:
+            makedirs(bin_dir)
+            extract(urls['kubectl-buildkit'], d)
+            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
+            location = bin_dir / f'kubectl-buildkit-{self.needed_version}'
+            move(Path(d) / 'kubectl-buildkit', location)
+            link_location = bin_dir / 'kubectl-buildkit'
+            if link_location.exists():
+                rm(link_location)
+            ln(location, link_location)
+
+
+KubectlBuildkit(handle_dry_run=True)
 
 
 @install_dependency.flow_command(
