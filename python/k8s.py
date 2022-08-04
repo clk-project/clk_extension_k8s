@@ -180,32 +180,31 @@ def k8s():
 
 
 bin_dir = Path('~/.local/bin').expanduser()
-linux_amd64_urls = {
-    'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
-    'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
-    'helm': 'https://get.helm.sh/helm-v3.8.1-linux-amd64.tar.gz',
-    'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
-    'kubectl_buildkit':
-    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
-    'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.linux.x86_64.tar.gz',
-    'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-linux-amd64',
+platforms = {
+    'linux': {
+        'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
+        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
+        'helm': 'https://get.helm.sh/helm-v3.8.1-linux-amd64.tar.gz',
+        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
+        'kubectl_buildkit':
+        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.linux.x86_64.tar.gz',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-linux-amd64',
+    },
+    'darwin': {
+        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
+        'helm': 'https://get.helm.sh/helm-v3.8.1-darwin-amd64.tar.gz',
+        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
+        'kubectl_buildkit':
+        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.mac.x86_64.tar.gz',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-darwin-amd64',
+    },
 }
-darwin_amd64_urls = {
-    'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
-    'helm': 'https://get.helm.sh/helm-v3.8.1-darwin-amd64.tar.gz',
-    'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
-    'kubectl_buildkit':
-    'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
-    'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.28.0/tilt.0.28.0.mac.x86_64.tar.gz',
-    'earthly': 'https://github.com/earthly/earthly/releases/download/v0.6.12/earthly-darwin-amd64',
-}
-if platform.system().lower() == 'linux':
-    urls = linux_amd64_urls
-elif platform.system().lower() == 'darwin':
-    urls = darwin_amd64_urls
-else:
-    LOGGER.warning('Unsupported platform')
-    urls = {}
+urls = platforms.get(platform.system().lower())
+if urls is None:
+    LOGGER.warning(f'This platform ({platform.system().lower()}) is not supported'
+                   f' only those platforms are supported: {", ".join(platforms.keys())}')
 
 kind_config = """
 kind: Cluster
@@ -336,12 +335,19 @@ class InstallDependency:
     def install(self):
         raise NotImplementedError()
 
+    def post_install_check(self):
+        return
+
     def __init__(self, handle_dry_run=True):
         self.handle_dry_run = handle_dry_run
         self.name = self.__class__.__name__.lower()
         self.program_name = self.name
 
         def wrapper(*args, **kwargs):
+            if urls is None:
+                LOGGER.error(f"I don't know how to install {self.name} on this platform"
+                             f' ({platform.system().lower()})')
+                return
             if config.dry_run:
                 LOGGER.info(f'(dry-run) download {self.name} from {urls[self.name]}')
                 return
@@ -362,7 +368,13 @@ class InstallDependency:
                 LOGGER.info(f'Found a different version of {self.name} ({self.found_version})'
                             f' than the requested one {self.needed_version}')
             if force:
-                self.install()
+                if urls.get(self.name):
+                    LOGGER.info(f'Let me install {self.name} for you at the version {self.needed_version}')
+                    self.install()
+                else:
+                    LOGGER.warning(f"I don't know how to install {self.name} on your computer."
+                                   f' Please install the appropriate version ({self.needed_version}).')
+                self.post_install_check()
             else:
                 LOGGER.status(f'No need to install {self.name}, force with --force')
 
@@ -387,14 +399,13 @@ class Kind(InstallDependency):
             return re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
 
     def install(self):
-        if not urls.get('kind'):
-            LOGGER.warning("I don't know how to install kind on your computer."
-                           f' Please install the appropriate version ({self.needed_version}).')
-            if self.found_version is not None and self.found_version.split('.')[1] in ('12', '13', '14'):
-                LOGGER.error(f'clk k8s is known not to work with versions of kind greater than {self.needed_version}')
-        else:
-            LOGGER.info(f'Let me install kind for you at the version {self.needed_version}')
-            download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
+        download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
+
+    def post_install_check(self):
+        if self.found_version is not None and self.found_version.split('.')[1] in ('12', '13', '14'):
+            LOGGER.error(
+                f'You are using version {self.found_version} of {self.name}.'
+                f' clk k8s is known not to work with versions of {self.name} greater than {self.needed_version}')
 
 
 Kind(handle_dry_run=True)
