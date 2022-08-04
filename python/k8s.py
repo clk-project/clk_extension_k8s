@@ -340,6 +340,22 @@ class InstallDependency:
     def post_install_check(self):
         return
 
+    def need_install(self):
+        force = config.k8s.install_dependencies_force
+        program_path = which(self.program_name)
+        if not force and not program_path:
+            force = True
+            LOGGER.info(f'Could not find {self.program_name}')
+        self.needed_version = self.compute_needed_version()
+        self.found_version = self.compute_version()
+        if program_path and self.found_version is None:
+            LOGGER.warning(f'I could not find the version of {self.program_name}')
+        if not force and self.found_version != self.needed_version:
+            force = True
+            LOGGER.info(f'Found a different version of {self.name} ({self.found_version})'
+                        f' than the requested one {self.needed_version}')
+        return force
+
     def __init__(self, handle_dry_run=True):
         self.handle_dry_run = handle_dry_run
         self.name = self.name or self.__class__.__name__.lower()
@@ -355,24 +371,16 @@ class InstallDependency:
                 return
             if not self.precondition():
                 return
-            force = config.k8s.install_dependencies_force
-            program_path = which(self.program_name)
-            if not force and not program_path:
-                force = True
-                LOGGER.info(f'Could not find {self.program_name}')
 
-            self.needed_version = self.compute_needed_version()
-            self.found_version = self.compute_version()
-            if program_path and self.found_version is None:
-                LOGGER.warning(f'I could not find the version of {self.program_name}')
-            if not force and self.found_version != self.needed_version:
-                force = True
-                LOGGER.info(f'Found a different version of {self.name} ({self.found_version})'
-                            f' than the requested one {self.needed_version}')
-            if force:
+            if self.need_install():
                 if urls.get(self.name):
                     LOGGER.info(f'Let me install {self.name} for you at the version {self.needed_version}')
                     self.install()
+                    if self.need_install():
+                        LOGGER.error(f'After installing {self.name}, there is still something wrong.'
+                                     f' Please let us know at https://github.com/clk-project/clk_extension_k8s/issues')
+                    else:
+                        LOGGER.info(f'{self.name} correctly installed and sounds working')
                 else:
                     LOGGER.warning(f"I don't know how to install {self.name} on your computer."
                                    f' Please install the appropriate version ({self.needed_version}).')
