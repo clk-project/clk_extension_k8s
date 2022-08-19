@@ -771,7 +771,7 @@ data:
             if reg_name not in containers:
                 call(split(f'docker network connect kind {reg_name}'))
         # install calico
-        config.kubectl.call(['apply', '-f', 'https://docs.projectcalico.org/v3.23/manifests/calico.yaml'])
+        config.kubectl.call(['apply', '-f', 'https://projectcalico.docs.tigera.io/archive/v3.23/manifests/calico.yaml'])
 
 
 @k8s.group()
