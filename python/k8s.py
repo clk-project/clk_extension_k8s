@@ -1586,7 +1586,13 @@ def install_network_policy(strict):
 @flag('--use-context/--dont-use-context', help='Try to use the appropriate context before running tilt')
 def _tilt(open, use_context, tilt_arg, tiltfile_args):
     'Run whatever is needed to run tilt'
-    config.require_project()
+    root = Path(".").absolute()
+    tiltfile_name = "Tiltfile"
+    while root.parent != root and not (root / tiltfile_name).exists():
+        root = root.parent
+    if not (root / tiltfile_name).exists():
+        raise click.UsageError(f"I looked for a file called {tiltfile_name} in this"
+                               " directory and all its parents, without finding any.")
     if open:
         webbrowser.open('http://localhost:10350')
     if use_context:
@@ -1595,7 +1601,7 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
             'kind': f'kind-{CLUSTER_NAME}',
         }[config.k8s.distribution]
         call(['kubectl', 'config', 'use-context', context])
-    with cd(config.project):
+    with cd(root):
         call([
             'tilt',
             'up',
