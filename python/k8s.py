@@ -781,10 +781,11 @@ def cert_manager():
 
 @cert_manager.command(flowdepends=['k8s.install-ingress-controller'], handle_dry_run=True)
 @option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
-def _install(version):
+@flag('--force/--no-force', help="Force the installation even if the required version is already installed")
+def _install(version, force):
     """Install a certificate manager in the current cluster"""
     namespace, name = 'cert-manager', 'cert-manager'
-    if _helm_already_installed(namespace, name, version):
+    if not force and _helm_already_installed(namespace, name, version):
         LOGGER.status(f'{name} already installed in {namespace} with version {version}')
         return
 
