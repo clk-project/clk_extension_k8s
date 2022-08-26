@@ -781,7 +781,7 @@ def cert_manager():
 
 @cert_manager.command(flowdepends=['k8s.install-ingress-controller'], handle_dry_run=True)
 @option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
-@flag('--force/--no-force', help="Force the installation even if the required version is already installed")
+@flag('--force/--no-force', help='Force the installation even if the required version is already installed')
 def _install(version, force):
     """Install a certificate manager in the current cluster"""
     namespace, name = 'cert-manager', 'cert-manager'
@@ -1587,13 +1587,13 @@ def install_network_policy(strict):
 @flag('--use-context/--dont-use-context', help='Try to use the appropriate context before running tilt')
 def _tilt(open, use_context, tilt_arg, tiltfile_args):
     'Run whatever is needed to run tilt'
-    root = Path(".").absolute()
-    tiltfile_name = "Tiltfile"
+    root = Path('.').absolute()
+    tiltfile_name = 'Tiltfile'
     while root.parent != root and not (root / tiltfile_name).exists():
         root = root.parent
     if not (root / tiltfile_name).exists():
-        raise click.UsageError(f"I looked for a file called {tiltfile_name} in this"
-                               " directory and all its parents, without finding any.")
+        raise click.UsageError(f'I looked for a file called {tiltfile_name} in this'
+                               ' directory and all its parents, without finding any.')
     if open:
         webbrowser.open('http://localhost:10350')
     if use_context:
