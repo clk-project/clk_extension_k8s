@@ -22,12 +22,20 @@ pre-commit-cache:
     RUN pre-commit run -a
     SAVE ARTIFACT ${HOME}/.cache/pre-commit cache
 
-check-quality:
+quality-base:
     FROM +pre-commit-base
     COPY --dir .pre-commit-config.yaml .
     COPY +pre-commit-cache/cache $HOME/.cache/pre-commit
     COPY . .
+
+check-quality:
+    FROM +quality-base
     RUN pre-commit run -a
+
+fix-quality:
+    FROM +quality-base
+    RUN pre-commit run -a || echo OK
+    SAVE ARTIFACT . AS LOCAL fixed
 
 test:
     FROM earthly/dind:ubuntu # this one currently ships with python3.8
