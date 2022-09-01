@@ -934,7 +934,7 @@ def install_ingress_controller(version, force):
 
 
 @k8s.command(handle_dry_run=True)
-@option('--version', default='v18.0.2', help='The version of kube-prometheus-stack chart to install')
+@option('--version', default='39.5.0', help='The version of kube-prometheus-stack chart to install')
 @option('--alertmanager/--no-alertmanager', help='Enable alertmanager')
 @option('--pushgateway/--no-pushgateway', help='Enable pushgateway')
 @option('--coredns/--no-coredns', help='Enable coreDns')
@@ -966,8 +966,8 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
         '--set', 'prometheus.prometheusSpec.retention=' + prometheus_retention,
         '--set', 'prometheus.prometheusSpec.persistentVolume.size=' + prometheus_persistence_size,
         '--set', 'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
-        '--set', 'prometheus-node-exporter.hostRootFsMount=' +
-                 str(not (config.k8s.distribution == 'docker-desktop')).lower(),
+        # '--set', 'prometheus-node-exporter.hostRootFsMount=' +
+        #          str(not (config.k8s.distribution == 'docker-desktop')).lower(),
         '--set', 'grafana.ingress.enabled=true',
         '--set', 'grafana.ingress.hosts[0]=' + str(grafana_host),
         '--set', 'grafana.adminPassword=' + str(grafana_admin_password),
