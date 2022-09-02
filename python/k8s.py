@@ -891,7 +891,7 @@ def install_local_certificate(client):
 
 
 def helm_install(args):
-    call([
+    common_args = [
         'helm',
         '--kube-context',
         config.kubectl.context,
@@ -899,7 +899,10 @@ def helm_install(args):
         '--install',
         '--create-namespace',
         '--wait',
-    ] + args)
+    ]
+    if config.develop or config.debug:
+        common_args.append('--debug')
+    call(common_args + args)
 
 
 def _helm_already_installed(namespace, name, version):
