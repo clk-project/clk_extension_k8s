@@ -36,3 +36,7 @@ def update_helm_chart(
         touched_file=None,
     )
     local(command)
+
+
+def helm_dependency_update(path):
+    local(clk_k8s + 'helm dependency-update ' + path)
