@@ -1364,7 +1364,12 @@ class Chart:
         return f"<{self.__class__.__name__}('{self.location}')>"
 
 
-@k8s.command()
+@k8s.group()
+def helm():
+    """Commands to play with helm"""
+
+
+@helm.command()
 @option('--force/--no-force', '-f', help='Force update')
 @option('--touch', '-t', help='Touch this file or directory when update is complete')
 @option('--experimental-oci/--no-experimental-oci', default=True, help='Activate experimental OCI feature')
@@ -1378,7 +1383,7 @@ class Chart:
 @flag('--uncompress', help=('Also leave out an uncompressed version.'
                             ' Ideal for grepping into them.'))
 @argument('chart', default='.', type=Chart, required=False, help='Helm chart path')
-def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sources, remove, uncompress):
+def dependency_update(chart, force, touch, experimental_oci, subchart_sources, remove, uncompress):
     """Update helm dependencies
 
     Like `helm dependency update` on steroids.
@@ -1400,7 +1405,7 @@ def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sourc
     Also, if you work only on C, you'd want that packaging A would substitute on the fly C
     in the dependencies of B.
 
-    That way, you simply have to run helm-dependency-update --package C A and
+    That way, you simply have to run helm dependency-update --package C A and
     you get A/charts/B.tgz that contains an updated C.
 
     """
@@ -1415,9 +1420,22 @@ def helm_dependency_update(chart, force, touch, experimental_oci, subchart_sourc
         os.utime(touch)
 
 
-@k8s.command(ignore_unknown_options=True)
+config.globalpreset_profile.settings['alias']['k8s.helm-dependency-update'] = {
+    'commands': [
+        [
+            'log', '-l', 'deprecated',
+            'This command is deprecated and will disappear on 2023/01/01, use clk k8s helm dependency-update instead'
+        ],
+        ['k8s', 'helm', 'dependency-update'],
+    ],
+    'documentation':
+    'Alias to k8s helm dependency-update'
+}
+
+
+@helm.command(ignore_unknown_options=True)
 @argument('args', nargs=-1, help='Helm args')
-def helm_template(args):
+def template(args):
     """Run `helm template`, so that you can easily add parameters to it"""
     call(['helm', 'template'] + list(args))
 
