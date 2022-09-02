@@ -789,9 +789,8 @@ def _install(version, force):
         LOGGER.status(f'{name} already installed in {namespace} with version {version}')
         return
 
-    call([
-        'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', name, name,
+    helm_install([
+         name, name,
         '--namespace', namespace,
         '--version', version,
         '--repo', 'https://charts.jetstack.io',
@@ -891,6 +890,18 @@ def install_local_certificate(client):
             raise NotImplementedError(f'Sounds like we forgot to deal with the client {client}')
 
 
+def helm_install(args):
+    call([
+        'helm',
+        '--kube-context',
+        config.kubectl.context,
+        'upgrade',
+        '--install',
+        '--create-namespace',
+        '--wait',
+    ] + args)
+
+
 def _helm_already_installed(namespace, name, version):
     releases = [
         release for release in json.loads(check_output(['helm', 'list', '--namespace', namespace, '--output', 'json']))
@@ -922,9 +933,8 @@ def install_ingress_controller(version, force):
             '--set', 'controller.service.type=NodePort',
             '--set', 'controller.hostPort.enabled=true',
         ]  # yapf: disable
-    call([
-        'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', name, name,
+    helm_install([
+         name, name,
         '--namespace', namespace,
         '--repo', 'https://kubernetes.github.io/ingress-nginx',
         '--version', version,
@@ -950,9 +960,8 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
                                   kube_controller_manager, prometheus_retention, prometheus_persistence_size,
                                   grafana_host, grafana_persistence_size, grafana_admin_password):
     """Install a kube-prometheus-stack instance in the current cluster"""
-    call([
-        'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', 'kube-prometheus-stack',
+    helm_install([
+         'kube-prometheus-stack',
         'kube-prometheus-stack',
         '--namespace', 'monitoring',
         '--version', version,
@@ -1005,9 +1014,8 @@ def install_reloader(version):
     if _helm_already_installed(namespace, name, version):
         LOGGER.status(f'{name} already installed in {namespace} with version {version}')
         return
-    call([
-        'helm', '--kube-context', config.kubectl.context,
-        'upgrade', '--install', '--create-namespace', '--wait', name, name,
+    helm_install([
+        name, name,
         '--repo', 'https://stakater.github.io/stakater-charts',
         '--namespace', namespace,
         '--version', version,
