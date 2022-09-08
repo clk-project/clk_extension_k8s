@@ -790,7 +790,7 @@ def _install(version, force):
         return
 
     helm_install([
-         name, name,
+        name, name,
         '--namespace', namespace,
         '--version', version,
         '--repo', 'https://charts.jetstack.io',
@@ -937,7 +937,7 @@ def install_ingress_controller(version, force):
             '--set', 'controller.hostPort.enabled=true',
         ]  # yapf: disable
     helm_install([
-         name, name,
+        name, name,
         '--namespace', namespace,
         '--repo', 'https://kubernetes.github.io/ingress-nginx',
         '--version', version,
@@ -964,7 +964,7 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
                                   grafana_host, grafana_persistence_size, grafana_admin_password):
     """Install a kube-prometheus-stack instance in the current cluster"""
     helm_install([
-         'kube-prometheus-stack',
+        'kube-prometheus-stack',
         'kube-prometheus-stack',
         '--namespace', 'monitoring',
         '--version', version,
