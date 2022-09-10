@@ -380,7 +380,7 @@ class InstallDependency:
                         LOGGER.error(f'After installing {self.name}, there is still something wrong.'
                                      f' Please let us know at https://github.com/clk-project/clk_extension_k8s/issues')
                     else:
-                        LOGGER.info(f'{self.name} correctly installed and sounds working')
+                        LOGGER.info(f'{self.name} correctly installed and appears to work')
                 else:
                     LOGGER.warning(f"I don't know how to install {self.name} on your computer."
                                    f' Please install the appropriate version ({self.needed_version}).')
