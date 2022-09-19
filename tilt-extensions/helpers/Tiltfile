@@ -9,7 +9,7 @@ def has_local_registry():
 
 def build_chart_update_command(
     location,
-    dependencies,
+    dependencies=[],
     force=False,
     touched_file=None,
 ):
@@ -25,7 +25,7 @@ def build_chart_update_command(
 
 def update_helm_chart(
     location,
-    dependencies,
+    dependencies=[],
     force=False,
     touched_file=None,
 ):
