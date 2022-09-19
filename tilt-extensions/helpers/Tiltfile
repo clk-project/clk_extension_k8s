@@ -13,7 +13,7 @@ def build_chart_update_command(
     force=False,
     touched_file=None,
 ):
-    command = clk_k8s + 'helm-dependency-update ' + location
+    command = clk_k8s + 'helm dependency-update ' + location
     for dependency in dependencies:
         command += ' --package ' + dependency
     if force:
