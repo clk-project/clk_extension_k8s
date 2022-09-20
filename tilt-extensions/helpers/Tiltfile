@@ -28,6 +28,7 @@ def update_helm_chart(
     dependencies=[],
     force=False,
     touched_file=None,
+    create_local_resource=False,
 ):
     command = build_chart_update_command(
         location,
@@ -36,6 +37,14 @@ def update_helm_chart(
         touched_file=None,
     )
     local(command)
+    if create_local_resource:
+        local_resource(
+            'helm dependencies',
+            command,
+            trigger_mode=TRIGGER_MODE_MANUAL,
+            auto_init=False,
+            labels=["tooling"],
+        )
 
 
 def helm_dependency_update(path):
