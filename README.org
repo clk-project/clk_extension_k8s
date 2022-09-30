@@ -22,7 +22,7 @@
      #+END_SRC
 * Usage
 
-  #+BEGIN_SRC shell   
+  #+BEGIN_SRC shell
     clk k8s flow
   #+END_SRC
   Now, you have a local cluster running and ready to be used. It is that simple.
