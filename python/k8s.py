@@ -612,7 +612,7 @@ def install_docker_registry_credentials(registry_provider, username, password):
     """Install the credential to get access to the given registry provider."""
     if registry_provider:
         if not (username and password):
-            if res := get_keyring().get_password('click-project', f'{registry_provider}-registry-auth'):
+            if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
                 username, password = json.loads(res)
         username = username or click.prompt('username', hide_input=True, default='', show_default=False)
         password = password or click.prompt('password', hide_input=True, default='', show_default=False)
