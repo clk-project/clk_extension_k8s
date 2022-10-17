@@ -580,11 +580,23 @@ def _all():
     """Install all the dependencies"""
 
 
+docker_registries_configs = {
+    'gitlab': {
+        'secret-name': 'gitlab-registry',
+        'server': 'registry.gitlab.com',
+    },
+    'dockerhub': {
+        'secret-name': 'dockerhub-registry',
+        'server': 'https://index.docker.io/v1/',
+    },
+}
+
+
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @option('--registry-provider',
-        type=click.Choice(['gitlab']),
+        type=click.Choice(docker_registries_configs.keys()),
         help='What registry provider to connect to',
-        default='gitlab')
+        default=list(docker_registries_configs)[0])
 @option(
     '--username',
     help=('The username of the provider registry'
@@ -598,19 +610,13 @@ def _all():
 )
 def install_docker_registry_credentials(registry_provider, username, password):
     """Install the credential to get access to the given registry provider."""
-    registries = {
-        'gitlab': {
-            'secret-name': 'gitlab-registry',
-            'server': 'registry.gitlab.com',
-        }
-    }
     if registry_provider:
         if not (username and password):
             if res := get_keyring().get_password('click-project', f'{registry_provider}-registry-auth'):
                 username, password = json.loads(res)
         username = username or click.prompt('username', hide_input=True, default='', show_default=False)
         password = password or click.prompt('password', hide_input=True, default='', show_default=False)
-        registry = registries[registry_provider]
+        registry = docker_registries_configs[registry_provider]
         config.kubectl.call([
             'create', 'secret', 'docker-registry', registry['secret-name'],
             f'--docker-server={registry["server"]}',
