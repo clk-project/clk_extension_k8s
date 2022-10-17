@@ -608,16 +608,22 @@ docker_registries_configs = {
           ' (in case of gitlab, an API key with read_registry grants'
           ' generated using https://gitlab.com/-/profile/personal_access_tokens)'),
 )
-def install_docker_registry_credentials(registry_provider, username, password):
+@flag('--force', help='Overwrite the existing secret')
+def install_docker_registry_credentials(registry_provider, username, password, force):
     """Install the credential to get access to the given registry provider."""
+    registry = docker_registries_configs[registry_provider]
+    secret_name = registry['secret-name']
+    if config.kubectl.get('secret', secret_name):
+        if not force:
+            LOGGER.status(f'There is already a secret called {secret_name}, doing nothing (unless called with --force)')
+            return
     if not (username and password):
         if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
             username, password = json.loads(res)
     username = username or click.prompt('username', hide_input=True, default='', show_default=False)
     password = password or click.prompt('password', hide_input=True, default='', show_default=False)
-    registry = docker_registries_configs[registry_provider]
     config.kubectl.call([
-        'create', 'secret', 'docker-registry', registry['secret-name'],
+        'create', 'secret', 'docker-registry', secret_name,
         f'--docker-server={registry["server"]}',
         f'--docker-username={username}',
         f'--docker-password={password}',
