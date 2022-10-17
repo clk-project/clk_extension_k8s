@@ -610,21 +610,18 @@ docker_registries_configs = {
 )
 def install_docker_registry_credentials(registry_provider, username, password):
     """Install the credential to get access to the given registry provider."""
-    if registry_provider:
-        if not (username and password):
-            if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
-                username, password = json.loads(res)
-        username = username or click.prompt('username', hide_input=True, default='', show_default=False)
-        password = password or click.prompt('password', hide_input=True, default='', show_default=False)
-        registry = docker_registries_configs[registry_provider]
-        config.kubectl.call([
-            'create', 'secret', 'docker-registry', registry['secret-name'],
-            f'--docker-server={registry["server"]}',
-            f'--docker-username={username}',
-            f'--docker-password={password}',
-        ])  # yapf: disable
-    else:
-        LOGGER.status('No registry provider given, doing nothing.')
+    if not (username and password):
+        if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
+            username, password = json.loads(res)
+    username = username or click.prompt('username', hide_input=True, default='', show_default=False)
+    password = password or click.prompt('password', hide_input=True, default='', show_default=False)
+    registry = docker_registries_configs[registry_provider]
+    config.kubectl.call([
+        'create', 'secret', 'docker-registry', registry['secret-name'],
+        f'--docker-server={registry["server"]}',
+        f'--docker-username={username}',
+        f'--docker-password={password}',
+    ])  # yapf: disable
 
 
 @k8s.command(flowdepends=['k8s.install-dependency.all'], handle_dry_run=True)
