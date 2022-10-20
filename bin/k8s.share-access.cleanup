@@ -1,0 +1,18 @@
+#!/bin/bash -eu
+
+source "_clk.sh"
+
+clk_usage () {
+    cat<<EOF
+$0
+
+Remove the stuf we created to give access
+--
+EOF
+}
+
+clk_help_handler "$@"
+
+kubectl delete rolebinding "${ROLE}-${SA}"
+kubectl delete role "${ROLE}"
+kubectl delete sa "${SA}"

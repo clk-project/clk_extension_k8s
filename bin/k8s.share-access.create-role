@@ -1,0 +1,32 @@
+#!/bin/bash -eu
+
+source "_clk.sh"
+
+clk_usage () {
+    cat<<EOF
+$0
+
+Create the role to give rights to the service account
+--
+flowdeps: k8s.share-access.check-rbac
+EOF
+}
+
+clk_help_handler "$@"
+
+cat <<EOF | kubectl -n "${NAMESPACE}" apply -f -
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ${ROLE}
+  namespace: ${NAMESPACE}
+rules:
+- apiGroups: ["", "extensions", "apps"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  - cronjobs
+  verbs: ["*"]
+EOF

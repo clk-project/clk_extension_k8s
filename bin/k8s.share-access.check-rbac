@@ -1,0 +1,29 @@
+#!/bin/bash -eu
+
+source "_clk.sh"
+
+clk_usage () {
+    cat<<EOF
+$0
+
+Check that the cluster is appropriately configured
+--
+
+EOF
+}
+
+clk_help_handler "$@"
+
+TMP="$(mktemp -d)"
+trap "rm -rf '${TMP}'" 0
+
+kubectl api-versions| grep rbac > "${TMP}/res"
+
+for config in rbac.authorization.k8s.io/v1 rbac.authorization.k8s.io/v1beta1
+do
+    if ! grep -q "${config}" "${TMP}/res"
+    then
+        clk log --log-level error "It seems like the server does not implement the needed rbac config ${config}"
+        exit 1
+    fi
+done

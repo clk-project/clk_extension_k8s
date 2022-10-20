@@ -1,0 +1,31 @@
+#!/bin/bash -eu
+
+source "_clk.sh"
+
+clk_usage () {
+    cat<<EOF
+$0
+
+Bind the role to the service account
+--
+flowdeps: k8s.share-access.create-sa, k8s.share-access.create-role
+EOF
+}
+
+clk_help_handler "$@"
+
+cat <<EOF | kubectl -n "${NAMESPACE}" apply -f -
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ${ROLE}-${SA}
+  namespace: ${NAMESPACE}
+subjects:
+- kind: ServiceAccount
+  name: ${SA}
+  namespace: ${NAMESPACE}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ${ROLE}
+EOF

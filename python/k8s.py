@@ -19,11 +19,11 @@ import click
 import yaml
 from clk.config import config
 from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
-from clk.lib import (TablePrinter, call, cd, check_output, copy, deepcopy, download, extract, get_keyring,
+from clk.lib import (TablePrinter, call, cd, check_output, copy, createfile, deepcopy, download, extract, get_keyring,
                      is_port_available, ln, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
                      updated_env, which)
 from clk.log import get_logger
-from clk.types import Suggestion
+from clk.types import DynamicChoice, Suggestion
 
 LOGGER = get_logger(__name__)
 
@@ -1648,3 +1648,92 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
             'tilt',
             'up',
         ] + split(' '.join(tilt_arg)) + ['--'] + list(tiltfile_args))
+
+
+class NamespaceNameType(DynamicChoice):
+
+    def choices(self):
+
+        def get_name(item):
+            try:
+                return item['metadata']['name']
+            except KeyError:
+                return item['metadata']['labels']['kubernetes.io/metadata.name']
+
+        return [get_name(item) for item in config.kubectl.json(['get', 'namespaces'], internal=True)['items']]
+
+
+@k8s.group()
+@option('--namespace', help='The namespace to share', default='default', type=NamespaceNameType())
+@option('--sa-name', help='The name of the service account created', default='shared-access')
+@option('--role-name', help='The name of the role to create', default='shared-role')
+def share_access(namespace, sa_name, role_name):
+    """Some commands to ease sharing access to a cluster
+
+    Inspired by https://computingforgeeks.com/restrict-kubernetes-service-account-users-to-a-namespace-with-rbac/
+    """
+    config.namespace = namespace
+    config.sa_name = sa_name
+    config.override_env['NAMESPACE'] = namespace
+    config.override_env['SA'] = sa_name
+    config.override_env['ROLE'] = role_name
+    config.init()
+
+
+@share_access.command(flowdepends=['k8s.share-access.bind-role'])
+@argument("output", help="Where to write the content", type=Path)
+def write_kubectl_config(output):
+    """Write the config that gives the shared access"""
+    item = [
+        item for item in config.kubectl.json(['-n', config.namespace, 'get', 'secret'])['items']
+        if item['metadata'].get('annotations', {}).get('kubernetes.io/service-account.name') == config.sa_name
+    ][0]
+    sa_token = base64.b64decode(item['data']['token']).decode()
+    ca_crt = item['data']['ca.crt']
+
+    current_conf = config.kubectl.json(['config', 'view', '--raw'])
+    contexts = [context for context in current_conf['contexts'] if context['name'] == config.kubectl.context]
+    contexts[0]['context']['user'] = config.sa_name
+    assert len(contexts) == 1
+    clusters = [cluster for cluster in current_conf['clusters'] if cluster['name'] == contexts[0]['context']['cluster']]
+    new_conf = {
+        'kind': 'Config',
+        'apiVersion': 'v1',
+        'preferences': {},
+        'clusters': clusters,
+        'users': [
+            {
+                'name': config.sa_name,
+                'user': {
+                    'token': sa_token,
+                    'client-key-data': ca_crt,
+                },
+            },
+        ],
+        'contexts': contexts,
+        'current-context': config.kubectl.context,
+    }
+    output.write_text(yaml.dump(new_conf))
+
+
+@share_access.command(handle_dry_run=True)
+@argument('new-config', help='The new config used to update the current one', type=Path)
+@flag('--keep-current-context/--overwrite-current-context', help='Whether to use the new context or not')
+@flag('--force', help='Force updating in case of conflicts')
+@option('--kube-config-location', help='What file to update', default=Path('~/.kube/config').expanduser(), type=Path)
+def update_config(new_config, keep_current_context, force, kube_config_location):
+    """Get the values of the new config and put then in the current config"""
+    config = yaml.safe_load(kube_config_location.read_text())
+    given_config = yaml.safe_load(new_config.read_text())
+    for key in 'clusters', 'users', 'contexts':
+        names = {value['name'] for value in config[key]}
+        values = config[key]
+        for value in given_config[key]:
+            if value['name'] in names and not force:
+                raise click.UsageError("I won't merge them because"
+                                       f" {key} -> {value['name']} is present in both configs"
+                                       '. Hint (use --force to do it anyway)')
+            values.append(value)
+    if not keep_current_context:
+        config['current-context'] = given_config['current-context']
+    createfile(kube_config_location, yaml.safe_dump(config), force=True)
