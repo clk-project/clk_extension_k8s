@@ -157,6 +157,9 @@ class KubeCtl:
         else:
             return check_output(['kubectl'] + arguments, **kwargs)
 
+    def json(self, arguments, **kwargs):
+        return json.loads(self.output(arguments + ['--output=json'], **kwargs))
+
 
 @group()
 @param_config(
