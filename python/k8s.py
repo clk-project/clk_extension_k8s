@@ -1681,7 +1681,7 @@ def share_access(namespace, sa_name, role_name):
 
 
 @share_access.command(flowdepends=['k8s.share-access.bind-role'])
-@argument("output", help="Where to write the content", type=Path)
+@argument('output', help='Where to write the content', type=Path)
 def write_kubectl_config(output):
     """Write the config that gives the shared access"""
     item = [
