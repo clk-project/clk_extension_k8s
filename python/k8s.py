@@ -32,6 +32,13 @@ warned = False
 CLUSTER_NAME = 'clk-k8s'
 
 
+def get_resource_name(item):
+    try:
+        return item['metadata']['name']
+    except KeyError:
+        return item['metadata']['labels']['kubernetes.io/metadata.name']
+
+
 def guess_context_and_distribution(context, distribution):
     warning = None
     if context is None and distribution is None:
@@ -1480,11 +1487,21 @@ def setup_credentials():
                  ' for more information.')
 
 
+class DockerRegistrySecretName(DynamicChoice):
+
+    def choices(self):
+        return [
+            get_resource_name(secret)
+            for secret in config.kubectl.json(['get', 'secrets'])['items']
+            if get_resource_name(secret).endswith('-registry')
+        ]
+
+
 @k8s.command(flowdepends=['k8s.install-docker-registry-credentials'])
 @option('--docker-login/--no-docker-login', '-d', help='Also log into docker')
 @option('--helm-login/--no-helm-login', '-h', help='Also log into helm')
 @option('--export-password', '-p', help='Export the passwords that directory, with the registry host as name')
-@argument('secret', help='Name of the k8s secret to use')
+@argument('secret', help='Name of the k8s secret to use', type=DockerRegistrySecretName())
 def docker_credentials(docker_login, helm_login, secret, export_password):
     """Extract the docker credentials from a k8s secret"""
     creds = config.kubectl.output(
@@ -1657,13 +1674,7 @@ class NamespaceNameType(DynamicChoice):
 
     def choices(self):
 
-        def get_name(item):
-            try:
-                return item['metadata']['name']
-            except KeyError:
-                return item['metadata']['labels']['kubernetes.io/metadata.name']
-
-        return [get_name(item) for item in config.kubectl.json(['get', 'namespaces'], internal=True)['items']]
+        return [get_resource_name(item) for item in config.kubectl.json(['get', 'namespaces'], internal=True)['items']]
 
 
 @k8s.group()
