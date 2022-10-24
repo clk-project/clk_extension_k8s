@@ -143,7 +143,10 @@ class KubeCtl:
         else:
             call(['kubectl'] + arguments)
 
-    def get(self, kind, name, namespace='default'):
+    def get(self, kind, name, namespace='default', internal=False):
+        LOGGER.action(f'Getting {kind}:{name}')
+        if not internal and config.dry_run:
+            return {}
         return [
             secret for secret in json.loads(
                 config.kubectl.output(['get', kind, '--namespace', namespace, '--output', 'json']))['items']
@@ -595,7 +598,7 @@ docker_registries_configs = {
 }
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'])
+@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option('--registry-provider',
         type=click.Choice(docker_registries_configs.keys()),
         help='What registry provider to connect to',
