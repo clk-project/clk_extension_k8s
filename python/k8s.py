@@ -602,6 +602,10 @@ docker_registries_configs = {
         'secret-name': 'dockerhub-registry',
         'server': 'https://index.docker.io/v1/',
     },
+    'github': {
+        'secret-name': 'github-registry',
+        'server': 'ghcr.io',
+    },
 }
 
 
