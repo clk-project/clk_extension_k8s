@@ -1716,7 +1716,7 @@ def write_kubectl_config(output):
     output.write_text(yaml.dump(new_conf))
 
 
-@share_access.command(handle_dry_run=True)
+@k8s.command(handle_dry_run=True)
 @argument('new-config', help='The new config used to update the current one', type=Path)
 @flag('--keep-current-context/--overwrite-current-context', help='Whether to use the new context or not')
 @flag('--force', help='Force updating in case of conflicts')
@@ -1726,14 +1726,17 @@ def update_config(new_config, keep_current_context, force, kube_config_location)
     config = yaml.safe_load(kube_config_location.read_text())
     given_config = yaml.safe_load(new_config.read_text())
     for key in 'clusters', 'users', 'contexts':
-        names = {value['name'] for value in config[key]}
-        values = config[key]
-        for value in given_config[key]:
-            if value['name'] in names and not force:
-                raise click.UsageError("I won't merge them because"
-                                       f" {key} -> {value['name']} is present in both configs"
-                                       '. Hint (use --force to do it anyway)')
-            values.append(value)
+        given_values = {value['name']: value for value in given_config[key]}
+        values = {value['name']: value for value in config[key]}
+        if set(values).intersection(set(given_values)) and not force:
+            raise click.UsageError(
+                "I won't merge them because those values are in both the new and the old config"
+                f" {key} -> {', '.join(name for name in set(values).intersection(set(given_values)))}"
+                '. Hint (use --force to do it anyway)')
+        new_values = given_config[key]
+        for name in set(values) - set(given_values):
+            new_values.append(values[name])
+        config[key] = new_values
     if not keep_current_context:
         config['current-context'] = given_config['current-context']
     createfile(kube_config_location, yaml.safe_dump(config), force=True)
