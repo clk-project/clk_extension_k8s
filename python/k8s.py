@@ -472,7 +472,7 @@ class Helm(InstallDependency):
         with tempdir() as d:
             extract(urls['helm'], d)
             makedirs(bin_dir)
-            move(Path(d) / 'linux-amd64' / 'helm', bin_dir / 'helm')
+            move(Path(d) / '*' / 'helm', bin_dir / 'helm')
             (bin_dir / 'helm').chmod(0o755)
 
 
