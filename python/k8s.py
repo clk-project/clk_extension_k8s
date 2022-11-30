@@ -20,7 +20,7 @@ import yaml
 from clk.config import config
 from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, createfile, deepcopy, download, extract, get_keyring,
-                     is_port_available, ln, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
+                     glob, is_port_available, ln, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
                      updated_env, which)
 from clk.log import get_logger
 from clk.types import DynamicChoice, Suggestion
@@ -472,7 +472,7 @@ class Helm(InstallDependency):
         with tempdir() as d:
             extract(urls['helm'], d)
             makedirs(bin_dir)
-            move(Path(d) / '*' / 'helm', bin_dir / 'helm')
+            move(glob(Path(d) / '*' / 'helm')[0], bin_dir / 'helm')
             (bin_dir / 'helm').chmod(0o755)
 
 
