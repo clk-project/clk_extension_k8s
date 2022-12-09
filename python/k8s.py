@@ -265,6 +265,7 @@ nodes:
     protocol: TCP
 networking:
   disableDefaultCNI: true
+  ipFamily: ipv4
 """
 
 cluster_issuer = '''apiVersion: cert-manager.io/v1
