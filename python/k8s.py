@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tarfile
+import time
 import webbrowser
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -159,6 +160,12 @@ class KubeCtl:
                 config.kubectl.output(['get', kind, '--namespace', namespace, '--output', 'json']))['items']
             if not name or elem['metadata']['name'] == name
         ]
+
+    def delete(self, kind, name, namespace='default', internal=False):
+        LOGGER.action(f'Deleting {kind}:{name}')
+        if not internal and config.dry_run:
+            return None
+        return self.call(["delete", kind, name, "--namespace", namespace])
 
     def output(self, arguments, **kwargs):
         context = self.context
