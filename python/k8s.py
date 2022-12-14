@@ -150,14 +150,14 @@ class KubeCtl:
         else:
             call(['kubectl'] + arguments)
 
-    def get(self, kind, name, namespace='default', internal=False):
+    def get(self, kind, name=None, namespace='default', internal=False):
         LOGGER.action(f'Getting {kind}:{name}')
         if not internal and config.dry_run:
             return {}
         return [
-            secret for secret in json.loads(
+            elem for elem in json.loads(
                 config.kubectl.output(['get', kind, '--namespace', namespace, '--output', 'json']))['items']
-            if secret['metadata']['name'] == name
+            if not name or elem['metadata']['name'] == name
         ]
 
     def output(self, arguments, **kwargs):
