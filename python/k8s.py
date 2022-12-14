@@ -642,6 +642,7 @@ def install_docker_registry_credentials(registry_provider, username, password, f
         if not force:
             LOGGER.status(f'There is already a secret called {secret_name}, doing nothing (unless called with --force)')
             return
+        config.kubectl.delete("secret", secret_name)
     if not (username and password):
         if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
             username, password = json.loads(res)
