@@ -165,7 +165,7 @@ class KubeCtl:
         LOGGER.action(f'Deleting {kind}:{name}')
         if not internal and config.dry_run:
             return None
-        return self.call(["delete", kind, name, "--namespace", namespace])
+        return self.call(['delete', kind, name, '--namespace', namespace])
 
     def output(self, arguments, **kwargs):
         context = self.context
@@ -642,7 +642,7 @@ def install_docker_registry_credentials(registry_provider, username, password, f
         if not force:
             LOGGER.status(f'There is already a secret called {secret_name}, doing nothing (unless called with --force)')
             return
-        config.kubectl.delete("secret", secret_name)
+        config.kubectl.delete('secret', secret_name)
     if not (username and password):
         if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
             username, password = json.loads(res)
@@ -656,33 +656,33 @@ def install_docker_registry_credentials(registry_provider, username, password, f
     ])  # yapf: disable
 
 
-@k8s.command(flowdepends=["k8s.create-cluster"])
+@k8s.command(flowdepends=['k8s.create-cluster'])
 def wait_ready():
-    "Wait that the kubernetes node is ready"
+    'Wait that the kubernetes node is ready'
 
     tries = 0
     threshold = 10
     time_to_sleep = 5
-    node_info = config.kubectl.get("node")
+    node_info = config.kubectl.get('node')
     while not all(
-        [c["status"] == "True" for node in node_info for c in node["status"]["conditions"] if c["type"] == "Ready"]):
+            c['status'] == 'True' for node in node_info for c in node['status']['conditions'] if c['type'] == 'Ready'):
         tries += 1
-        msg = f"Waited {tries * time_to_sleep}s for the node to be ready."
+        msg = f'Waited {tries * time_to_sleep}s for the node to be ready.'
         logger = LOGGER.status
         if tries > threshold:
             msg += (" It's been a long time now, something may be wrong."
                     " I'm still waiting for eternity")
             logger = LOGGER.warning
-        status_msg = "\n".join([
-            node["metadata"]["name"] + ": " + ", ".join(condition["reason"]
-                                                        for condition in node["status"]["conditions"]
-                                                        if condition["status"] != "True")
-            for node in config.kubectl.get("node")
+        status_msg = '\n'.join([
+            node['metadata']['name'] + ': ' + ', '.join(condition['reason']
+                                                        for condition in node['status']['conditions']
+                                                        if condition['status'] != 'True')
+            for node in config.kubectl.get('node')
         ])
-        msg += f"\n{status_msg}"
+        msg += f'\n{status_msg}'
         logger(msg)
         time.sleep(time_to_sleep)
-        node_info = config.kubectl.get("node")
+        node_info = config.kubectl.get('node')
 
 
 @k8s.command(flowdepends=['k8s.install-dependency.all'], handle_dry_run=True)
@@ -987,7 +987,7 @@ def _helm_already_installed(namespace, name, version):
 
 @k8s.command(flowdepends=['k8s.wait-ready'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
-@option('--timeout', help="Timeout before considering the installation as failing")
+@option('--timeout', help='Timeout before considering the installation as failing')
 @flag('--force', help='Install even if already present')
 def install_ingress_controller(version, force, timeout):
     """Install an ingress (ingress-nginx) in the current cluster"""
