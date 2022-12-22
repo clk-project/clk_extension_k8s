@@ -1543,6 +1543,16 @@ class DockerRegistrySecretName(DynamicChoice):
             if get_resource_name(secret).endswith('-registry')
         ]
 
+    def convert(self, value, param, ctx):
+        if ctx.resilient_parsing:
+            return value
+        choices = self.choices()
+        if value not in choices:
+            self.fail(
+                ('invalid choice: %s. (choose from %s, or create the docker-registry secret "%s" in your kubernetes'
+                 ' cluster)') % (value, ', '.join(choices), value), param, ctx)
+        return DynamicChoice.convert(self, value, param, ctx)
+
 
 @k8s.command(flowdepends=['k8s.install-docker-registry-credentials'])
 @option('--docker-login/--no-docker-login', '-d', help='Also log into docker')
