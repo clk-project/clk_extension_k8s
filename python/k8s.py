@@ -987,8 +987,9 @@ def _helm_already_installed(namespace, name, version):
 
 @k8s.command(flowdepends=['k8s.wait-ready'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
+@option('--timeout', help="Timeout before considering the installation as failing")
 @flag('--force', help='Install even if already present')
-def install_ingress_controller(version, force):
+def install_ingress_controller(version, force, timeout):
     """Install an ingress (ingress-nginx) in the current cluster"""
     namespace, name = 'ingress', 'ingress-nginx'
     if _helm_already_installed(namespace, name, version) and not force:
@@ -1000,6 +1001,8 @@ def install_ingress_controller(version, force):
             '--set', 'controller.service.type=NodePort',
             '--set', 'controller.hostPort.enabled=true',
         ]  # yapf: disable
+    if timeout:
+        helm_extra_args += ['--timeout', timeout]
     helm_install([
         name, name,
         '--namespace', namespace,
