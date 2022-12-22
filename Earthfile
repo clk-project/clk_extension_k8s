@@ -61,9 +61,8 @@ test:
     COPY hello hello
     WITH DOCKER
         RUN clk k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all \
-        && helm upgrade --install hello hello \
-        && timeout 2m bash -c 'while ! kubectl get pod | grep -q Running;do echo wait for pod;sleep 2;done' \
-        && echo "A pod is running!"
+        && helm upgrade --install app hello \
+        && kubectl wait pods -l app.kubernetes.io/name=hello --for condition=Ready --timeout=2m
     END
 
 test-all:
