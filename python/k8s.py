@@ -253,6 +253,9 @@ kubeadmConfigPatches:
   nodeRegistration:
     kubeletExtraArgs:
       "feature-gates": "EphemeralContainers=true"
+networking:
+  disableDefaultCNI: true
+  ipFamily: ipv4
 nodes:
 - role: control-plane
   kubeadmConfigPatches:
@@ -270,9 +273,6 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
-networking:
-  disableDefaultCNI: true
-  ipFamily: ipv4
 """
 
 cluster_issuer = '''apiVersion: cert-manager.io/v1
@@ -736,7 +736,8 @@ def install_local_registry(reinstall):
           ' In docker style format host_path:container_path.'
           ' Only implemented for k3d for the time being.'),
 )
-def create_cluster(recreate, volume):
+@option('--nodes', '-n', default=1, type=int, help='Number of nodes in the cluster')
+def create_cluster(recreate, volume, nodes):
     """Create a k8s cluster"""
     if config.dry_run:
         LOGGER.info(f'(dry-run) create a {config.k8s.distribution} cluster.'
@@ -808,6 +809,7 @@ def create_cluster(recreate, volume):
     elif config.k8s.distribution == 'kind':
         reg_name = f'{config.k8s.distribution}-registry'
         kind_config_to_use = kind_config
+        kind_config_to_use += '- role: worker\n' * (nodes - 1)
         using_local_registry = reg_name in check_output(split('docker ps --format {{.Names}}')).split()
         if using_local_registry:
             kind_config_to_use += f"""
