@@ -663,7 +663,7 @@ def wait_ready():
     tries = 0
     threshold = 10
     time_to_sleep = 5
-    node_info = config.kubectl.get('node')
+    node_info = config.kubectl.get('node', internal=True)
     while not all(
             c['status'] == 'True' for node in node_info for c in node['status']['conditions'] if c['type'] == 'Ready'):
         tries += 1
