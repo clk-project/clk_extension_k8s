@@ -1489,19 +1489,6 @@ def dependency_update(chart, force, touch, experimental_oci, subchart_sources, r
         os.utime(touch)
 
 
-config.globalpreset_profile.settings['alias']['k8s.helm-dependency-update'] = {
-    'commands': [
-        [
-            'log', '-l', 'deprecated',
-            'This command is deprecated and will disappear on 2023/01/01, use clk k8s helm dependency-update instead'
-        ],
-        ['k8s', 'helm', 'dependency-update'],
-    ],
-    'documentation':
-    'Alias to k8s helm dependency-update'
-}
-
-
 @helm.command(ignore_unknown_options=True)
 @argument('args', nargs=-1, help='Helm args')
 def template(args):
