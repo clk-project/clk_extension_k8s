@@ -1016,7 +1016,7 @@ def install_ingress_controller(version, force, timeout):
 
 
 @k8s.command(handle_dry_run=True)
-@option('--version', default='39.5.0', help='The version of kube-prometheus-stack chart to install')
+@option('--version', default='39.13.3', help='The version of kube-prometheus-stack chart to install')
 @option('--alertmanager/--no-alertmanager', help='Enable alertmanager')
 @option('--pushgateway/--no-pushgateway', help='Enable pushgateway')
 @option('--coredns/--no-coredns', help='Enable coreDns')
