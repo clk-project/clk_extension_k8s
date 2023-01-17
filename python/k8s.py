@@ -21,8 +21,8 @@ import yaml
 from clk.config import config
 from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, createfile, deepcopy, download, extract, get_keyring,
-                     glob, is_port_available, ln, makedirs, move, read, rm, safe_check_output, tempdir, temporary_file,
-                     updated_env, which)
+                     glob, is_port_available, ln, makedirs, move, quote, read, rm, safe_check_output, tempdir,
+                     temporary_file, updated_env, which)
 from clk.log import get_logger
 from clk.types import DynamicChoice, Suggestion
 
@@ -966,9 +966,18 @@ def helm_install(args):
         '--create-namespace',
         '--wait',
     ]
-    if config.develop or config.debug:
+    if config.develop:
         common_args.append('--debug')
-    call(common_args + args)
+    if config.debug:
+        call(common_args + args)
+    else:
+        with temporary_file() as out:
+            LOGGER.action('run: ' + ' '.join(quote(arg) for arg in common_args + args))
+            process = subprocess.Popen(common_args + args, stdout=out, stderr=out)
+            res = process.wait()
+            out.flush()
+            if res:
+                LOGGER.error(read(out.name))
 
 
 def _helm_already_installed(namespace, name, version):
