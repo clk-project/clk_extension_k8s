@@ -820,7 +820,7 @@ containerdConfigPatches:
 """
         with temporary_file(content=kind_config_to_use) as f:
             cmd = ['kind', 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
-            if config.log_level in ("debug", "develop"):
+            if config.log_level in ('debug', 'develop'):
                 cmd += ['--loglevel', '3']
             call(cmd)
         if using_local_registry:
