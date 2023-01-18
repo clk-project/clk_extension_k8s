@@ -819,7 +819,10 @@ containerdConfigPatches:
     endpoint = ["http://{reg_name}:5000"]
 """
         with temporary_file(content=kind_config_to_use) as f:
-            call(['kind', 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name])
+            cmd = ['kind', 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
+            if config.log_level in ("debug", "develop"):
+                cmd += ['--loglevel', '3']
+            call(cmd)
         if using_local_registry:
             with temporary_file(content="""apiVersion: v1
 kind: ConfigMap
