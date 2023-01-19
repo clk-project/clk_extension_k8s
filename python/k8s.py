@@ -147,9 +147,9 @@ class KubeCtl:
     def call(self, arguments):
         context = self.context
         if context is not None:
-            call(['kubectl', '--context', context] + arguments)
+            silent_call(['kubectl', '--context', context] + arguments)
         else:
-            call(['kubectl'] + arguments)
+            silent_call(['kubectl'] + arguments)
 
     def get(self, kind, name=None, namespace='default', internal=False):
         LOGGER.action(f'Getting {kind}:{name}')
@@ -711,7 +711,7 @@ def install_local_registry(reinstall):
                 LOGGER.status('A registry with the name k3d-registry.localhost already exists.'
                               ' Nothing to do.')
                 return
-        call(command)
+        silent_call(command)
     else:
         name = f'{config.k8s.distribution}-registry'
         command = f'docker run -d --restart=always -p 5000:5000 --name {name} registry:2'
@@ -722,7 +722,7 @@ def install_local_registry(reinstall):
         if exists:
             LOGGER.status(f'A registry with the name {name} already exists.')
         else:
-            call(split(command))
+            silent_call(split(command))
 
 
 @k8s.command(
@@ -758,21 +758,21 @@ def create_cluster(recreate, volume, nodes):
         already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
         if already_existing_clusters:
             if recreate:
-                call(['k3d', 'cluster', 'delete', name])
+                silent_call(['k3d', 'cluster', 'delete', name])
             else:
                 LOGGER.status(f'A cluster with the name {name} already exists.')
                 cluster = already_existing_clusters[0]
                 if cluster['serversRunning'] == 0:
                     LOGGER.info('Starting k3d!')
-                    call(['k3d', 'cluster', 'start', name])
+                    silent_call(['k3d', 'cluster', 'start', name])
                 else:
                     LOGGER.status('Nothing to do!')
                 return
     elif config.k8s.distribution == 'kind':
         name = CLUSTER_NAME
-        if name in check_output('kind get clusters'.split()).split('\n'):
+        if name in silent_check_output('kind get clusters'.split()).split('\n'):
             if recreate:
-                call(['kind', 'delete', 'clusters', name])
+                silent_call(['kind', 'delete', 'clusters', name])
             else:
                 LOGGER.status(f'A cluster with the name {name} already exists. Nothing to do.')
                 return
@@ -804,7 +804,7 @@ def create_cluster(recreate, volume, nodes):
             local_volume = volume.split(':')[0]
             makedirs(local_volume)
             cmd.extend(['--volume', volume])
-        call(cmd)
+        silent_call(cmd)
 
     elif config.k8s.distribution == 'kind':
         reg_name = f'{config.k8s.distribution}-registry'
@@ -822,7 +822,7 @@ containerdConfigPatches:
             cmd = ['kind', 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
             if config.log_level in ('debug', 'develop'):
                 cmd += ['--loglevel', '3']
-            call(cmd)
+            silent_call(cmd)
         if using_local_registry:
             with temporary_file(content="""apiVersion: v1
 kind: ConfigMap
@@ -834,11 +834,11 @@ data:
     host: "localhost:5000"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
-                call(['kubectl', 'apply', '-f', f.name])
+                silent_call(['kubectl', 'apply', '-f', f.name])
             containers = check_output(
                 ['docker', 'network', 'inspect', 'kind', '-f', '{{range .Containers}}{{.Name}} {{end}}']).split()
             if reg_name not in containers:
-                call(split(f'docker network connect kind {reg_name}'))
+                silent_call(split(f'docker network connect kind {reg_name}'))
         # install calico
         config.kubectl.call(['apply', '-f', 'https://projectcalico.docs.tigera.io/archive/v3.23/manifests/calico.yaml'])
 
@@ -940,7 +940,7 @@ def install_local_certificate(client):
     cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
 
     def install_with_certutil(directory):
-        call([certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', directory])
+        silent_call([certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', directory])
 
     with temporary_file() as f:
         f.write(cert)
@@ -971,16 +971,28 @@ def helm_install(args):
     ]
     if config.develop:
         common_args.append('--debug')
-    if config.debug:
-        call(common_args + args)
-    else:
-        with temporary_file() as out:
-            LOGGER.action('run: ' + ' '.join(quote(arg) for arg in common_args + args))
-            process = subprocess.Popen(common_args + args, stdout=out, stderr=out)
-            res = process.wait()
+    silent_call(common_args + args)
+
+
+def silent_call(args):
+    with temporary_file() as out:
+        LOGGER.action('silently run: ' + ' '.join(quote(arg) for arg in args))
+        process = subprocess.Popen(args, stdout=out, stderr=out)
+        res = process.wait()
+        out.flush()
+        if res:
+            LOGGER.error(read(out.name))
+            exit(1)
+
+
+def silent_check_output(args):
+    with temporary_file() as out:
+        try:
+            return check_output(args, stderr=out)
+        except Exception as e:
             out.flush()
-            if res:
-                LOGGER.error(read(out.name))
+            LOGGER.error(read(out.name))
+            raise e
 
 
 def _helm_already_installed(namespace, name, version):
@@ -1206,17 +1218,17 @@ def remove(target):
     """Remove the k8s cluster"""
     if config.k8s.distribution == 'k3d':
         if target in ['all', 'cluster']:
-            call(['k3d', 'cluster', 'delete', CLUSTER_NAME])
+            silent_call(['k3d', 'cluster', 'delete', CLUSTER_NAME])
         if target in ['all', 'registry']:
-            call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
+            silent_call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
     elif config.k8s.distribution == 'kind':
         if target in ['all', 'cluster']:
-            call(['kind', 'delete', 'cluster', '--name', CLUSTER_NAME])
+            silent_call(['kind', 'delete', 'cluster', '--name', CLUSTER_NAME])
         if target in ['all', 'registry']:
             reg_name = f'{config.k8s.distribution}-registry'
             if reg_name in check_output(split('docker ps --format {{.Names}}')).split():
-                call(['docker', 'kill', reg_name])
-                call(['docker', 'rm', reg_name])
+                silent_call(['docker', 'kill', reg_name])
+                silent_call(['docker', 'rm', reg_name])
 
 
 @k8s.command()
@@ -1592,7 +1604,7 @@ def create_buildkit_runner(max_parallelism, name):
   max-parallelism = {max_parallelism}
 '''
     with temporary_file(content=conf) as f:
-        call(['kubectl', 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
+        silent_call(['kubectl', 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
 
 
 _features = {
@@ -1718,7 +1730,7 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
             'k3d': f'k3d-{CLUSTER_NAME}',
             'kind': f'kind-{CLUSTER_NAME}',
         }[config.k8s.distribution]
-        call(['kubectl', 'config', 'use-context', context])
+        silent_call(['kubectl', 'config', 'use-context', context])
     with cd(root):
         call([
             'tilt',
