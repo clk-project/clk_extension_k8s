@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.1.0
+  rev: v4.4.0
   hooks:
   - id: trailing-whitespace
   - id: end-of-file-fixer
@@ -15,15 +15,15 @@ repos:
   hooks:
   - id: yapf
 - repo: https://github.com/hadialqattan/pycln
-  rev: v1.1.0
+  rev: v2.1.3
   hooks:
   - id: pycln
     args: [--config=pycln.toml]
 - repo: https://github.com/PyCQA/isort
-  rev: 5.10.1
+  rev: 5.12.0
   hooks:
   - id: isort
 - repo: https://github.com/PyCQA/flake8
-  rev: 4.0.1
+  rev: 6.0.0
   hooks:
     - id: flake8
