@@ -644,6 +644,9 @@ def install_docker_registry_credentials(registry_provider, username, password, f
             return
         config.kubectl.delete('secret', secret_name)
     if not (username and password):
+        if username or password:
+            LOGGER.warning('I need to be given both username and password to use them.'
+                           ' Falling back on trying using the keyring.')
         if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
             username, password = json.loads(res)
     username = username or click.prompt('username', hide_input=True, default='', show_default=False)
