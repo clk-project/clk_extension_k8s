@@ -602,10 +602,6 @@ def _all():
 
 
 docker_registries_configs = {
-    'gitlab': {
-        'secret-name': 'gitlab-registry',
-        'server': 'registry.gitlab.com',
-    },
     'dockerhub': {
         'secret-name': 'dockerhub-registry',
         'server': 'https://index.docker.io/v1/',
@@ -614,14 +610,18 @@ docker_registries_configs = {
         'secret-name': 'github-registry',
         'server': 'ghcr.io',
     },
+    'gitlab': {
+        'secret-name': 'gitlab-registry',
+        'server': 'registry.gitlab.com',
+    },
 }
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-@option('--registry-provider',
-        type=click.Choice(docker_registries_configs.keys()),
-        help='What registry provider to connect to',
-        default=list(docker_registries_configs)[0])
+@argument('registry-provider',
+          type=click.Choice(docker_registries_configs.keys()),
+          help='What registry provider to connect to',
+          default=list(docker_registries_configs)[0])
 @option(
     '--username',
     help=('The username of the provider registry'
@@ -634,15 +634,13 @@ docker_registries_configs = {
           ' generated using https://gitlab.com/-/profile/personal_access_tokens)'),
 )
 @flag('--force', help='Overwrite the existing secret')
-def install_docker_registry_credentials(registry_provider, username, password, force):
+@option('--docker-login/--no-docker-login', default=True, help='Also log into docker')
+@option('--helm-login/--no-helm-login', default=True, help='Also log into helm')
+@option('--k8s-login/--no-k8s-login', default=True, help='Also log into helm')
+def registry_login(registry_provider, username, password, force, docker_login, helm_login, k8s_login):
     """Install the credential to get access to the given registry provider."""
     registry = docker_registries_configs[registry_provider]
     secret_name = registry['secret-name']
-    if config.kubectl.get('secret', secret_name):
-        if not force:
-            LOGGER.status(f'There is already a secret called {secret_name}, doing nothing (unless called with --force)')
-            return
-        config.kubectl.delete('secret', secret_name)
     if not (username and password):
         if username or password:
             LOGGER.warning('I need to be given both username and password to use them.'
@@ -651,12 +649,26 @@ def install_docker_registry_credentials(registry_provider, username, password, f
             username, password = json.loads(res)
     username = username or click.prompt('username', hide_input=True, default='', show_default=False)
     password = password or click.prompt('password', hide_input=True, default='', show_default=False)
-    config.kubectl.call([
-        'create', 'secret', 'docker-registry', secret_name,
-        f'--docker-server={registry["server"]}',
-        f'--docker-username={username}',
-        f'--docker-password={password}',
-    ])  # yapf: disable
+    if k8s_login:
+        run = True
+        if config.kubectl.get('secret', secret_name):
+            if force:
+                config.kubectl.delete('secret', secret_name)
+            else:
+                LOGGER.status(
+                    f'There is already a secret called {secret_name}, doing nothing (unless called with --force)')
+                run = False
+        if run:
+            config.kubectl.call([
+                'create', 'secret', 'docker-registry', secret_name,
+                f'--docker-server={registry["server"]}',
+                f'--docker-username={username}',
+                f'--docker-password={password}',
+            ])  # yapf: disable
+    if docker_login:
+        silent_call(['docker', 'login', registry['server'], '-u', username, '-p', password])
+    if helm_login:
+        silent_call(['helm', 'registry', 'login', registry['server'], '-u', username, '-p', password])
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
