@@ -48,7 +48,7 @@ test:
     ARG from=source
     IF [ "${from}" = "source" ]
         RUN wget -O - https://clk-project.org/install.sh | ${shell}
-        COPY . /k8s
+        COPY --dir bin python tilt-extensions k3s-manifests clk.json version.txt /k8s/
         RUN clk extension install /k8s
     ELSE
         RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s ${shell}
@@ -59,12 +59,11 @@ test:
     RUN clk k8s --distribution=$distribution install-dependency kubectl-buildkit
     USER root
     COPY hello hello
+    COPY test.sh ./test.sh
+    RUN --no-cache echo "Invalidate the cache (somehow the next one don't work)"
     WITH DOCKER
-        RUN clk k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all \
-        && helm upgrade --install app hello \
-        && kubectl wait pods -l app.kubernetes.io/name=hello --for condition=Ready --timeout=2m
+        RUN --no-cache bash test.sh
     END
-
 test-all:
     BUILD +check-quality
     BUILD +test --distribution=kind
