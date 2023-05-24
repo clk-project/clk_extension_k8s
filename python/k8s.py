@@ -19,7 +19,7 @@ from shlex import split
 import click
 import yaml
 from clk.config import config
-from clk.decorators import argument, flag, group, option, param_config, table_fields, table_format
+from clk.decorators import argument, flag, group, option, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, createfile, deepcopy, download, extract, get_keyring,
                      glob, is_port_available, ln, makedirs, move, quote, read, rm, safe_check_output, tempdir,
                      temporary_file, updated_env, which)
@@ -179,19 +179,17 @@ class KubeCtl:
 
 
 @group()
-@param_config(
-    'kubectl',
+@option(
     '--context',
     '-c',
-    typ=KubeCtl,
+    expose_class=KubeCtl,
     help='The kubectl context to use',
     type=Suggestion(KubeCtl.list_contexts()),
 )
-@param_config(
-    'k8s',
+@option(
     '--distribution',
     '-d',
-    typ=K8s,
+    expose_class=K8s,
     help='Distribution to use',
     type=click.Choice(['k3d', 'kind']),
 )
@@ -647,8 +645,10 @@ def registry_login(registry_provider, username, password, force, docker_login, h
         if username or password:
             LOGGER.warning('I need to be given both username and password to use them.'
                            ' Falling back on trying using the keyring.')
-        if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth'):
-            username, password = json.loads(res)
+        if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth-user'):
+            username = res
+        if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth-password'):
+            password = res
     username = username or click.prompt('username', hide_input=True, default='', show_default=False)
     password = password or click.prompt('password', hide_input=True, default='', show_default=False)
     if k8s_login:
