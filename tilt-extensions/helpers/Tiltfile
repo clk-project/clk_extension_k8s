@@ -12,6 +12,7 @@ def build_chart_update_command(
     dependencies=[],
     force=False,
     touched_file=None,
+    remove=True,
 ):
     command = clk_k8s + 'helm dependency-update ' + location
     for dependency in dependencies:
@@ -20,6 +21,10 @@ def build_chart_update_command(
         command += ' --force '
     if touched_file:
         command += ' --touch="{}"'.format(touched_file)
+    if remove:
+        command += ' --remove'
+    else:
+        command += ' --no-remove'
     return command
 
 
@@ -29,12 +34,14 @@ def update_helm_chart(
     force=False,
     touched_file=None,
     create_local_resource=False,
+    remove=True,
 ):
     command = build_chart_update_command(
         location,
         dependencies,
         force=False,
         touched_file=None,
+        remove=remove,
     )
     local(command)
     if create_local_resource:
