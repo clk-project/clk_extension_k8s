@@ -197,6 +197,8 @@ class KubeCtl:
 )
 def k8s():
     """Manipulate k8s"""
+    config.override_env['K8S_CONTEXT'] = config.kubectl.context
+    config.init()
 
 
 bin_dir = Path('~/.local/bin').expanduser()
