@@ -833,7 +833,7 @@ def create_cluster(recreate, volume, nodes):
             kind_config_to_use += f"""
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."127.0.0.1:5000"]
     endpoint = ["http://{reg_name}:5000"]
 """
         with temporary_file(content=kind_config_to_use) as f:
@@ -849,7 +849,7 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "localhost:5000"
+    host: "127.0.0.1:5000"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
                 silent_call(['kubectl', 'apply', '-f', f.name])
