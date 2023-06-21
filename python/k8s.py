@@ -1277,6 +1277,10 @@ class Chart:
     def compute_name(metadata):
         return f'{metadata["name"]}-{metadata["version"]}'
 
+    @staticmethod
+    def compute_short_name(metadata):
+        return f'{metadata["name"]}'
+
     def __init__(self, location):
         self.location = Path(location).resolve()
         self.subcharts_dir = self.location / 'charts'
@@ -1352,13 +1356,23 @@ class Chart:
         LOGGER.status(f"Downloaded {', '.join([self.compute_name(dep) for dep in deps_to_update])} for {self.name}")
         return generated_dependencies
 
-    @staticmethod
-    def find_one_source(dependency, subchart_sources):
+    @classmethod
+    def find_one_source(cls, dependency, subchart_sources):
         """If one subchart source is able to fulfill the dependency, return it."""
-        match = [chart for chart in subchart_sources if dependency.startswith(chart.name)]
+        match = [chart for chart in subchart_sources if cls.compute_name(dependency).startswith(chart.name)]
         if len(match) > 1:
             raise NotImplementedError()
         if not match:
+            loose_matches = [
+                chart for chart in subchart_sources
+                if cls.compute_short_name(dependency).startswith(cls.compute_short_name(chart.index))
+            ]
+            for loose_match in loose_matches:
+                LOGGER.warning(
+                    f'Did not find an appropriate match for being the source of {cls.compute_name(dependency)}.'
+                    f' Yet, I found {loose_match.name} in {loose_match.location}.'
+                    ' It could match, if it was at the appropriate version.'
+                    ' Did you forget to upgrade?')
             return None
         match = match[0]
         if dependency != match.name:
@@ -1391,7 +1405,7 @@ class Chart:
                     f'({dependency["name"]}-{dependency["alias"]}'
                     f' as {dependency.get("alias")})', )
 
-            src = self.find_one_source(self.compute_name(dependency), subchart_sources)
+            src = self.find_one_source(dependency, subchart_sources)
             if src is not None:
                 LOGGER.status(f'Using {src.name} (from {src.location}) to fulfill dependency {dependency_name}')
                 src.update_dependencies(subchart_sources, force=force)
@@ -1450,7 +1464,7 @@ class Chart:
         for subchart_dir in self.subcharts_dir.iterdir():
             if subchart_dir.is_dir():
                 subchart = Chart(subchart_dir)
-                src = self.find_one_source(subchart.name, subchart_sources)
+                src = self.find_one_source(subchart.index, subchart_sources)
                 if src is not None:
                     LOGGER.status(f'Substituting {subchart.location} by the source {src.name} from {src.location}')
                     rm(subchart.location)
