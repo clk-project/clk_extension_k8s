@@ -1375,9 +1375,9 @@ class Chart:
                     ' Did you forget to upgrade?')
             return None
         match = match[0]
-        if dependency != match.name:
+        if cls.compute_name(dependency) != match.name:
             LOGGER.warning(f'I guessed that the provided package {match.name} (available at {match.location})'
-                           f' is a good candidate to fulfill the dependency {dependency}.'
+                           f' is a good candidate to fulfill the dependency {cls.compute_name(dependency)}.'
                            ' Am I wrong?')
         return match
 
