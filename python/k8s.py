@@ -144,12 +144,13 @@ class KubeCtl:
     def current_context():
         return safe_check_output(['kubectl', 'config', 'current-context'], internal=True).strip()
 
-    def call(self, arguments):
+    def call(self, arguments, silent=True):
         context = self.context
+        caller = silent_call if silent is True else call
         if context is not None:
-            silent_call(['kubectl', '--context', context] + arguments)
+            caller(['kubectl', '--context', context] + arguments)
         else:
-            silent_call(['kubectl'] + arguments)
+            caller(['kubectl'] + arguments)
 
     def get(self, kind, name=None, namespace='default', internal=False):
         LOGGER.action(f'Getting {kind}:{name}')
@@ -1839,3 +1840,51 @@ def update_config(new_config, keep_current_context, force, kube_config_location)
     if not keep_current_context:
         config['current-context'] = given_config['current-context']
     createfile(kube_config_location, yaml.safe_dump(config), force=True)
+
+
+class PVCType(DynamicChoice):
+
+    def choices(self):
+        return [pvc["metadata"]["name"] for pvc in config.kubectl.get("pvc")]
+
+
+@k8s.group()
+def pv():
+    "Manipulate persistent volumes"
+
+
+@pv.command()
+@argument("pvc-name", help="Name of the PV to attach to", type=PVCType())
+def attach(pvc_name):
+    "Run a temporary pod to see the content of a pv"
+    with temporary_file(suffix=".yaml") as f:
+        podname = f"dataaccess-{pvc_name}"
+        content = f"""apiVersion: v1
+kind: Pod
+metadata:
+  name: {podname}
+  labels:
+    dataccess-{pvc_name}: "true"
+spec:
+  containers:
+  - name: alpine
+    image: alpine:latest
+    command: ['sleep', 'infinity']
+    volumeMounts:
+    - name: {pvc_name}
+      mountPath: /data
+  volumes:
+  - name: {pvc_name}
+    persistentVolumeClaim:
+      claimName: {pvc_name}"""
+        LOGGER.debug(f"Creating pod with content: \n{content}")
+        f.write(content.encode())
+        f.close()
+        LOGGER.info(f"Creating temporary pod to attach to {pvc_name}, mounted in /data")
+        config.kubectl.call(["apply", "-f", f.name])
+        try:
+            config.kubectl.call(["wait", "--for=condition=ready", "pod", "-l", f"dataccess-{pvc_name}=true"])
+            config.kubectl.call(["exec", "-i", "-t", podname, "--", "sh"], silent=False)
+        finally:
+            LOGGER.info(f"Cleaning the temporary attached to this {pvc_name}")
+            config.kubectl.call(["delete", "--wait", "-f", f.name])
