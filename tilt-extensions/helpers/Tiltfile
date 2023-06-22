@@ -35,6 +35,7 @@ def update_helm_chart(
     touched_file=None,
     create_local_resource=False,
     remove=True,
+    watch=False,
 ):
     command = build_chart_update_command(
         location,
@@ -52,6 +53,9 @@ def update_helm_chart(
             auto_init=False,
             labels=["tooling"],
         )
+    if watch:
+        for dependency in dependencies:
+            watch_file(dependency)
 
 
 def helm_dependency_update(path):
