@@ -3,6 +3,8 @@
 
 import base64
 import grp
+import gzip
+import hashlib
 import json
 import os
 import platform
@@ -1281,6 +1283,10 @@ class Chart:
     def compute_short_name(metadata):
         return f'{metadata["name"]}'
 
+    @property
+    def archive_name(self):
+        return self.compute_name(self.index) + '.tgz'
+
     def __init__(self, location):
         self.location = Path(location).resolve()
         self.subcharts_dir = self.location / 'charts'
@@ -1323,8 +1329,29 @@ class Chart:
         """Package my content into the specified directory (or by default in the current working directory)"""
         directory = directory or os.getcwd()
         LOGGER.status(f'Packaging {self.name} (from {self.location}) in {directory}')
-        with cd(directory):
+        with tempdir() as d, cd(d):
             call(['helm', 'package', self.location])
+            src = Path(d) / self.archive_name
+            srctar = tarfile.open(src)
+            src = Path(d) / 'tmp.tgz'
+            tmpgz = gzip.GzipFile(src, 'wb', mtime=0)
+            tmp = tarfile.open(fileobj=tmpgz, mode='w:')
+            for m in sorted(srctar.getmembers(), key=lambda e: e.path):
+                m.mtime = 0
+                m.uid = m.gid = 0
+                m.uname = m.gname = 'root'
+                tmp.addfile(m, srctar.extractfile(m.name))
+            tmp.close()
+            tmpgz.close()
+            dest = Path(directory) / self.archive_name
+            if dest.exists():
+                if hashlib.sha256(dest.read_bytes()).hexdigest() == hashlib.sha256(src.read_bytes()).hexdigest():
+                    LOGGER.status(f'Not overwriting {dest} already with the appropriate content')
+                else:
+                    rm(dest)
+                    move(src, dest)
+            else:
+                move(src, dest)
 
     def get_dependencies_with_helm(self, deps_to_update):
         """Use helm to download the given dependencies"""
@@ -1859,20 +1886,20 @@ def update_config(new_config, keep_current_context, force, kube_config_location)
 class PVCType(DynamicChoice):
 
     def choices(self):
-        return [pvc["metadata"]["name"] for pvc in config.kubectl.get("pvc")]
+        return [pvc['metadata']['name'] for pvc in config.kubectl.get('pvc')]
 
 
 @k8s.group()
 def pv():
-    "Manipulate persistent volumes"
+    'Manipulate persistent volumes'
 
 
 @pv.command()
-@argument("pvc-name", help="Name of the PV to attach to", type=PVCType())
+@argument('pvc-name', help='Name of the PV to attach to', type=PVCType())
 def attach(pvc_name):
-    "Run a temporary pod to see the content of a pv"
-    with temporary_file(suffix=".yaml") as f:
-        podname = f"dataaccess-{pvc_name}"
+    'Run a temporary pod to see the content of a pv'
+    with temporary_file(suffix='.yaml') as f:
+        podname = f'dataaccess-{pvc_name}'
         content = f"""apiVersion: v1
 kind: Pod
 metadata:
@@ -1891,14 +1918,14 @@ spec:
   - name: {pvc_name}
     persistentVolumeClaim:
       claimName: {pvc_name}"""
-        LOGGER.debug(f"Creating pod with content: \n{content}")
+        LOGGER.debug(f'Creating pod with content: \n{content}')
         f.write(content.encode())
         f.close()
-        LOGGER.info(f"Creating temporary pod to attach to {pvc_name}, mounted in /data")
-        config.kubectl.call(["apply", "-f", f.name])
+        LOGGER.info(f'Creating temporary pod to attach to {pvc_name}, mounted in /data')
+        config.kubectl.call(['apply', '-f', f.name])
         try:
-            config.kubectl.call(["wait", "--for=condition=ready", "pod", "-l", f"dataccess-{pvc_name}=true"])
-            config.kubectl.call(["exec", "-i", "-t", podname, "--", "sh"], silent=False)
+            config.kubectl.call(['wait', '--for=condition=ready', 'pod', '-l', f'dataccess-{pvc_name}=true'])
+            config.kubectl.call(['exec', '-i', '-t', podname, '--', 'sh'], silent=False)
         finally:
-            LOGGER.info(f"Cleaning the temporary attached to this {pvc_name}")
-            config.kubectl.call(["delete", "--wait", "-f", f.name])
+            LOGGER.info(f'Cleaning the temporary attached to this {pvc_name}')
+            config.kubectl.call(['delete', '--wait', '-f', f.name])
