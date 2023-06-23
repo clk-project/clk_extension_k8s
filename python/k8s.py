@@ -650,8 +650,12 @@ def registry_login(registry_provider, username, password, force, docker_login, h
                            ' Falling back on trying using the keyring.')
         if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth-user'):
             username = res
+        else:
+            LOGGER.warning('Could not find the username from your password manager')
         if res := get_keyring().get_password('clk', f'{registry_provider}-registry-auth-password'):
             password = res
+        else:
+            LOGGER.warning('Could not find the password from your password manager')
     username = username or click.prompt('username', hide_input=True, default='', show_default=False)
     password = password or click.prompt('password', hide_input=True, default='', show_default=False)
     if k8s_login:
