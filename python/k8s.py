@@ -1329,14 +1329,12 @@ class Chart:
         """
         return [dependency for dependency in self.dependencies_fullnames if dependency.startswith(name)]
 
-    def package(self, directory=None):
-        """Package my content into the specified directory (or by default in the current working directory)"""
-        directory = directory or os.getcwd()
-        LOGGER.status(f'Packaging {self.name} (from {self.location}) in {directory}')
-        with tempdir() as d, cd(d):
-            call(['helm', 'package', self.location])
-            src = Path(d) / self.archive_name
-            srctar = tarfile.open(src)
+    @staticmethod
+    def make_package_reproducible(src, dest=None):
+        srctar = tarfile.open(src)
+        if dest is None:
+            dest = src
+        with tempdir() as d:
             src = Path(d) / 'tmp.tgz'
             tmpgz = gzip.GzipFile(src, 'wb', mtime=0)
             tmp = tarfile.open(fileobj=tmpgz, mode='w:')
@@ -1347,6 +1345,16 @@ class Chart:
                 tmp.addfile(m, srctar.extractfile(m.name))
             tmp.close()
             tmpgz.close()
+            move(src, dest)
+
+    def package(self, directory=None):
+        """Package my content into the specified directory (or by default in the current working directory)"""
+        directory = directory or os.getcwd()
+        LOGGER.status(f'Packaging {self.name} (from {self.location}) in {directory}')
+        with tempdir() as d, cd(d):
+            call(['helm', 'package', self.location])
+            src = Path(d) / self.archive_name
+            self.make_package_reproducible(src)
             dest = Path(directory) / self.archive_name
             if dest.exists():
                 if hashlib.sha256(dest.read_bytes()).hexdigest() == hashlib.sha256(src.read_bytes()).hexdigest():
@@ -1523,6 +1531,30 @@ class Chart:
 @k8s.group()
 def helm():
     """Commands to play with helm"""
+
+
+@helm.command()
+@argument('package', help='The package to make reproducible')
+@option('--output', help='Where to put the result, defaults to overwrite the package')
+def make_package_reproducible(package, output):
+    """Read a package generated via helm package and rewrite it so that it is bitwise reproducible
+
+    That means that with the same sources, the hash of the resulting package
+    will always be the same, even though "helm package" generates packages that
+    have different hashes.
+
+    This allows to take advantage of the deduplication feature of content
+    addressable stuffs, like the OCI repositories.
+
+    This command is useful until https://github.com/helm/helm/issues/3612 is fixed.
+
+    It creates a tar.gz with the files sorted, all the mtimes set to 0 and the
+    user and group set to root, following the lead from
+    https://github.com/MuxZeroNet/reproducible, itself linking toward
+    https://reproducible-builds.org/docs/archives/ .
+
+    """
+    Chart.make_package_reproducible(package, output)
 
 
 @helm.command()
