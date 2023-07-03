@@ -948,7 +948,8 @@ def dump_local_certificate():
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 @option(
     '--client',
-    type=click.Choice(['webkit', 'mozilla', 'firefox', 'chrome', 'chromium', 'all', 'browsers']),
+    type=click.Choice(['webkit', 'mozilla', 'qutebrowser', 'firefox', 'chrome', 'brave', 'chromium', 'all',
+                       'browsers']),
     default='browsers',
     help=('Install the certificate for the given client.'
           ' Use all to install for all of them.'
@@ -970,7 +971,7 @@ def install_local_certificate(client):
         f.write(cert)
         f.close()
         did_something = False
-        if client in ('webkit', 'chrome', 'chromium', 'all', 'browsers'):
+        if client in ('webkit', 'chrome', 'brave', 'qutebrowser', 'chromium', 'all', 'browsers'):
             install_with_certutil(f"sql:{os.environ['HOME']}/.pki/nssdb/")
             did_something = True
         if client in ('mozilla', 'firefox', 'all', 'browsers'):
