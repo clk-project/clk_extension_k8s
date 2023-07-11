@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tarfile
 import time
+import uuid
 import webbrowser
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -1964,5 +1965,75 @@ spec:
             config.kubectl.call(['wait', '--for=condition=ready', 'pod', '-l', f'dataccess-{pvc_name}=true'])
             config.kubectl.call(['exec', '-i', '-t', podname, '--', 'sh'], silent=False)
         finally:
-            LOGGER.info(f'Cleaning the temporary attached to this {pvc_name}')
+            LOGGER.info(f'Cleaning the temporary pod attached to this pvc {pvc_name}')
+            config.kubectl.call(['delete', '--wait', '-f', f.name])
+
+
+@k8s.group()
+def node():
+    'Play with nodes'
+
+
+class NodeType(DynamicChoice):
+
+    def choices(self):
+        return [node['metadata']['name'] for node in config.kubectl.get('node')]
+
+
+@node.command()
+@argument('node', help='The node to connect to', type=NodeType())
+def shell(node):
+    'Start a shell in the node, using privilege escalation'
+    name = f'node-shell-{uuid.uuid4()}'
+    content = f"""apiVersion: v1
+kind: Pod
+metadata:
+  name: {name}
+  namespace: kube-system
+  labels:
+    name: {name}
+spec:
+  containers:
+  - args:
+    - -t
+    - "1"
+    - -m
+    - -u
+    - -i
+    - -n
+    - sleep
+    - "14000"
+    command:
+    - nsenter
+    image: docker.io/alpine:3.13
+    imagePullPolicy: IfNotPresent
+    name: shell
+    securityContext:
+      privileged: true
+  nodeName: {node}
+  preemptionPolicy: PreemptLowerPriority
+  priority: 2000001000
+  hostIPC: true
+  hostNetwork: true
+  hostPID: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  priorityClassName: system-node-critical
+  restartPolicy: Never
+  schedulerName: default-scheduler
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 0
+  tolerations:
+  - operator: Exists
+"""
+    with temporary_file(suffix='.yaml') as f:
+        f.write(content.encode())
+        f.close()
+        config.kubectl.call(['apply', '-f', f.name])
+        try:
+            config.kubectl.call(['-n', 'kube-system', 'wait', '--for=condition=ready', 'pod', '-l', f'name={name}'])
+            config.kubectl.call(['-n', 'kube-system', 'exec', '-i', '-t', name, '--', 'sh'], silent=False)
+        finally:
+            LOGGER.info(f'Cleaning the temporary pod attached to this node {node}')
             config.kubectl.call(['delete', '--wait', '-f', f.name])
