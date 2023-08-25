@@ -524,6 +524,27 @@ class Earthly(InstallDependency):
     def install(self):
         makedirs(bin_dir)
         download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
+        # configure earthly to accept http connection on our local registry
+        LOGGER.warn('here!')
+        config_file = Path('~/.earthly/config.yml').expanduser()
+        config = {'global': {'buildkit_additional_config': ''}}
+        if os.path.exists(config_file):
+            config = yaml.safe_load(config_file.read_text())
+            if 'global' not in config:
+                config['global'] = {'buildkit_additional_config': ''}
+        if '[registry."172.17.0.1:5000"]' not in config['global']['buildkit_additional_config']:
+            config['global']['buildkit_additional_config'] = '[registry."172.17.0.1:5000"]\n  http=true\n' \
+                + config['global']['buildkit_additional_config']
+            yaml.add_representer(str, str_presenter)
+            config_file.write_text(yaml.dump(config))
+
+
+def str_presenter(dumper, data):
+    """configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
+    if data.count('\n') > 0:  # check for multiline string
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
 
 Earthly(handle_dry_run=True)
