@@ -38,7 +38,7 @@ fix-quality:
     SAVE ARTIFACT . AS LOCAL fixed
 
 test:
-    FROM earthly/dind:ubuntu # this one currently ships with python3.8
+    FROM earthly/dind:ubuntu-20.04 # this one currently ships with python3.8
     ARG shell=bash
     RUN python3 --version | grep 'Python 3.8' # make sure we have python 3.8
     # RUN apk add --update git
