@@ -526,6 +526,7 @@ class Earthly(InstallDependency):
         download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
         # configure earthly to accept http connection on our local registry
         config_file = Path('~/.earthly/config.yml').expanduser()
+        makedirs(config_file.parent)
         config = {'global': {'buildkit_additional_config': ''}}
         if os.path.exists(config_file):
             config = yaml.safe_load(config_file.read_text())
