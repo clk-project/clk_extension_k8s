@@ -212,7 +212,7 @@ platforms = {
         'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.32.4/tilt.0.32.4.linux.x86_64.tar.gz',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.linux.x86_64.tar.gz',
         'earthly': 'https://github.com/earthly/earthly/releases/download/v0.7.15/earthly-linux-amd64',
     },
     'darwin': {
@@ -221,7 +221,7 @@ platforms = {
         'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.32.4/tilt.0.32.4.mac.x86_64.tar.gz',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.mac.x86_64.tar.gz',
         'earthly': 'https://github.com/earthly/earthly/releases/download/v0.7.15/earthly-darwin-amd64',
     },
 }
