@@ -2,11 +2,8 @@ VERSION 0.7
 IMPORT github.com/Konubinix/Earthfile AS e
 
 pre-commit-base:
-    FROM python:slim
-    RUN apt-get update && apt-get install --yes git
-    DO e+USE_USER
-    RUN python3 -m pip install pre-commit
-    WORKDIR /app
+    # ruamel does not provide wheels that work for alpine. Therefore we use debian here
+    FROM e+debian-python-user-venv --extra_packages="git" --packages="pre-commit"
 
 export-pre-commit-update:
     FROM +pre-commit-base
