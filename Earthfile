@@ -63,6 +63,7 @@ test:
     WITH DOCKER
         RUN --no-cache bash test.sh
     END
+
 test-all:
     BUILD +check-quality
     BUILD +test --distribution=kind
