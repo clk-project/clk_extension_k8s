@@ -1955,8 +1955,10 @@ def pv():
 
 @pv.command()
 @argument('pvc-name', help='Name of the PV to attach to', type=PVCType())
-def attach(pvc_name):
+@argument('command', help='The optional command to run once attached to the volume', nargs=-1)
+def attach(pvc_name, command):
     'Run a temporary pod to see the content of a pv'
+    command = list(command) or ['sh']
     with temporary_file(suffix='.yaml') as f:
         podname = f'dataaccess-{pvc_name}'
         content = f"""apiVersion: v1
@@ -1984,7 +1986,8 @@ spec:
         config.kubectl.call(['apply', '-f', f.name])
         try:
             config.kubectl.call(['wait', '--for=condition=ready', 'pod', '-l', f'dataccess-{pvc_name}=true'])
-            config.kubectl.call(['exec', '-i', '-t', podname, '--', 'sh'], silent=False)
+            LOGGER.info(f'Running command: {" ".join(quote(arg) for arg in command)}')
+            config.kubectl.call(['exec', '-i', '-t', podname, '--'] + command, silent=False)
         finally:
             LOGGER.info(f'Cleaning the temporary pod attached to this pvc {pvc_name}')
             config.kubectl.call(['delete', '--wait', '-f', f.name])
