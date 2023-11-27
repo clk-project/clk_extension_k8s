@@ -742,7 +742,7 @@ def install_local_registry(reinstall):
             'create',
             'registry.localhost',
             '-p',
-            '5000',
+            '172.17.0.1:5000',
         ]
         if config.dry_run:
             LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
