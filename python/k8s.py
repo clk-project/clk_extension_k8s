@@ -1118,6 +1118,9 @@ def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, k
         '--set', 'prometheus.prometheusSpec.retention=' + prometheus_retention,
         '--set', 'prometheus.prometheusSpec.persistentVolume.size=' + prometheus_persistence_size,
         '--set', 'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
+        '--set', 'prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false',
+        '--set', 'prometheus.prometheusSpec.probeSelectorNilUsesHelmValues=false',
+        '--set', 'prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false',
         # '--set', 'prometheus-node-exporter.hostRootFsMount=' +
         #          str(not (config.k8s.distribution == 'docker-desktop')).lower(),
         '--set', 'grafana.ingress.enabled=true',
