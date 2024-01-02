@@ -720,9 +720,12 @@ def wait_ready():
                     " I'm still waiting for eternity")
             logger = LOGGER.warning
         status_msg = '\n'.join([
-            node['metadata']['name'] + ': ' + ', '.join(condition['reason']
-                                                        for condition in node['status']['conditions']
-                                                        if condition['status'] != 'True')
+            node['metadata']['name'] + ': ' + ', '.join(
+                f"{condition['reason']} ({condition['message']})"
+                for condition in node['status']['conditions']
+                # ondy the Ready condition must be True, the other ones
+                # must be False in a well working cluster.
+                if (condition['type'] == 'Ready' and condition['status'] == 'False') or condition['status'] == 'True')
             for node in config.kubectl.get('node')
         ])
         msg += f'\n{status_msg}'
