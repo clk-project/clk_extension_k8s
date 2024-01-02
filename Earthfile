@@ -60,6 +60,7 @@ test:
     COPY hello hello
     COPY test.sh ./test.sh
     RUN --no-cache echo "Invalidate the cache (somehow the next one don't work)"
+    ARG debug=no
     WITH DOCKER
         RUN --no-cache bash test.sh
     END

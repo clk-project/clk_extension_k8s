@@ -9,7 +9,14 @@ shopt -s inherit_errexit
 trap "exit 2" SIGINT
 trap "exit 3" SIGQUIT
 
-clk k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all
+clk_args=()
+if test "${debug}" = "yes"
+then
+    clk_args+=(--debug)
+    set -x
+fi
+
+clk "${clk_args[@]}" k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all
 helm upgrade --install app hello --wait
 # wait a bit for the network policy to be ready
 sleep 5
