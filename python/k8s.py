@@ -1207,7 +1207,7 @@ def install_dnsmasq():
 @argument('domain', help='The domain name to define')
 @argument(
     'ip',
-    default=None,
+    default='',
     help=('The IP address for this domain'
           ' (default to guess from the current docker env, most likely 172.17.0.1)'),
 )
