@@ -105,6 +105,17 @@ class K8s:
     def __init__(self):
         self._distribution = None
         self._explicit_distribution = None
+        self._gateway_ip = None
+
+    @property
+    def gateway_ip(self):
+        if self._gateway_ip is None:
+            self._gateway_ip = json.loads(check_output([
+                "docker",
+                "inspect",
+                "bridge",
+            ]))[0]["IPAM"]["Config"][0]["Gateway"]
+        return self._gateway_ip
 
     @property
     def distribution(self):
@@ -524,19 +535,21 @@ class Earthly(InstallDependency):
     def install(self):
         makedirs(bin_dir)
         download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
-        # configure earthly to accept http connection on our local registry
-        config_file = Path('~/.earthly/config.yml').expanduser()
-        makedirs(config_file.parent)
-        config = {'global': {'buildkit_additional_config': ''}}
-        if os.path.exists(config_file):
-            config = yaml.safe_load(config_file.read_text())
-            if 'global' not in config:
-                config['global'] = {'buildkit_additional_config': ''}
-        if '[registry."172.17.0.1:5000"]' not in config['global']['buildkit_additional_config']:
-            config['global']['buildkit_additional_config'] = '[registry."172.17.0.1:5000"]\n  http=true\n' \
-                + config['global']['buildkit_additional_config']
-            yaml.add_representer(str, str_presenter)
-            config_file.write_text(yaml.dump(config))
+
+
+def make_earthly_accept_http_connection_from_our_local_registry():
+    config_file = Path('~/.earthly/config.yml').expanduser()
+    makedirs(config_file.parent)
+    config_ = {'global': {'buildkit_additional_config': ''}}
+    if os.path.exists(config_file):
+        config_ = yaml.safe_load(config_file.read_text())
+        if 'global' not in config_:
+            config_['global'] = {'buildkit_additional_config': ''}
+    if f'[registry."{config.k8s.gateway_ip}:5000"]' not in config_['global']['buildkit_additional_config']:
+        config_['global']['buildkit_additional_config'] = f'[registry."{config.k8s.gateway_ip}:5000"]\n  http=true\n' \
+            + config_['global']['buildkit_additional_config']
+        yaml.add_representer(str, str_presenter)
+        config_file.write_text(yaml.dump(config_))
 
 
 def str_presenter(dumper, data):
@@ -745,7 +758,7 @@ def install_local_registry(reinstall):
             'create',
             'registry.localhost',
             '-p',
-            '172.17.0.1:5000',
+            f'{config.k8s.gateway_ip}:5000',
         ]
         if config.dry_run:
             LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
@@ -772,6 +785,8 @@ def install_local_registry(reinstall):
             LOGGER.status(f'A registry with the name {name} already exists.')
         else:
             silent_call(split(command))
+
+    make_earthly_accept_http_connection_from_our_local_registry()
 
 
 @k8s.command(
@@ -864,7 +879,7 @@ def create_cluster(recreate, volume, nodes):
             kind_config_to_use += f"""
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."172.17.0.1:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.gateway_ip}:5000"]
     endpoint = ["http://{reg_name}:5000"]
 """
         with temporary_file(content=kind_config_to_use) as f:
@@ -873,14 +888,14 @@ containerdConfigPatches:
                 cmd += ['--loglevel', '3']
             silent_call(cmd)
         if using_local_registry:
-            with temporary_file(content="""apiVersion: v1
+            with temporary_file(content=f"""apiVersion: v1
 kind: ConfigMap
 metadata:
   name: local-registry-hosting
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "172.17.0.1:5000"
+    host: "{config.k8s.gateway_ip}:5000"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
                 silent_call(['kubectl', 'apply', '-f', f.name])
@@ -1190,12 +1205,17 @@ def install_dnsmasq():
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
 @argument('domain', help='The domain name to define')
-@argument('ip', default='172.17.0.1', help='The IP address for this domain')
+@argument(
+    'ip',
+    default=None,
+    help=('The IP address for this domain'
+          ' (default to guess from the current docker env, most likely 172.17.0.1)'),
+)
 @flag('--reset', help='Remove previous domains set by this command')
 def add_domain(domain, ip, reset):
     """Add a new domain entry in K8s dns"""
     import yaml
-
+    ip = ip or config.k8s.gateway_ip
     if config.k8s.distribution == 'k3d':
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
