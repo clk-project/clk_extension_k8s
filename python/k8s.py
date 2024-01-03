@@ -111,10 +111,10 @@ class K8s:
     def gateway_ip(self):
         if self._gateway_ip is None:
             self._gateway_ip = json.loads(check_output([
-                "docker",
-                "inspect",
-                "bridge",
-            ]))[0]["IPAM"]["Config"][0]["Gateway"]
+                'docker',
+                'inspect',
+                'bridge',
+            ]))[0]['IPAM']['Config'][0]['Gateway']
         return self._gateway_ip
 
     @property
