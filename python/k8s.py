@@ -522,6 +522,54 @@ class Tilt(InstallDependency):
 Tilt(handle_dry_run=True)
 
 
+class HelmApplication:
+
+    def __init__(self, namespace, name, version):
+        self.namespace = namespace
+        self.name = name
+        self.version = version
+
+    def _already_installed(self):
+        releases = [
+            release
+            for release in json.loads(check_output(['helm', 'list', '--namespace', self.namespace, '--output', 'json']))
+            if release['name'] == self.name
+        ]
+        if releases:
+            release = releases[0]
+            installed_version = release['chart'].split('-')[-1]
+            if installed_version == self.version or 'v' + installed_version == self.version:
+                if release['status'] != 'deployed':
+                    LOGGER.warning(f'{self.name} was already installed, but it had the status {release["status"]}.')
+                    LOGGER.warning(
+                        'This may happen when helm reached a timeout but the application was correctly installed.')
+                    LOGGER.warning("Let's try to install it again and see what happens.")
+                    return False
+                return True
+        return False
+
+    def install(self, force, helm_args):
+        if not force and self._already_installed():
+            LOGGER.status(f'{self.name} already installed in {self.namespace} with version {self.version}')
+            return
+        try:
+            _helm_install([
+                self.name,
+                self.name,
+                '--namespace',
+                self.namespace,
+                '--version',
+                self.version,
+            ] + helm_args)
+        except SilentCallFailed as e:
+            LOGGER.error(f"The installation with helm of {self.name} failed")
+            if "content deadline exceeded" in e.content.splitlines()[-1]:
+                LOGGER.warning("It looks like it was due to a time out,"
+                               " so may be you can try running the command"
+                               " again and everything may be alright.")
+                exit(5)
+
+
 class Earthly(InstallDependency):
     """Install earthly"""
 
@@ -745,6 +793,11 @@ def wait_ready():
         logger(msg)
         time.sleep(time_to_sleep)
         node_info = config.kubectl.get('node')
+    if tries > threshold:
+        LOGGER.warning("The cluster has finally begun correctly."
+                       " You can ignore this warning and the previous ones."
+                       " Beware that your computer might not be powerful enough"
+                       " for a nice k8s experience.")
 
 
 @k8s.command(flowdepends=['k8s.install-dependency.all'], handle_dry_run=True)
@@ -917,20 +970,16 @@ def cert_manager():
 @flag('--force/--no-force', help='Force the installation even if the required version is already installed')
 def _install(version, force):
     """Install a certificate manager in the current cluster"""
-    namespace, name = 'cert-manager', 'cert-manager'
-    if not force and _helm_already_installed(namespace, name, version):
-        LOGGER.status(f'{name} already installed in {namespace} with version {version}')
-        return
-
-    helm_install([
-        name, name,
-        '--namespace', namespace,
-        '--version', version,
-        '--repo', 'https://charts.jetstack.io',
-        '--set', 'installCRDs=true',
-        '--set', 'ingressShim.defaultIssuerName=local',
-        '--set', 'ingressShim.defaultIssuerKind=ClusterIssuer',
-    ])  # yapf: disable
+    HelmApplication('cert-manager', 'cert-manager', version).install(force, [
+        '--repo',
+        'https://charts.jetstack.io',
+        '--set',
+        'installCRDs=true',
+        '--set',
+        'ingressShim.defaultIssuerName=local',
+        '--set',
+        'ingressShim.defaultIssuerKind=ClusterIssuer',
+    ])
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.install'], handle_dry_run=True)
@@ -1024,7 +1073,7 @@ def install_local_certificate(client):
             raise NotImplementedError(f'Sounds like we forgot to deal with the client {client}')
 
 
-def helm_install(args):
+def _helm_install(args):
     common_args = [
         'helm',
         '--kube-context',
@@ -1036,18 +1085,34 @@ def helm_install(args):
     ]
     if config.develop:
         common_args.append('--debug')
-    silent_call(common_args + args)
+
+    _silent_call(common_args + args)
 
 
-def silent_call(args):
+class SilentCallFailed(Exception):
+
+    def __init__(self, content):
+        super().__init__()
+        self.content: str = content
+
+
+def _silent_call(args):
     with temporary_file() as out:
         LOGGER.action('silently run: ' + ' '.join(quote(arg) for arg in args))
         process = subprocess.Popen(args, stdout=out, stderr=out)
         res = process.wait()
         out.flush()
         if res:
-            LOGGER.error(read(out.name))
-            exit(1)
+            content = read(out.name)
+            LOGGER.error(content)
+            raise SilentCallFailed(content)
+
+
+def silent_call(args):
+    try:
+        _silent_call(args)
+    except SilentCallFailed:
+        exit(5)
 
 
 def silent_check_output(args):
@@ -1060,48 +1125,28 @@ def silent_check_output(args):
             raise e
 
 
-def _helm_already_installed(namespace, name, version):
-    releases = [
-        release for release in json.loads(check_output(['helm', 'list', '--namespace', namespace, '--output', 'json']))
-        if release['name'] == name
-    ]
-    if releases:
-        release = releases[0]
-        installed_version = release['chart'].split('-')[-1]
-        if installed_version == version or 'v' + installed_version == version:
-            if release['status'] != 'deployed':
-                LOGGER.warning(f'{name} was already installed, but it had the status {release["status"]}')
-                return False
-            return True
-    return False
-
-
 @k8s.command(flowdepends=['k8s.wait-ready'], handle_dry_run=True)
 @option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
 @option('--timeout', help='Timeout before considering the installation as failing')
 @flag('--force', help='Install even if already present')
 def install_ingress_controller(version, force, timeout):
     """Install an ingress (ingress-nginx) in the current cluster"""
-    namespace, name = 'ingress', 'ingress-nginx'
-    if _helm_already_installed(namespace, name, version) and not force:
-        LOGGER.status(f'{name} already installed in {namespace} with version {version}')
-        return
-    helm_extra_args = []
+    helm_args = [
+        '--repo',
+        'https://kubernetes.github.io/ingress-nginx',
+        '--set',
+        'rbac.create=true',
+        '--set',
+        'controller.extraArgs.enable-ssl-passthrough=',
+    ]
     if config.k8s.distribution == 'kind':
-        helm_extra_args += [
+        helm_args += [
             '--set', 'controller.service.type=NodePort',
             '--set', 'controller.hostPort.enabled=true',
         ]  # yapf: disable
     if timeout:
-        helm_extra_args += ['--timeout', timeout]
-    helm_install([
-        name, name,
-        '--namespace', namespace,
-        '--repo', 'https://kubernetes.github.io/ingress-nginx',
-        '--version', version,
-        '--set', 'rbac.create=true',
-        '--set', 'controller.extraArgs.enable-ssl-passthrough=',
-    ] + helm_extra_args)  # yapf: disable
+        helm_args += ['--timeout', timeout]
+    HelmApplication('ingress', 'ingress-nginx', version).install(force, helm_args)
 
 
 @k8s.command(handle_dry_run=True)
@@ -1117,15 +1162,13 @@ def install_ingress_controller(version, force, timeout):
 @option('--grafana-host', default='grafana.localhost', help='Grafana host')
 @option('--grafana-persistence-size', default='1Gi', help='Grafana persistent volume size')
 @option('--grafana-admin-password', default='grafana', help='Grafana admin password')
-def install_kube_prometheus_stack(version, alertmanager, pushgateway, coredns, kubedns, kube_scheduler,
+@flag('--force', help='Install even if already present')
+def install_kube_prometheus_stack(version, force, alertmanager, pushgateway, coredns, kubedns, kube_scheduler,
                                   kube_controller_manager, prometheus_retention, prometheus_persistence_size,
                                   grafana_host, grafana_persistence_size, grafana_admin_password):
     """Install a kube-prometheus-stack instance in the current cluster"""
-    helm_install([
-        'kube-prometheus-stack',
-        'kube-prometheus-stack',
-        '--namespace', 'monitoring',
-        '--version', version,
+    HelmApplication('kube-prometheus-stack', 'monitoring',
+                    version).install(force, [
         '--repo', 'https://prometheus-community.github.io/helm-charts',
         '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
         '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
@@ -1171,19 +1214,13 @@ def install_prometheus_operator_crds(version):
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option('--version', default='v0.0.99', help='The version of reloader chart to install')
-def install_reloader(version):
+@flag('--force', help='Install even if already present')
+def install_reloader(version, force):
     """Install a reloader in the current cluster"""
-    namespace = 'reloader'
-    name = 'reloader'
-    if _helm_already_installed(namespace, name, version):
-        LOGGER.status(f'{name} already installed in {namespace} with version {version}')
-        return
-    helm_install([
-        name, name,
-        '--repo', 'https://stakater.github.io/stakater-charts',
-        '--namespace', namespace,
-        '--version', version,
-    ])  # yapf: disable
+    HelmApplication("reloader", "reloader", version).install(force, [
+        '--repo',
+        'https://stakater.github.io/stakater-charts',
+    ])
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
