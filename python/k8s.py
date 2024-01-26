@@ -563,7 +563,8 @@ class HelmApplication:
             ] + helm_args)
         except SilentCallFailed as e:
             LOGGER.error(f"The installation with helm of {self.name} failed")
-            if "content deadline exceeded" in e.content.splitlines()[-1]:
+            if "content deadline exceeded" in e.content.strip().splitlines(
+            )[-1] or "timed out waiting" in e.content.strip().splitlines()[-1]:
                 LOGGER.warning("It looks like it was due to a time out,"
                                " so may be you can try running the command"
                                " again and everything may be alright.")
