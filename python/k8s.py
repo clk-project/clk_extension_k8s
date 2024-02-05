@@ -224,7 +224,7 @@ platforms = {
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
         'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.linux.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.7.21/earthly-linux-amd64',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.7.23/earthly-linux-amd64',
     },
     'darwin': {
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
@@ -233,7 +233,7 @@ platforms = {
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
         'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.mac.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.7.21/earthly-darwin-amd64',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.7.23/earthly-darwin-amd64',
     },
 }
 urls = platforms.get(platform.system().lower())
@@ -562,12 +562,12 @@ class HelmApplication:
                 self.version,
             ] + helm_args)
         except SilentCallFailed as e:
-            LOGGER.error(f"The installation with helm of {self.name} failed")
-            if "content deadline exceeded" in e.content.strip().splitlines(
-            )[-1] or "timed out waiting" in e.content.strip().splitlines()[-1]:
-                LOGGER.warning("It looks like it was due to a time out,"
-                               " so may be you can try running the command"
-                               " again and everything may be alright.")
+            LOGGER.error(f'The installation with helm of {self.name} failed')
+            if 'content deadline exceeded' in e.content.strip().splitlines(
+            )[-1] or 'timed out waiting' in e.content.strip().splitlines()[-1]:
+                LOGGER.warning('It looks like it was due to a time out,'
+                               ' so may be you can try running the command'
+                               ' again and everything may be alright.')
                 exit(5)
 
 
@@ -795,10 +795,10 @@ def wait_ready():
         time.sleep(time_to_sleep)
         node_info = config.kubectl.get('node')
     if tries > threshold:
-        LOGGER.warning("The cluster has finally begun correctly."
-                       " You can ignore this warning and the previous ones."
-                       " Beware that your computer might not be powerful enough"
-                       " for a nice k8s experience.")
+        LOGGER.warning('The cluster has finally begun correctly.'
+                       ' You can ignore this warning and the previous ones.'
+                       ' Beware that your computer might not be powerful enough'
+                       ' for a nice k8s experience.')
 
 
 @k8s.command(flowdepends=['k8s.install-dependency.all'], handle_dry_run=True)
@@ -1168,8 +1168,7 @@ def install_kube_prometheus_stack(version, force, alertmanager, pushgateway, cor
                                   kube_controller_manager, prometheus_retention, prometheus_persistence_size,
                                   grafana_host, grafana_persistence_size, grafana_admin_password):
     """Install a kube-prometheus-stack instance in the current cluster"""
-    HelmApplication('kube-prometheus-stack', 'monitoring',
-                    version).install(force, [
+    HelmApplication('kube-prometheus-stack', 'monitoring', version).install(force, [
         '--repo', 'https://prometheus-community.github.io/helm-charts',
         '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
         '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
@@ -1218,7 +1217,7 @@ def install_prometheus_operator_crds(version):
 @flag('--force', help='Install even if already present')
 def install_reloader(version, force):
     """Install a reloader in the current cluster"""
-    HelmApplication("reloader", "reloader", version).install(force, [
+    HelmApplication('reloader', 'reloader', version).install(force, [
         '--repo',
         'https://stakater.github.io/stakater-charts',
     ])
