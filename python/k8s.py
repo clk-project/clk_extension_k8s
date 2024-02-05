@@ -36,6 +36,330 @@ warned = False
 CLUSTER_NAME = 'clk-k8s'
 
 
+class InstallDependency:
+    name = None
+    program_name = None
+    dependency_installers = []
+
+    @classmethod
+    def install_commands(cls, group):
+        for dependency_installer in cls.dependency_installers:
+            dependency_installer.install_command(group)
+
+    def precondition(self):
+        return True
+
+    def compute_needed_version(self):
+        raise NotImplementedError()
+
+    def compute_version(self):
+        raise NotImplementedError()
+
+    def install(self):
+        raise NotImplementedError()
+
+    def post_install_check(self):
+        return
+
+    def need_install(self):
+        force = config.k8s.install_dependencies_force
+        program_path = which(self.program_name)
+        if not force and not program_path:
+            force = True
+            LOGGER.info(f'Could not find {self.program_name}')
+        self.needed_version = self.compute_needed_version()
+        self.found_version = self.compute_version()
+        if program_path and self.found_version is None:
+            LOGGER.warning(f'I could not find the version of {self.program_name}')
+        if not force and self.found_version != self.needed_version:
+            force = True
+            LOGGER.info(f'Found a different version of {self.name} ({self.found_version})'
+                        f' than the requested one {self.needed_version}')
+        return force
+
+    def __init__(self, handle_dry_run=True):
+        self.handle_dry_run = handle_dry_run
+        self.name = self.name or self.__class__.__name__.lower()
+        self.program_name = self.program_name or self.name
+        InstallDependency.dependency_installers.append(self)
+
+    def install_command(self, group):
+
+        def wrapper(*args, **kwargs):
+            if urls is None:
+                LOGGER.error(f"I don't know how to install {self.name} on this platform"
+                             f' ({platform.system().lower()})')
+                return
+            if config.dry_run:
+                LOGGER.info(f'(dry-run) download {self.name} from {urls[self.name]}')
+                return
+            if not self.precondition():
+                return
+
+            if self.need_install():
+                if urls.get(self.name):
+                    LOGGER.info(f'Let me install {self.name} for you at the version {self.needed_version}')
+                    self.install()
+                    if self.need_install():
+                        LOGGER.error(f'After installing {self.name}, there is still something wrong.'
+                                     f' Please let us know at https://github.com/clk-project/clk_extension_k8s/issues')
+                    else:
+                        LOGGER.info(f'{self.name} correctly installed and appears to work')
+                else:
+                    LOGGER.warning(f"I don't know how to install {self.name} on your computer."
+                                   f' Please install the appropriate version ({self.needed_version}).')
+                self.post_install_check()
+            else:
+                LOGGER.status(f'No need to install {self.name}, force with --force')
+
+        group.command(handle_dry_run=self.handle_dry_run, name=self.name, help=self.__doc__)(wrapper)
+
+
+class Kind(InstallDependency):
+    """Install kind"""
+
+    def precondition(self):
+        if config.k8s.distribution != 'kind':
+            LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
+                          ' To install kind, run clk k8s --distribution kind install-dependency kind.')
+            return False
+        return True
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['kind']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
+
+    def install(self):
+        download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
+
+    def post_install_check(self):
+        if self.found_version is not None and self.found_version.split('.')[1] in ('12', '13', '14'):
+            LOGGER.error(
+                f'You are using version {self.found_version} of {self.name}.'
+                f' clk k8s is known not to work with versions of {self.name} greater than {self.needed_version}')
+
+
+Kind(handle_dry_run=True)
+
+
+class K3d(InstallDependency):
+    """Install k3d"""
+
+    def precondition(self):
+        if config.k8s.distribution != 'k3d':
+            LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
+                          ' To install k3d, run clk k8s --distribution k3d install-dependency k3d.')
+            return False
+        return True
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
+
+    def install(self):
+        download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
+
+
+K3d(handle_dry_run=True)
+
+
+class Helm(InstallDependency):
+    """Install helm"""
+
+    def compute_needed_version(self):
+        return re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
+
+    def install(self):
+        with tempdir() as d:
+            extract(urls['helm'], d)
+            makedirs(bin_dir)
+            move(glob(Path(d) / '*' / 'helm')[0], bin_dir / 'helm')
+            (bin_dir / 'helm').chmod(0o755)
+
+
+Helm(handle_dry_run=True)
+
+
+class Tilt(InstallDependency):
+    """Install tilt"""
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
+
+    def install(self):
+        with tempdir() as d:
+            extract(urls['tilt'], d)
+            makedirs(bin_dir)
+            move(Path(d) / 'tilt', bin_dir / 'tilt')
+
+
+Tilt(handle_dry_run=True)
+
+
+class Earthly(InstallDependency):
+    """Install earthly"""
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
+
+    def install(self):
+        makedirs(bin_dir)
+        download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
+
+
+Earthly(handle_dry_run=True)
+
+
+def make_earthly_accept_http_connection_from_our_local_registry():
+    config_file = Path('~/.earthly/config.yml').expanduser()
+    makedirs(config_file.parent)
+    config_ = {'global': {'buildkit_additional_config': ''}}
+    if os.path.exists(config_file):
+        config_ = yaml.safe_load(config_file.read_text())
+        if 'global' not in config_:
+            config_['global'] = {'buildkit_additional_config': ''}
+    if f'[registry."{config.k8s.gateway_ip}:5000"]' not in config_['global']['buildkit_additional_config']:
+        config_['global']['buildkit_additional_config'] = f'[registry."{config.k8s.gateway_ip}:5000"]\n  http=true\n' \
+            + config_['global']['buildkit_additional_config']
+        yaml.add_representer(str, str_presenter)
+        config_file.write_text(yaml.dump(config_))
+
+
+def str_presenter(dumper, data):
+    """configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
+    if data.count('\n') > 0:  # check for multiline string
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+class Kubectl(InstallDependency):
+    """Install kubectl"""
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            return re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
+                            safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
+
+    def install(self):
+        download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
+
+
+Kubectl(handle_dry_run=True)
+
+
+class KubectlBuildkit(InstallDependency):
+    """Install kubectl buildkit"""
+    name = 'kubectl-buildkit'
+
+    def compute_needed_version(self):
+        return re.search('/(v[0-9.]+)/', urls['kubectl-buildkit']).group(1)
+
+    def compute_version(self):
+        if which(self.program_name):
+            found_kubectl_buildkit_version = False
+            try:
+                found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'],
+                                                              nostderr=True).splitlines()[0]
+                found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
+                if 'Client:' in found_kubectl_buildkit_version:
+                    found_kubectl_buildkit_version = found_kubectl_buildkit_version.replace('Client:', '').strip()
+            except subprocess.CalledProcessError:
+                found_kubectl_buildkit_version = False
+                if location := which('kubectl-buildkit'):
+                    location = Path(location)
+                    if location.is_symlink():
+                        name = Path(os.readlink(location)).name
+                        if m := re.match('kubectl-buildkit-(.+)', name):
+                            found_kubectl_buildkit_version = m.group(1)
+            return found_kubectl_buildkit_version
+
+    def install(self):
+        with tempdir() as d:
+            makedirs(bin_dir)
+            extract(urls['kubectl-buildkit'], d)
+            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
+            location = bin_dir / f'kubectl-buildkit-{self.needed_version}'
+            move(Path(d) / 'kubectl-buildkit', location)
+            link_location = bin_dir / 'kubectl-buildkit'
+            if link_location.exists():
+                rm(link_location)
+            ln(location, link_location)
+
+
+KubectlBuildkit(handle_dry_run=True)
+
+
+class HelmApplication:
+
+    def __init__(self, namespace, name, version):
+        self.namespace = namespace
+        self.name = name
+        self.version = version
+
+    def _already_installed(self):
+        releases = [
+            release
+            for release in json.loads(check_output(['helm', 'list', '--namespace', self.namespace, '--output', 'json']))
+            if release['name'] == self.name
+        ]
+        if releases:
+            release = releases[0]
+            installed_version = release['chart'].split('-')[-1]
+            if installed_version == self.version or 'v' + installed_version == self.version:
+                if release['status'] != 'deployed':
+                    LOGGER.warning(f'{self.name} was already installed, but it had the status {release["status"]}.')
+                    LOGGER.warning(
+                        'This may happen when helm reached a timeout but the application was correctly installed.')
+                    LOGGER.warning("Let's try to install it again and see what happens.")
+                    return False
+                return True
+        return False
+
+    def install(self, force, helm_args):
+        if not force and self._already_installed():
+            LOGGER.status(f'{self.name} already installed in {self.namespace} with version {self.version}')
+            return
+        try:
+            _helm_install([
+                self.name,
+                self.name,
+                '--namespace',
+                self.namespace,
+                '--version',
+                self.version,
+            ] + helm_args)
+        except SilentCallFailed as e:
+            LOGGER.error(f'The installation with helm of {self.name} failed')
+            if 'content deadline exceeded' in e.content.strip().splitlines(
+            )[-1] or 'timed out waiting' in e.content.strip().splitlines()[-1]:
+                LOGGER.warning('It looks like it was due to a time out,'
+                               ' so may be you can try running the command'
+                               ' again and everything may be alright.')
+                exit(5)
+
+
 def get_resource_name(item):
     try:
         return item['metadata']['name']
@@ -357,319 +681,7 @@ def install_dependency(force):
     config.k8s.install_dependencies_force = force
 
 
-class InstallDependency:
-    name = None
-    program_name = None
-
-    def precondition(self):
-        return True
-
-    def compute_needed_version(self):
-        raise NotImplementedError()
-
-    def compute_version(self):
-        raise NotImplementedError()
-
-    def install(self):
-        raise NotImplementedError()
-
-    def post_install_check(self):
-        return
-
-    def need_install(self):
-        force = config.k8s.install_dependencies_force
-        program_path = which(self.program_name)
-        if not force and not program_path:
-            force = True
-            LOGGER.info(f'Could not find {self.program_name}')
-        self.needed_version = self.compute_needed_version()
-        self.found_version = self.compute_version()
-        if program_path and self.found_version is None:
-            LOGGER.warning(f'I could not find the version of {self.program_name}')
-        if not force and self.found_version != self.needed_version:
-            force = True
-            LOGGER.info(f'Found a different version of {self.name} ({self.found_version})'
-                        f' than the requested one {self.needed_version}')
-        return force
-
-    def __init__(self, handle_dry_run=True):
-        self.handle_dry_run = handle_dry_run
-        self.name = self.name or self.__class__.__name__.lower()
-        self.program_name = self.program_name or self.name
-
-        def wrapper(*args, **kwargs):
-            if urls is None:
-                LOGGER.error(f"I don't know how to install {self.name} on this platform"
-                             f' ({platform.system().lower()})')
-                return
-            if config.dry_run:
-                LOGGER.info(f'(dry-run) download {self.name} from {urls[self.name]}')
-                return
-            if not self.precondition():
-                return
-
-            if self.need_install():
-                if urls.get(self.name):
-                    LOGGER.info(f'Let me install {self.name} for you at the version {self.needed_version}')
-                    self.install()
-                    if self.need_install():
-                        LOGGER.error(f'After installing {self.name}, there is still something wrong.'
-                                     f' Please let us know at https://github.com/clk-project/clk_extension_k8s/issues')
-                    else:
-                        LOGGER.info(f'{self.name} correctly installed and appears to work')
-                else:
-                    LOGGER.warning(f"I don't know how to install {self.name} on your computer."
-                                   f' Please install the appropriate version ({self.needed_version}).')
-                self.post_install_check()
-            else:
-                LOGGER.status(f'No need to install {self.name}, force with --force')
-
-        install_dependency.command(handle_dry_run=self.handle_dry_run, name=self.name, help=self.__doc__)(wrapper)
-
-
-class Kind(InstallDependency):
-    """Install kind"""
-
-    def precondition(self):
-        if config.k8s.distribution != 'kind':
-            LOGGER.status(f"I won't try to install kind because you use --distribution={config.k8s.distribution}."
-                          ' To install kind, run clk k8s --distribution kind install-dependency kind.')
-            return False
-        return True
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['kind']).group(1)
-
-    def compute_version(self):
-        if which(self.program_name):
-            return re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
-
-    def install(self):
-        download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
-
-    def post_install_check(self):
-        if self.found_version is not None and self.found_version.split('.')[1] in ('12', '13', '14'):
-            LOGGER.error(
-                f'You are using version {self.found_version} of {self.name}.'
-                f' clk k8s is known not to work with versions of {self.name} greater than {self.needed_version}')
-
-
-Kind(handle_dry_run=True)
-
-
-class K3d(InstallDependency):
-    """Install k3d"""
-
-    def precondition(self):
-        if config.k8s.distribution != 'k3d':
-            LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
-                          ' To install k3d, run clk k8s --distribution k3d install-dependency k3d.')
-            return False
-        return True
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
-
-    def compute_version(self):
-        if which(self.program_name):
-            return re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
-
-    def install(self):
-        download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
-
-
-K3d(handle_dry_run=True)
-
-
-class Helm(InstallDependency):
-    """Install helm"""
-
-    def compute_needed_version(self):
-        return re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
-
-    def compute_version(self):
-        if which(self.program_name):
-            return re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
-
-    def install(self):
-        with tempdir() as d:
-            extract(urls['helm'], d)
-            makedirs(bin_dir)
-            move(glob(Path(d) / '*' / 'helm')[0], bin_dir / 'helm')
-            (bin_dir / 'helm').chmod(0o755)
-
-
-Helm(handle_dry_run=True)
-
-
-class Tilt(InstallDependency):
-    """Install tilt"""
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
-
-    def compute_version(self):
-        if which(self.program_name):
-            return re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
-
-    def install(self):
-        with tempdir() as d:
-            extract(urls['tilt'], d)
-            makedirs(bin_dir)
-            move(Path(d) / 'tilt', bin_dir / 'tilt')
-
-
-Tilt(handle_dry_run=True)
-
-
-class HelmApplication:
-
-    def __init__(self, namespace, name, version):
-        self.namespace = namespace
-        self.name = name
-        self.version = version
-
-    def _already_installed(self):
-        releases = [
-            release
-            for release in json.loads(check_output(['helm', 'list', '--namespace', self.namespace, '--output', 'json']))
-            if release['name'] == self.name
-        ]
-        if releases:
-            release = releases[0]
-            installed_version = release['chart'].split('-')[-1]
-            if installed_version == self.version or 'v' + installed_version == self.version:
-                if release['status'] != 'deployed':
-                    LOGGER.warning(f'{self.name} was already installed, but it had the status {release["status"]}.')
-                    LOGGER.warning(
-                        'This may happen when helm reached a timeout but the application was correctly installed.')
-                    LOGGER.warning("Let's try to install it again and see what happens.")
-                    return False
-                return True
-        return False
-
-    def install(self, force, helm_args):
-        if not force and self._already_installed():
-            LOGGER.status(f'{self.name} already installed in {self.namespace} with version {self.version}')
-            return
-        try:
-            _helm_install([
-                self.name,
-                self.name,
-                '--namespace',
-                self.namespace,
-                '--version',
-                self.version,
-            ] + helm_args)
-        except SilentCallFailed as e:
-            LOGGER.error(f'The installation with helm of {self.name} failed')
-            if 'content deadline exceeded' in e.content.strip().splitlines(
-            )[-1] or 'timed out waiting' in e.content.strip().splitlines()[-1]:
-                LOGGER.warning('It looks like it was due to a time out,'
-                               ' so may be you can try running the command'
-                               ' again and everything may be alright.')
-                exit(5)
-
-
-class Earthly(InstallDependency):
-    """Install earthly"""
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
-
-    def compute_version(self):
-        if which(self.program_name):
-            return re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
-
-    def install(self):
-        makedirs(bin_dir)
-        download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
-
-
-def make_earthly_accept_http_connection_from_our_local_registry():
-    config_file = Path('~/.earthly/config.yml').expanduser()
-    makedirs(config_file.parent)
-    config_ = {'global': {'buildkit_additional_config': ''}}
-    if os.path.exists(config_file):
-        config_ = yaml.safe_load(config_file.read_text())
-        if 'global' not in config_:
-            config_['global'] = {'buildkit_additional_config': ''}
-    if f'[registry."{config.k8s.gateway_ip}:5000"]' not in config_['global']['buildkit_additional_config']:
-        config_['global']['buildkit_additional_config'] = f'[registry."{config.k8s.gateway_ip}:5000"]\n  http=true\n' \
-            + config_['global']['buildkit_additional_config']
-        yaml.add_representer(str, str_presenter)
-        config_file.write_text(yaml.dump(config_))
-
-
-def str_presenter(dumper, data):
-    """configures yaml for dumping multiline strings
-    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
-    if data.count('\n') > 0:  # check for multiline string
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
-
-
-Earthly(handle_dry_run=True)
-
-
-class Kubectl(InstallDependency):
-    """Install kubectl"""
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
-
-    def compute_version(self):
-        if which(self.program_name):
-            return re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
-                            safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
-
-    def install(self):
-        download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
-
-
-Kubectl(handle_dry_run=True)
-
-
-class KubectlBuildkit(InstallDependency):
-    """Install kubectl buildkit"""
-    name = 'kubectl-buildkit'
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['kubectl-buildkit']).group(1)
-
-    def compute_version(self):
-        if which(self.program_name):
-            found_kubectl_buildkit_version = False
-            try:
-                found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'],
-                                                              nostderr=True).splitlines()[0]
-                found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
-                if 'Client:' in found_kubectl_buildkit_version:
-                    found_kubectl_buildkit_version = found_kubectl_buildkit_version.replace('Client:', '').strip()
-            except subprocess.CalledProcessError:
-                found_kubectl_buildkit_version = False
-                if location := which('kubectl-buildkit'):
-                    location = Path(location)
-                    if location.is_symlink():
-                        name = Path(os.readlink(location)).name
-                        if m := re.match('kubectl-buildkit-(.+)', name):
-                            found_kubectl_buildkit_version = m.group(1)
-            return found_kubectl_buildkit_version
-
-    def install(self):
-        with tempdir() as d:
-            makedirs(bin_dir)
-            extract(urls['kubectl-buildkit'], d)
-            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
-            location = bin_dir / f'kubectl-buildkit-{self.needed_version}'
-            move(Path(d) / 'kubectl-buildkit', location)
-            link_location = bin_dir / 'kubectl-buildkit'
-            if link_location.exists():
-                rm(link_location)
-            ln(location, link_location)
-
-
-KubectlBuildkit(handle_dry_run=True)
+InstallDependency.install_commands(install_dependency)
 
 
 @install_dependency.flow_command(
