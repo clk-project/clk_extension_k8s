@@ -280,6 +280,7 @@ def str_presenter(dumper, data):
 
 class Kubectl(InstallDependency):
     """Install kubectl"""
+    BIN = bin_dir / 'kubectl'
 
     def compute_needed_version(self):
         return re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
@@ -290,7 +291,7 @@ class Kubectl(InstallDependency):
                             safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
 
     def install(self):
-        download(urls['kubectl'], outdir=bin_dir, outfilename='kubectl', mode=0o755)
+        download(urls['kubectl'], outdir=self.BIN.parent, outfilename=self.BIN.name, mode=0o755)
 
 
 Kubectl(handle_dry_run=True)
@@ -307,7 +308,7 @@ class KubectlBuildkit(InstallDependency):
         if which(self.program_name):
             found_kubectl_buildkit_version = False
             try:
-                found_kubectl_buildkit_version = check_output(['kubectl', 'buildkit', 'version'],
+                found_kubectl_buildkit_version = check_output([str(Kubectl.BIN), 'buildkit', 'version'],
                                                               nostderr=True).splitlines()[0]
                 found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
                 if 'Client:' in found_kubectl_buildkit_version:
@@ -501,21 +502,21 @@ class KubeCtl:
     @staticmethod
     def list_contexts():
         return [
-            line[1:].split()[0] for line in safe_check_output(['kubectl', 'config', 'get-contexts', '--no-headers'],
-                                                              internal=True).splitlines()
+            line[1:].split()[0] for line in safe_check_output(
+                [str(Kubectl.BIN), 'config', 'get-contexts', '--no-headers'], internal=True).splitlines()
         ]
 
     @staticmethod
     def current_context():
-        return safe_check_output(['kubectl', 'config', 'current-context'], internal=True).strip()
+        return safe_check_output([str(Kubectl.BIN), 'config', 'current-context'], internal=True).strip()
 
     def call(self, arguments, silent=True):
         context = self.context
         caller = silent_call if silent is True else call
         if context is not None:
-            caller(['kubectl', '--context', context] + arguments)
+            caller([str(Kubectl.BIN), '--context', context] + arguments)
         else:
-            caller(['kubectl'] + arguments)
+            caller([str(Kubectl.BIN)] + arguments)
 
     def get(self, kind, name=None, namespace='default', internal=False):
         LOGGER.action(f'Getting {kind}:{name}')
@@ -536,9 +537,9 @@ class KubeCtl:
     def output(self, arguments, **kwargs):
         context = self.context
         if context is not None:
-            return check_output(['kubectl', '--context', context] + arguments, **kwargs)
+            return check_output([str(Kubectl.BIN), '--context', context] + arguments, **kwargs)
         else:
-            return check_output(['kubectl'] + arguments, **kwargs)
+            return check_output([str(Kubectl.BIN)] + arguments, **kwargs)
 
     def json(self, arguments, **kwargs):
         return json.loads(self.output(arguments + ['--output=json'], **kwargs))
@@ -659,7 +660,7 @@ def doctor():
 RUN apk add busybox
 """)
             try:
-                call(['kubectl', 'build', d])
+                call([str(Kubectl.BIN), 'build', d])
             except Exception:
                 warnings += 1
                 LOGGER.warning('I could not run kubectl build.'
@@ -964,7 +965,7 @@ data:
     host: "{config.k8s.gateway_ip}:5000"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
-                silent_call(['kubectl', 'apply', '-f', f.name])
+                silent_call([str(Kubectl.BIN), 'apply', '-f', f.name])
             containers = check_output(
                 ['docker', 'network', 'inspect', 'kind', '-f', '{{range .Containers}}{{.Name}} {{end}}']).split()
             if reg_name not in containers:
@@ -1798,7 +1799,8 @@ def create_buildkit_runner(max_parallelism, name):
   max-parallelism = {max_parallelism}
 '''
     with temporary_file(content=conf) as f:
-        silent_call(['kubectl', 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
+        silent_call(
+            [str(Kubectl.BIN), 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
 
 
 _features = {
@@ -1924,7 +1926,7 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
             'k3d': f'k3d-{CLUSTER_NAME}',
             'kind': f'kind-{CLUSTER_NAME}',
         }[config.k8s.distribution]
-        silent_call(['kubectl', 'config', 'use-context', context])
+        silent_call([str(Kubectl.BIN), 'config', 'use-context', context])
     with cd(root):
         call([
             'tilt',
