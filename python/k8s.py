@@ -35,6 +35,33 @@ warned = False
 
 CLUSTER_NAME = 'clk-k8s'
 
+bin_dir = Path('~/.local/bin').expanduser()
+platforms = {
+    'linux': {
+        'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
+        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
+        'helm': 'https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz',
+        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
+        'kubectl-buildkit':
+        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.linux.x86_64.tar.gz',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.3/earthly-linux-amd64',
+    },
+    'darwin': {
+        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
+        'helm': 'https://get.helm.sh/helm-v3.12.0-darwin-amd64.tar.gz',
+        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
+        'kubectl-buildkit':
+        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.mac.x86_64.tar.gz',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.3/earthly-darwin-amd64',
+    },
+}
+urls = platforms.get(platform.system().lower())
+if urls is None:
+    LOGGER.warning(f'This platform ({platform.system().lower()}) is not supported'
+                   f' only those platforms are supported: {", ".join(platforms.keys())}')
+
 
 class InstallDependency:
     name = None
@@ -537,33 +564,6 @@ def k8s():
     config.override_env['K8S_CONTEXT'] = config.kubectl.context
     config.init()
 
-
-bin_dir = Path('~/.local/bin').expanduser()
-platforms = {
-    'linux': {
-        'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
-        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
-        'helm': 'https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz',
-        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
-        'kubectl-buildkit':
-        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.linux.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.3/earthly-linux-amd64',
-    },
-    'darwin': {
-        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
-        'helm': 'https://get.helm.sh/helm-v3.12.0-darwin-amd64.tar.gz',
-        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
-        'kubectl-buildkit':
-        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.mac.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.3/earthly-darwin-amd64',
-    },
-}
-urls = platforms.get(platform.system().lower())
-if urls is None:
-    LOGGER.warning(f'This platform ({platform.system().lower()}) is not supported'
-                   f' only those platforms are supported: {", ".join(platforms.keys())}')
 
 kind_config = """
 kind: Cluster
