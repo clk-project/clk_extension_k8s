@@ -1180,29 +1180,30 @@ def install_kube_prometheus_stack(version, force, alertmanager, pushgateway, cor
                                   kube_controller_manager, prometheus_retention, prometheus_persistence_size,
                                   grafana_host, grafana_persistence_size, grafana_admin_password):
     """Install a kube-prometheus-stack instance in the current cluster"""
-    HelmApplication('kube-prometheus-stack', 'monitoring', version).install(force, [
-        '--repo', 'https://prometheus-community.github.io/helm-charts',
-        '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
-        '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
-        '--set', 'coreDns.enabled=' + str(coredns).lower(),
-        '--set', 'kubeDns.enabled=' + str(kubedns).lower(),
-        '--set', 'kubeScheduler.enabled=' + str(kube_scheduler).lower(),
-        '--set', 'kubeControllerManager.enabled=' + str(kube_controller_manager).lower(),
-        '--set', 'prometheus.prometheusSpec.retention=' + prometheus_retention,
-        '--set', 'prometheus.prometheusSpec.persistentVolume.size=' + prometheus_persistence_size,
-        '--set', 'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
-        '--set', 'prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false',
-        '--set', 'prometheus.prometheusSpec.probeSelectorNilUsesHelmValues=false',
-        '--set', 'prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false',
-        # '--set', 'prometheus-node-exporter.hostRootFsMount=' +
-        #          str(not (config.k8s.distribution == 'docker-desktop')).lower(),
-        '--set', 'grafana.ingress.enabled=true',
-        '--set', 'grafana.ingress.hosts[0]=' + str(grafana_host),
-        '--set', 'grafana.adminPassword=' + str(grafana_admin_password),
-        '--set', 'grafana.persistence.enabled=true',
-        '--set', 'grafana.persistence.size=' + grafana_persistence_size,
-        '--set', 'grafana.deploymentStrategy.type=Recreate',
-    ])  # yapf: disable
+    HelmApplication('kube-prometheus-stack', 'monitoring',
+                    version).install(force, [
+                        '--repo', 'https://prometheus-community.github.io/helm-charts',
+                        '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
+                        '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
+                        '--set', 'coreDns.enabled=' + str(coredns).lower(),
+                        '--set', 'kubeDns.enabled=' + str(kubedns).lower(),
+                        '--set', 'kubeScheduler.enabled=' + str(kube_scheduler).lower(),
+                        '--set', 'kubeControllerManager.enabled=' + str(kube_controller_manager).lower(),
+                        '--set', 'prometheus.prometheusSpec.retention=' + prometheus_retention,
+                        '--set', 'prometheus.prometheusSpec.persistentVolume.size=' + prometheus_persistence_size,
+                        '--set', 'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
+                        '--set', 'prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false',
+                        '--set', 'prometheus.prometheusSpec.probeSelectorNilUsesHelmValues=false',
+                        '--set', 'prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false',
+                        # '--set', 'prometheus-node-exporter.hostRootFsMount=' +
+                        #          str(not (config.k8s.distribution == 'docker-desktop')).lower(),
+                        '--set', 'grafana.ingress.enabled=true',
+                        '--set', 'grafana.ingress.hosts[0]=' + str(grafana_host),
+                        '--set', 'grafana.adminPassword=' + str(grafana_admin_password),
+                        '--set', 'grafana.persistence.enabled=true',
+                        '--set', 'grafana.persistence.size=' + grafana_persistence_size,
+                        '--set', 'grafana.deploymentStrategy.type=Recreate',
+                    ])  # yapf: disable
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
