@@ -1731,7 +1731,7 @@ def setup_credentials():
     description for instance.
 
     You might want to take advantage of `clk k8s docker-credentials` and `clk
-    k8s install-docker-registry-credentials` in this command.
+    k8s registry-login` in this command.
 
     """
     LOGGER.debug('No credentials added in the cluster.'
@@ -1760,7 +1760,7 @@ class DockerRegistrySecretName(DynamicChoice):
         return DynamicChoice.convert(self, value, param, ctx)
 
 
-@k8s.command(flowdepends=['k8s.install-docker-registry-credentials'])
+@k8s.command(flowdepends=['k8s.registry-login'])
 @option('--docker-login/--no-docker-login', '-d', help='Also log into docker')
 @option('--helm-login/--no-helm-login', '-h', help='Also log into helm')
 @option('--export-password', '-p', help='Export the passwords that directory, with the registry host as name')
