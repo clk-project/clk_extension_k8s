@@ -64,9 +64,8 @@ if urls is None:
 
 
 class InstallDependency:
-    name = None
-    program_name = None
     dependency_installers = []
+    program_path: Path = None
 
     @classmethod
     def install_commands(cls, group):
@@ -90,14 +89,13 @@ class InstallDependency:
 
     def need_install(self):
         force = config.k8s.install_dependencies_force
-        program_path = which(self.program_name)
-        if not force and not program_path:
+        if not force and not self.program_path.exists():
             force = True
-            LOGGER.info(f'Could not find {self.program_name}')
+            LOGGER.info(f'{self.name} is not present on your machine')
         self.needed_version = self.compute_needed_version()
         self.found_version = self.compute_version()
-        if program_path and self.found_version is None:
-            LOGGER.warning(f'I could not find the version of {self.program_name}')
+        if self.program_path.exists() and self.found_version is None:
+            LOGGER.warning(f'I could not find the version of {self.name}')
         if not force and self.found_version != self.needed_version:
             force = True
             LOGGER.info(f'Found a different version of {self.name} ({self.found_version})'
@@ -106,8 +104,7 @@ class InstallDependency:
 
     def __init__(self, handle_dry_run=True):
         self.handle_dry_run = handle_dry_run
-        self.name = self.name or self.__class__.__name__.lower()
-        self.program_name = self.program_name or self.name
+        self.name = self.program_path.name
         InstallDependency.dependency_installers.append(self)
 
     def install_command(self, group):
@@ -144,6 +141,7 @@ class InstallDependency:
 
 class Kind(InstallDependency):
     """Install kind"""
+    program_path = bin_dir / 'kind'
 
     def precondition(self):
         if config.k8s.distribution != 'kind':
@@ -156,17 +154,18 @@ class Kind(InstallDependency):
         return re.search('/(v[0-9.]+)/', urls['kind']).group(1)
 
     def compute_version(self):
-        if which(self.program_name):
-            return re.match('kind (v[0-9.]+) .+', check_output(['kind', 'version'])).group(1)
+        if self.program_path.exists():
+            return re.match('kind (v[0-9.]+) .+', check_output([Kind.program_path, 'version'])).group(1)
 
     def install(self):
-        download(urls['kind'], outdir=bin_dir, outfilename='kind', mode=0o755)
+        download(urls['kind'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
 
     def post_install_check(self):
         if self.found_version is not None and self.found_version.split('.')[1] in ('12', '13', '14'):
             LOGGER.error(
-                f'You are using version {self.found_version} of {self.name}.'
-                f' clk k8s is known not to work with versions of {self.name} greater than {self.needed_version}')
+                f'You are using version {self.found_version} of {self.program_path}.'
+                f' clk k8s is known not to work with versions of {self.program_path} greater than {self.needed_version}'
+            )
 
 
 Kind(handle_dry_run=True)
@@ -174,6 +173,8 @@ Kind(handle_dry_run=True)
 
 class K3d(InstallDependency):
     """Install k3d"""
+
+    program_path = bin_dir / 'k3d'
 
     def precondition(self):
         if config.k8s.distribution != 'k3d':
@@ -186,11 +187,11 @@ class K3d(InstallDependency):
         return re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
 
     def compute_version(self):
-        if which(self.program_name):
-            return re.match('k3d version (.+)', check_output(['k3d', '--version'])).group(1)
+        if self.program_path.exists():
+            return re.match('k3d version (.+)', check_output([str(K3d.program_path), '--version'])).group(1)
 
     def install(self):
-        download(urls['k3d'], outdir=bin_dir, outfilename='k3d', mode=0o755)
+        download(urls['k3d'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
 
 
 K3d(handle_dry_run=True)
@@ -198,20 +199,21 @@ K3d(handle_dry_run=True)
 
 class Helm(InstallDependency):
     """Install helm"""
+    program_path = bin_dir / 'helm'
 
     def compute_needed_version(self):
         return re.search('helm-(v[0-9.]+)', urls['helm']).group(1)
 
     def compute_version(self):
-        if which(self.program_name):
-            return re.search('Version:"(v[0-9.]+)"', check_output(['helm', 'version'])).group(1)
+        if self.program_path.exists():
+            return re.search('Version:"(v[0-9.]+)"', check_output([str(Helm.program_path), 'version'])).group(1)
 
     def install(self):
         with tempdir() as d:
             extract(urls['helm'], d)
-            makedirs(bin_dir)
-            move(glob(Path(d) / '*' / 'helm')[0], bin_dir / 'helm')
-            (bin_dir / 'helm').chmod(0o755)
+            makedirs(str(self.program_path.parent))
+            move(glob(Path(d) / '*' / 'helm')[0], self.program_path)
+            self.program_path.chmod(0o755)
 
 
 Helm(handle_dry_run=True)
@@ -219,19 +221,20 @@ Helm(handle_dry_run=True)
 
 class Tilt(InstallDependency):
     """Install tilt"""
+    program_path = bin_dir / 'tilt'
 
     def compute_needed_version(self):
         return re.search('/(v[0-9.]+)/', urls['tilt']).group(1)
 
     def compute_version(self):
-        if which(self.program_name):
-            return re.match('(v[0-9.]+)', check_output(['tilt', 'version'])).group(1)
+        if self.program_path.exists():
+            return re.match('(v[0-9.]+)', check_output([str(Tilt.program_path), 'version'])).group(1)
 
     def install(self):
         with tempdir() as d:
             extract(urls['tilt'], d)
-            makedirs(bin_dir)
-            move(Path(d) / 'tilt', bin_dir / 'tilt')
+            makedirs(str(self.program_path.parent))
+            move(Path(d) / 'tilt', str(self.program_path))
 
 
 Tilt(handle_dry_run=True)
@@ -239,17 +242,18 @@ Tilt(handle_dry_run=True)
 
 class Earthly(InstallDependency):
     """Install earthly"""
+    program_path = bin_dir / 'earthly'
 
     def compute_needed_version(self):
         return re.search('/(v[0-9.]+)/', urls['earthly']).group(1)
 
     def compute_version(self):
-        if which(self.program_name):
-            return re.match('^.*(v[0-9.]+).*$', check_output(['earthly', '--version'])).group(1)
+        if self.program_path.exists():
+            return re.match('^.*(v[0-9.]+).*$', check_output([str(Earthly.program_path), '--version'])).group(1)
 
     def install(self):
-        makedirs(bin_dir)
-        download(urls['earthly'], bin_dir, 'earthly', mode=0o755)
+        makedirs(str(self.program_path.parent))
+        download(urls['earthly'], str(self.program_path.parent), self.program_path.name, mode=0o755)
 
 
 Earthly(handle_dry_run=True)
@@ -280,18 +284,18 @@ def str_presenter(dumper, data):
 
 class Kubectl(InstallDependency):
     """Install kubectl"""
-    BIN = bin_dir / 'kubectl'
+    program_path = bin_dir / 'kubectl'
 
     def compute_needed_version(self):
         return re.search('/(v[0-9.]+)/', urls['kubectl']).group(1)
 
     def compute_version(self):
-        if which(self.program_name):
+        if self.program_path.exists():
             return re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
-                            safe_check_output(['kubectl', 'version', '--client=true'])).group(1)
+                            safe_check_output([str(Kubectl.program_path), 'version', '--client=true'])).group(1)
 
     def install(self):
-        download(urls['kubectl'], outdir=self.BIN.parent, outfilename=self.BIN.name, mode=0o755)
+        download(urls['kubectl'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
 
 
 Kubectl(handle_dry_run=True)
@@ -299,16 +303,16 @@ Kubectl(handle_dry_run=True)
 
 class KubectlBuildkit(InstallDependency):
     """Install kubectl buildkit"""
-    name = 'kubectl-buildkit'
+    program_path = bin_dir / 'kubectl-buildkit'
 
     def compute_needed_version(self):
         return re.search('/(v[0-9.]+)/', urls['kubectl-buildkit']).group(1)
 
     def compute_version(self):
-        if which(self.program_name):
+        if self.program_path.exists():
             found_kubectl_buildkit_version = False
             try:
-                found_kubectl_buildkit_version = check_output([str(Kubectl.BIN), 'buildkit', 'version'],
+                found_kubectl_buildkit_version = check_output([str(Kubectl.program_path), 'buildkit', 'version'],
                                                               nostderr=True).splitlines()[0]
                 found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
                 if 'Client:' in found_kubectl_buildkit_version:
@@ -325,12 +329,12 @@ class KubectlBuildkit(InstallDependency):
 
     def install(self):
         with tempdir() as d:
-            makedirs(bin_dir)
+            makedirs(str(self.program_path.parent))
             extract(urls['kubectl-buildkit'], d)
-            move(Path(d) / 'kubectl-build', bin_dir / 'kubectl-build')
+            move(Path(d) / 'kubectl-build', str(self.program_path))
             location = bin_dir / f'kubectl-buildkit-{self.needed_version}'
             move(Path(d) / 'kubectl-buildkit', location)
-            link_location = bin_dir / 'kubectl-buildkit'
+            link_location = self.program_path
             if link_location.exists():
                 rm(link_location)
             ln(location, link_location)
@@ -348,8 +352,8 @@ class HelmApplication:
 
     def _already_installed(self):
         releases = [
-            release
-            for release in json.loads(check_output(['helm', 'list', '--namespace', self.namespace, '--output', 'json']))
+            release for release in json.loads(
+                check_output([str(Helm.program_path), 'list', '--namespace', self.namespace, '--output', 'json']))
             if release['name'] == self.name
         ]
         if releases:
@@ -502,21 +506,22 @@ class KubeCtl:
     @staticmethod
     def list_contexts():
         return [
-            line[1:].split()[0] for line in safe_check_output(
-                [str(Kubectl.BIN), 'config', 'get-contexts', '--no-headers'], internal=True).splitlines()
+            line[1:].split()[0]
+            for line in safe_check_output([str(Kubectl.program_path), 'config', 'get-contexts', '--no-headers'],
+                                          internal=True).splitlines()
         ]
 
     @staticmethod
     def current_context():
-        return safe_check_output([str(Kubectl.BIN), 'config', 'current-context'], internal=True).strip()
+        return safe_check_output([str(Kubectl.program_path), 'config', 'current-context'], internal=True).strip()
 
     def call(self, arguments, silent=True):
         context = self.context
         caller = silent_call if silent is True else call
         if context is not None:
-            caller([str(Kubectl.BIN), '--context', context] + arguments)
+            caller([str(Kubectl.program_path), '--context', context] + arguments)
         else:
-            caller([str(Kubectl.BIN)] + arguments)
+            caller([str(Kubectl.program_path)] + arguments)
 
     def get(self, kind, name=None, namespace='default', internal=False):
         LOGGER.action(f'Getting {kind}:{name}')
@@ -537,9 +542,9 @@ class KubeCtl:
     def output(self, arguments, **kwargs):
         context = self.context
         if context is not None:
-            return check_output([str(Kubectl.BIN), '--context', context] + arguments, **kwargs)
+            return check_output([str(Kubectl.program_path), '--context', context] + arguments, **kwargs)
         else:
-            return check_output([str(Kubectl.BIN)] + arguments, **kwargs)
+            return check_output([str(Kubectl.program_path)] + arguments, **kwargs)
 
     def json(self, arguments, **kwargs):
         return json.loads(self.output(arguments + ['--output=json'], **kwargs))
@@ -660,7 +665,7 @@ def doctor():
 RUN apk add busybox
 """)
             try:
-                call([str(Kubectl.BIN), 'build', d])
+                call([str(Kubectl.program_path), 'build', d])
             except Exception:
                 warnings += 1
                 LOGGER.warning('I could not run kubectl build.'
@@ -774,7 +779,7 @@ def registry_login(registry_provider, username, password, force, docker_login, h
     if docker_login:
         silent_call(['docker', 'login', registry['server'], '-u', username, '-p', password])
     if helm_login:
-        silent_call(['helm', 'registry', 'login', registry['server'], '-u', username, '-p', password])
+        silent_call([str(Helm.program_path), 'registry', 'login', registry['server'], '-u', username, '-p', password])
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
@@ -889,13 +894,13 @@ def create_cluster(recreate, volume, nodes):
         already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
         if already_existing_clusters:
             if recreate:
-                silent_call(['k3d', 'cluster', 'delete', name])
+                silent_call([str(K3d.program_path), 'cluster', 'delete', name])
             else:
                 LOGGER.status(f'A cluster with the name {name} already exists.')
                 cluster = already_existing_clusters[0]
                 if cluster['serversRunning'] == 0:
                     LOGGER.info('Starting k3d!')
-                    silent_call(['k3d', 'cluster', 'start', name])
+                    silent_call([str(K3d.program_path), 'cluster', 'start', name])
                 else:
                     LOGGER.status('Nothing to do!')
                 return
@@ -903,7 +908,7 @@ def create_cluster(recreate, volume, nodes):
         name = CLUSTER_NAME
         if name in silent_check_output('kind get clusters'.split()).split('\n'):
             if recreate:
-                silent_call(['kind', 'delete', 'clusters', name])
+                silent_call([str(Kind.program_path), 'delete', 'clusters', name])
             else:
                 LOGGER.status(f'A cluster with the name {name} already exists. Nothing to do.')
                 return
@@ -918,7 +923,7 @@ def create_cluster(recreate, volume, nodes):
     if config.k8s.distribution == 'k3d':
         k3s_manifests = Path(__file__).parent.parent / 'k3s-manifests'
         cmd = [
-            'k3d', 'cluster', 'create', name,
+            str(K3d.program_path), 'cluster', 'create', name,
             '--wait',
             '--port', '80:80@loadbalancer',
             '--port', '443:443@loadbalancer',
@@ -950,7 +955,7 @@ containerdConfigPatches:
     endpoint = ["http://{reg_name}:5000"]
 """
         with temporary_file(content=kind_config_to_use) as f:
-            cmd = ['kind', 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
+            cmd = [str(Kind.program_path), 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
             if config.log_level in ('debug', 'develop'):
                 cmd += ['--loglevel', '3']
             silent_call(cmd)
@@ -965,7 +970,7 @@ data:
     host: "{config.k8s.gateway_ip}:5000"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
-                silent_call([str(Kubectl.BIN), 'apply', '-f', f.name])
+                silent_call([str(Kubectl.program_path), 'apply', '-f', f.name])
             containers = check_output(
                 ['docker', 'network', 'inspect', 'kind', '-f', '{{range .Containers}}{{.Name}} {{end}}']).split()
             if reg_name not in containers:
@@ -1089,7 +1094,7 @@ def install_local_certificate(client):
 
 def _helm_install(args):
     common_args = [
-        'helm',
+        str(Helm.program_path),
         '--kube-context',
         config.kubectl.context,
         'upgrade',
@@ -1342,12 +1347,12 @@ def remove(target):
     """Remove the k8s cluster"""
     if config.k8s.distribution == 'k3d':
         if target in ['all', 'cluster']:
-            silent_call(['k3d', 'cluster', 'delete', CLUSTER_NAME])
+            silent_call([str(K3d.program_path), 'cluster', 'delete', CLUSTER_NAME])
         if target in ['all', 'registry']:
-            silent_call(['k3d', 'registry', 'delete', 'k3d-registry.localhost'])
+            silent_call([str(K3d.program_path), 'registry', 'delete', 'k3d-registry.localhost'])
     elif config.k8s.distribution == 'kind':
         if target in ['all', 'cluster']:
-            silent_call(['kind', 'delete', 'cluster', '--name', CLUSTER_NAME])
+            silent_call([str(Kind.program_path), 'delete', 'cluster', '--name', CLUSTER_NAME])
         if target in ['all', 'registry']:
             reg_name = f'{config.k8s.distribution}-registry'
             if reg_name in check_output(split('docker ps --format {{.Names}}')).split():
@@ -1452,7 +1457,7 @@ class Chart:
         directory = directory or os.getcwd()
         LOGGER.status(f'Packaging {self.name} (from {self.location}) in {directory}')
         with tempdir() as d, cd(d):
-            call(['helm', 'package', self.location])
+            call([str(Helm.program_path), 'package', self.location])
             src = Path(d) / self.archive_name
             self.make_package_reproducible(src)
             dest = Path(directory) / self.archive_name
@@ -1479,9 +1484,9 @@ class Chart:
             LOGGER.status("## The following is some helm logs, don't pay much attention to its gibberish")
             if config.experimental_oci:
                 with updated_env(HELM_EXPERIMENTAL_OCI='1'):
-                    call(['helm', 'dependency', 'update', d])
+                    call([str(Helm.program_path), 'dependency', 'update', d])
             else:
-                call(['helm', 'dependency', 'update', d])
+                call([str(Helm.program_path), 'dependency', 'update', d])
             LOGGER.status('## Done with strange helm logs')
             # and move them to the real charts directory
             generated_dependencies = set(os.listdir(f'{d}/charts'))
@@ -1712,7 +1717,7 @@ def dependency_update(chart, force, touch, experimental_oci, subchart_sources, r
 @argument('args', nargs=-1, help='Helm args')
 def template(args):
     """Run `helm template`, so that you can easily add parameters to it"""
-    call(['helm', 'template'] + list(args))
+    call([str(Helm.program_path), 'template'] + list(args))
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
@@ -1775,8 +1780,10 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
             check_output(['docker', 'login', registry, '-u', values['username'], '-p', values['password']])
         if helm_login:
             with updated_env(HELM_EXPERIMENTAL_OCI='1'):
-                check_output(
-                    ['helm', 'registry', 'login', registry, '-u', values['username'], '-p', values['password']])
+                check_output([
+                    str(Helm.program_path), 'registry', 'login', registry, '-u', values['username'], '-p',
+                    values['password']
+                ])
     if export_password:
         makedirs(export_password)
         for registry, values in creds['auths'].items():
@@ -1799,8 +1806,10 @@ def create_buildkit_runner(max_parallelism, name):
   max-parallelism = {max_parallelism}
 '''
     with temporary_file(content=conf) as f:
-        silent_call(
-            [str(Kubectl.BIN), 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name, name])
+        silent_call([
+            str(Kubectl.program_path), 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name,
+            name
+        ])
 
 
 _features = {
@@ -1926,10 +1935,10 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
             'k3d': f'k3d-{CLUSTER_NAME}',
             'kind': f'kind-{CLUSTER_NAME}',
         }[config.k8s.distribution]
-        silent_call([str(Kubectl.BIN), 'config', 'use-context', context])
+        silent_call([str(Kubectl.program_path), 'config', 'use-context', context])
     with cd(root):
         call([
-            'tilt',
+            str(Tilt.program_path),
             'up',
         ] + split(' '.join(tilt_arg)) + ['--'] + list(tiltfile_args))
 
