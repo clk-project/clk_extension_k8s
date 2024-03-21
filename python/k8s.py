@@ -374,7 +374,7 @@ class HelmApplication:
             LOGGER.status(f'{self.name} already installed in {self.namespace} with version {self.version}')
             return
         try:
-            _helm_install([
+            self._helm_install([
                 self.name,
                 self.name,
                 '--namespace',
@@ -390,6 +390,22 @@ class HelmApplication:
                                ' so may be you can try running the command'
                                ' again and everything may be alright.')
                 exit(5)
+
+    @staticmethod
+    def _helm_install(args):
+        common_args = [
+            str(Helm.program_path),
+            '--kube-context',
+            config.kubectl.context,
+            'upgrade',
+            '--install',
+            '--create-namespace',
+            '--wait',
+        ]
+        if config.develop:
+            common_args.append('--debug')
+
+        _silent_call(common_args + args)
 
 
 def get_resource_name(item):
@@ -1090,22 +1106,6 @@ def install_local_certificate(client):
             did_something = True
         if not did_something:
             raise NotImplementedError(f'Sounds like we forgot to deal with the client {client}')
-
-
-def _helm_install(args):
-    common_args = [
-        str(Helm.program_path),
-        '--kube-context',
-        config.kubectl.context,
-        'upgrade',
-        '--install',
-        '--create-namespace',
-        '--wait',
-    ]
-    if config.develop:
-        common_args.append('--debug')
-
-    _silent_call(common_args + args)
 
 
 class SilentCallFailed(Exception):
