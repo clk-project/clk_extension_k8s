@@ -28,6 +28,16 @@ def build_chart_update_command(
     return command
 
 
+def earthly_build(image, target, output=False, args={}, **kwargs):
+    args['ref'] = '$EXPECTED_REF'
+    custom_build(image,
+                 "earthly --push " + ("" if output else "--no-output ") + target + " " +
+                 " ".join(["--" + k + "=" + v for k, v in args.items()]),
+                 skips_local_docker=True,
+                 disable_push=True,
+                 **kwargs)
+
+
 def update_helm_chart(
     location,
     dependencies=[],
