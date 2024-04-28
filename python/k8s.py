@@ -40,7 +40,7 @@ platforms = {
     'linux': {
         'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
-        'helm': 'https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz',
+        'helm': 'https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz',
         'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
@@ -49,7 +49,7 @@ platforms = {
     },
     'darwin': {
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
-        'helm': 'https://get.helm.sh/helm-v3.12.0-darwin-amd64.tar.gz',
+        'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
         'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
