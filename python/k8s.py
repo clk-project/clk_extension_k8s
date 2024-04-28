@@ -41,20 +41,20 @@ platforms = {
         'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
         'helm': 'https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz',
-        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/linux/amd64/kubectl',
+        'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl',
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.linux.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.3/earthly-linux-amd64',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.linux.x86_64.tar.gz',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-amd64',
     },
     'darwin': {
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
         'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
-        'kubectl': 'https://dl.k8s.io/release/v1.21.2/bin/darwin/amd64/kubectl',
+        'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
         'kubectl-buildkit':
         'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.5/tilt.0.33.5.mac.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.3/earthly-darwin-amd64',
+        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.x86_64.tar.gz',
+        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-amd64',
     },
 }
 urls = platforms.get(platform.system().lower())
