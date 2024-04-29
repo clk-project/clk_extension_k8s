@@ -925,7 +925,7 @@ def create_cluster(recreate, volume, nodes):
                 return
     elif config.k8s.distribution == 'kind':
         name = CLUSTER_NAME
-        if name in silent_check_output('kind get clusters'.split()).split('\n'):
+        if name in silent_check_output([Kind.program_path, 'get', 'clusters']).split('\n'):
             if recreate:
                 silent_call([str(Kind.program_path), 'delete', 'clusters', name])
             else:
