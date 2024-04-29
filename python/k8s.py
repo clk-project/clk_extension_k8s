@@ -294,8 +294,13 @@ class Kubectl(InstallDependency):
 
     def compute_version(self):
         if self.program_path.exists():
-            return re.match('Client Version: .+ GitVersion:"(v[0-9.]+)"',
-                            safe_check_output([str(Kubectl.program_path), 'version', '--client=true'])).group(1)
+            version_string = safe_check_output([str(Kubectl.program_path), 'version', '--client=true'])
+            if match := re.match('Client Version: (.+) GitVersion:"(v[0-9.]+)"', version_string):
+                return match.group(1)
+            elif match := re.match('Client Version: (v[0-9.]+)', version_string):
+                return match.group(1)
+            else:
+                raise click.UsageError(f'Could not identifiy the version of kubectl: {version_string}')
 
     def install(self):
         download(urls['kubectl'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
