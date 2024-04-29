@@ -127,8 +127,9 @@ class InstallDependency:
                     LOGGER.info(f'Let me install {self.name} for you at the version {self.needed_version}')
                     self.install()
                     if self.need_install():
-                        LOGGER.error(f'After installing {self.name}, there is still something wrong.'
-                                     f' Please let us know at https://github.com/clk-project/clk_extension_k8s/issues')
+                        LOGGER.warning(
+                            f'After installing {self.name}, there is still something wrong.'
+                            f' Please let us know at https://github.com/clk-project/clk_extension_k8s/issues')
                     else:
                         LOGGER.info(f'{self.name} correctly installed and appears to work')
                 else:
