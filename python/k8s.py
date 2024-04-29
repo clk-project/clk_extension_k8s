@@ -270,9 +270,11 @@ def make_earthly_accept_http_connection_from_our_local_registry():
         config_ = yaml.safe_load(config_file.read_text())
         if 'global' not in config_:
             config_['global'] = {'buildkit_additional_config': ''}
-    if f'[registry."{config.k8s.gateway_ip}:5001"]' not in config_['global']['buildkit_additional_config']:
-        config_['global']['buildkit_additional_config'] = f'[registry."{config.k8s.gateway_ip}:5001"]\n  http=true\n' \
-            + config_['global']['buildkit_additional_config']
+    if f'[registry."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]' not in config_['global'][
+            'buildkit_additional_config']:
+        config_['global']['buildkit_additional_config'] = (
+            f'[registry."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]\n  http=true\n' +
+            config_['global']['buildkit_additional_config'])
         yaml.add_representer(str, str_presenter)
         config_file.write_text(yaml.dump(config_))
 
@@ -589,6 +591,13 @@ class KubeCtl:
     help='Distribution to use',
     type=click.Choice(['k3d', 'kind']),
 )
+@option(
+    '--registry-port',
+    help='Specify another port for the registry to listen to',
+    expose_class=K8s,
+    default=5000,
+    type=int,
+)
 def k8s():
     """Manipulate k8s"""
     config.override_env['K8S_CONTEXT'] = config.kubectl.context
@@ -854,7 +863,7 @@ def install_local_registry(reinstall):
             'create',
             'registry.localhost',
             '-p',
-            f'{config.k8s.gateway_ip}:5001',
+            f'{config.k8s.gateway_ip}:{config.k8s.registry_port}',
         ]
         if config.dry_run:
             LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
@@ -872,7 +881,7 @@ def install_local_registry(reinstall):
         silent_call(command)
     else:
         name = f'{config.k8s.distribution}-registry'
-        command = f'docker run -d --restart=always -p 5001:5000 --name {name} registry:2'
+        command = f'docker run -d --restart=always -p {config.k8s.registry_port}:5000 --name {name} registry:2'
         if config.dry_run:
             LOGGER.info(f'(dry-run) run: {command}')
             return
@@ -951,7 +960,7 @@ def create_cluster(recreate, volume, nodes):
             '--wait',
             '--port', '80:80@loadbalancer',
             '--port', '443:443@loadbalancer',
-            '--registry-use', 'k3d-registry.localhost:5001',
+            '--registry-use', f'k3d-registry.localhost:{config.k8s.registry_port}',
             '--k3s-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%@agent:*',
             '--k3s-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
             '--k3s-arg', '--flannel-backend=none@server:*',
@@ -975,8 +984,8 @@ def create_cluster(recreate, volume, nodes):
             kind_config_to_use += f"""
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.gateway_ip}:5001"]
-    endpoint = ["http://{reg_name}:5001"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]
+    endpoint = ["http://{reg_name}:{config.k8s.registry_port}"]
 """
         with temporary_file(content=kind_config_to_use) as f:
             cmd = [str(Kind.program_path), 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
@@ -991,7 +1000,7 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "{config.k8s.gateway_ip}:5001"
+    host: "{config.k8s.gateway_ip}:{config.k8s.registry_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
                 silent_call([str(Kubectl.program_path), 'apply', '-f', f.name])
