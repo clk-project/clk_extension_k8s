@@ -270,8 +270,8 @@ def make_earthly_accept_http_connection_from_our_local_registry():
         config_ = yaml.safe_load(config_file.read_text())
         if 'global' not in config_:
             config_['global'] = {'buildkit_additional_config': ''}
-    if f'[registry."{config.k8s.gateway_ip}:5000"]' not in config_['global']['buildkit_additional_config']:
-        config_['global']['buildkit_additional_config'] = f'[registry."{config.k8s.gateway_ip}:5000"]\n  http=true\n' \
+    if f'[registry."{config.k8s.gateway_ip}:5001"]' not in config_['global']['buildkit_additional_config']:
+        config_['global']['buildkit_additional_config'] = f'[registry."{config.k8s.gateway_ip}:5001"]\n  http=true\n' \
             + config_['global']['buildkit_additional_config']
         yaml.add_representer(str, str_presenter)
         config_file.write_text(yaml.dump(config_))
@@ -849,7 +849,7 @@ def install_local_registry(reinstall):
             'create',
             'registry.localhost',
             '-p',
-            f'{config.k8s.gateway_ip}:5000',
+            f'{config.k8s.gateway_ip}:5001',
         ]
         if config.dry_run:
             LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
@@ -867,7 +867,7 @@ def install_local_registry(reinstall):
         silent_call(command)
     else:
         name = f'{config.k8s.distribution}-registry'
-        command = f'docker run -d --restart=always -p 5000:5000 --name {name} registry:2'
+        command = f'docker run -d --restart=always -p 5001:5000 --name {name} registry:2'
         if config.dry_run:
             LOGGER.info(f'(dry-run) run: {command}')
             return
@@ -946,7 +946,7 @@ def create_cluster(recreate, volume, nodes):
             '--wait',
             '--port', '80:80@loadbalancer',
             '--port', '443:443@loadbalancer',
-            '--registry-use', 'k3d-registry.localhost:5000',
+            '--registry-use', 'k3d-registry.localhost:5001',
             '--k3s-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%@agent:*',
             '--k3s-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
             '--k3s-arg', '--flannel-backend=none@server:*',
@@ -970,8 +970,8 @@ def create_cluster(recreate, volume, nodes):
             kind_config_to_use += f"""
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.gateway_ip}:5000"]
-    endpoint = ["http://{reg_name}:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.gateway_ip}:5001"]
+    endpoint = ["http://{reg_name}:5001"]
 """
         with temporary_file(content=kind_config_to_use) as f:
             cmd = [str(Kind.program_path), 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
@@ -986,7 +986,7 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "{config.k8s.gateway_ip}:5000"
+    host: "{config.k8s.gateway_ip}:5001"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
                 silent_call([str(Kubectl.program_path), 'apply', '-f', f.name])
