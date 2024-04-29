@@ -24,7 +24,7 @@ import yaml
 from clk.config import config
 from clk.decorators import argument, flag, group, option, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, createfile, deepcopy, download, extract, get_keyring,
-                     glob, is_port_available, ln, makedirs, move, quote, read, rm, safe_check_output, tempdir,
+                     glob, is_port_available, makedirs, move, quote, read, rm, safe_check_output, tempdir,
                      temporary_file, updated_env, which)
 from clk.log import get_logger
 from clk.types import DynamicChoice, Suggestion
@@ -44,8 +44,6 @@ platforms = {
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
         'helm': 'https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz',
         'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl',
-        'kubectl-buildkit':
-        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/linux-v0.1.5.tgz',
         'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.linux.x86_64.tar.gz',
         'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-amd64',
     },
@@ -53,8 +51,6 @@ platforms = {
         'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
         'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
         'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
-        'kubectl-buildkit':
-        'https://github.com/vmware-tanzu/buildkit-cli-for-kubectl/releases/download/v0.1.5/darwin-v0.1.5.tgz',
         'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.x86_64.tar.gz',
         'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-amd64',
     },
@@ -309,48 +305,6 @@ class Kubectl(InstallDependency):
 
 
 Kubectl(handle_dry_run=True)
-
-
-class KubectlBuildkit(InstallDependency):
-    """Install kubectl buildkit"""
-    program_path = bin_dir / 'kubectl-buildkit'
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['kubectl-buildkit']).group(1)
-
-    def compute_version(self):
-        if self.program_path.exists():
-            found_kubectl_buildkit_version = False
-            try:
-                found_kubectl_buildkit_version = check_output([str(Kubectl.program_path), 'buildkit', 'version'],
-                                                              nostderr=True).splitlines()[0]
-                found_kubectl_buildkit_version = re.sub(r'\n', '', found_kubectl_buildkit_version)
-                if 'Client:' in found_kubectl_buildkit_version:
-                    found_kubectl_buildkit_version = found_kubectl_buildkit_version.replace('Client:', '').strip()
-            except subprocess.CalledProcessError:
-                found_kubectl_buildkit_version = False
-                if location := which('kubectl-buildkit'):
-                    location = Path(location)
-                    if location.is_symlink():
-                        name = Path(os.readlink(location)).name
-                        if m := re.match('kubectl-buildkit-(.+)', name):
-                            found_kubectl_buildkit_version = m.group(1)
-            return found_kubectl_buildkit_version
-
-    def install(self):
-        with tempdir() as d:
-            makedirs(str(self.program_path.parent))
-            extract(urls['kubectl-buildkit'], d)
-            move(Path(d) / 'kubectl-build', str(self.program_path))
-            location = bin_dir / f'kubectl-buildkit-{self.needed_version}'
-            move(Path(d) / 'kubectl-buildkit', location)
-            link_location = self.program_path
-            if link_location.exists():
-                rm(link_location)
-            ln(location, link_location)
-
-
-KubectlBuildkit(handle_dry_run=True)
 
 
 class HelmApplication:
@@ -726,7 +680,6 @@ InstallDependency.install_commands(install_dependency)
 @install_dependency.flow_command(
     flowdepends=[
         'k8s.install-dependency.kubectl',
-        'k8s.install-dependency.kubectl-buildkit',
         'k8s.install-dependency.helm',
         'k8s.install-dependency.tilt',
         'k8s.install-dependency.earthly',
@@ -1810,23 +1763,6 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
                     LOGGER.action(f'writing to {f_path}')
                     f.write(values['password'])
     print(json.dumps(creds['auths']))
-
-
-@k8s.command()
-@option('--max-parallelism', '-j', default=1, help='Maximum parallelism')
-@argument('name', default='buildkit', required=False, help='Runner name')
-def create_buildkit_runner(max_parallelism, name):
-    """Create a buildkit runner"""
-    conf = f'''debug = false
-[worker.containerd]
-  namespace = "k8s.io"
-  max-parallelism = {max_parallelism}
-'''
-    with temporary_file(content=conf) as f:
-        silent_call([
-            str(Kubectl.program_path), 'buildkit', '--context', config.kubectl.context, 'create', '--config', f.name,
-            name
-        ])
 
 
 _features = {
