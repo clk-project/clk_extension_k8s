@@ -36,6 +36,8 @@ warned = False
 CLUSTER_NAME = 'clk-k8s'
 
 bin_dir = Path('~/.local/bin').expanduser()
+if not bin_dir.exists():
+    os.makedirs(bin_dir)
 platforms = {
     'linux': {
         'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
