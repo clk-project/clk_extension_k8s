@@ -28,7 +28,8 @@ def build_chart_update_command(
     return command
 
 
-def earthly_build(image, target, output=False, args={}, **kwargs):
+def earthly_build(image, target, output=False, args=None, **kwargs):
+    args = args or {}
     args['ref'] = '$EXPECTED_REF'
     custom_build(image,
                  "earthly --push " + ("" if output else "--no-output ") + target + " " +
