@@ -838,10 +838,11 @@ def install_local_registry(reinstall):
         if config.dry_run:
             LOGGER.info(f'(dry-run) run: {command}')
             return
-        exists = name in check_output(split('docker ps --format {{.Names}}')).split()
-        if exists:
+        if name in check_output(split('docker ps --format {{.Names}}')).split():
             LOGGER.status(f'A registry with the name {name} already exists.')
         else:
+            if name in check_output(split('docker ps --all --format {{.Names}}')).split():
+                silent_call(split(f'docker rm {name}'))
             silent_call(split(command))
 
     make_earthly_accept_http_connection_from_our_local_registry()
