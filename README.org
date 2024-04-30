@@ -3,10 +3,16 @@
 #+email: konubinixweb@gmail.com
 #+language: en
 * Discussions
+  :PROPERTIES:
+  :CUSTOM_ID: 1c1eb638-4ec6-4614-a65d-0e0de9af7306
+  :END:
 
   - [![IRC libera.chat #clk](https://raster.shields.io/badge/libera.chat-%23clk-blue)](https://web.libera.chat/?channels=#clk)
   - [![Gitter](https://badges.gitter.im/clk-project/community.svg)](https://gitter.im/clk-project/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 * Installation
+  :PROPERTIES:
+  :CUSTOM_ID: c6c523b0-c187-442f-8c77-e3ca2f803e2c
+  :END:
 
   Either:
 
@@ -21,8 +27,37 @@
        clk extension install k8s
      #+END_SRC
 * Usage
+  :PROPERTIES:
+  :CUSTOM_ID: 454564d8-513e-4384-85ba-eef662ed477d
+  :END:
 
   #+BEGIN_SRC shell
     clk k8s flow
   #+END_SRC
   Now, you have a local cluster running and ready to be used. It is that simple.
+* tilt extensions
+  :PROPERTIES:
+  :CREATED:  [2024-04-30 14:33]
+  :CUSTOM_ID: 9894e9a0-df93-4c2e-9c56-2be1418c7c39
+  :ID:       234d4c4d-ad09-429a-89c5-7d424be3e36b
+  :END:
+  This extension also provides some tilt functions. To use them, load the extension, like this
+
+  #+BEGIN_SRC python
+config.define_string("clk-k8s-local-path")
+cfg = config.parse()
+
+v1alpha1.extension_repo(
+    name='clk-k8s',
+    url=cfg.get(
+        'clk-k8s-local-path',
+        'https://github.com/clk-project/clk_extension_k8s',
+    ),
+)
+v1alpha1.extension(
+    name='clk-helpers',
+    repo_name='clk-k8s',
+    repo_path='tilt-extensions/helpers',
+)
+load('ext://clk-helpers', 'update_helm_chart')
+  #+END_SRC
