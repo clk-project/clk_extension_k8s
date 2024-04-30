@@ -938,7 +938,7 @@ def create_cluster(recreate, volume, nodes):
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]
-    endpoint = ["http://{reg_name}:{config.k8s.registry_port}"]
+    endpoint = ["http://{reg_name}:5000"]
 """
         with temporary_file(content=kind_config_to_use) as f:
             cmd = [str(Kind.program_path), 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
