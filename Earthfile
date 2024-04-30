@@ -54,8 +54,6 @@ test:
     END
     ARG distribution=kind
     RUN clk k8s --distribution=$distribution install-dependency all
-    # make sure the workaround about buildkit still works
-    RUN clk k8s --distribution=$distribution install-dependency kubectl-buildkit
     USER root
     COPY hello hello
     COPY test.sh ./test.sh

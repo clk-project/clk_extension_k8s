@@ -1767,11 +1767,9 @@ def docker_credentials(docker_login, helm_login, secret, export_password):
 
 _features = {
     'kind': {
-        'kubectl_build': True,
         'local_registry': False,
     },
     'k3d': {
-        'kubectl_build': False,
         'local_registry': True,
     },
 }
