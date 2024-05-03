@@ -301,6 +301,8 @@ class Kubectl(InstallDependency):
                 raise click.UsageError(f'Could not identifiy the version of kubectl: {version_string}')
 
     def install(self):
+        if self.program_path.exists():
+            rm(self.program_path)
         download(urls['kubectl'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
 
 
