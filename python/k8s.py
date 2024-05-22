@@ -47,6 +47,14 @@ platforms = {
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl',
             'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.linux.x86_64.tar.gz',
             'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-amd64',
+        },
+        'aarch64': {
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-arm64',
+            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-arm64',
+            'helm': 'https://get.helm.sh/helm-v3.14.4-linux-arm64.tar.gz',
+            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/arm64/kubectl',
+            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.14/tilt.0.33.14.linux.arm64.tar.gz',
+            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-arm64',
         }
     },
     'darwin': {
