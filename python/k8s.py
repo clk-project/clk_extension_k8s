@@ -40,25 +40,30 @@ if not bin_dir.exists():
     os.makedirs(bin_dir)
 platforms = {
     'linux': {
-        'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
-        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
-        'helm': 'https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz',
-        'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.linux.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-amd64',
+        'x86_64': {
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
+            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
+            'helm': 'https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz',
+            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl',
+            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.linux.x86_64.tar.gz',
+            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-amd64',
+        }
     },
     'darwin': {
-        'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
-        'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
-        'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
-        'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.x86_64.tar.gz',
-        'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-amd64',
+        'arm64': {
+            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
+            'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
+            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
+            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.x86_64.tar.gz',
+            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-amd64',
+        }
     },
 }
-urls = platforms.get(platform.system().lower())
+urls = platforms.get(platform.system().lower(), {}).get(platform.machine())
 if urls is None:
-    LOGGER.warning(f'This platform ({platform.system().lower()}) is not supported'
-                   f' only those platforms are supported: {", ".join(platforms.keys())}')
+    supported_systems = ', '.join([f"{system} ({', '.join(assoc.keys())})" for system, assoc in platforms.items()])
+    LOGGER.warning(f'We don\'t support {platform.system().lower()} ({platform.machine()})'
+                   f' only those platforms are supported: {supported_systems}')
 
 
 class InstallDependency:
@@ -109,8 +114,8 @@ class InstallDependency:
 
         def wrapper(*args, **kwargs):
             if urls is None:
-                LOGGER.error(f"I don't know how to install {self.name} on this platform"
-                             f' ({platform.system().lower()})')
+                LOGGER.error(
+                    f"I don't know how to install {self.name} on {platform.system().lower()} ({platform.machine()})")
                 return
             if config.dry_run:
                 LOGGER.info(f'(dry-run) download {self.name} from {urls[self.name]}')
