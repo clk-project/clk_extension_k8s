@@ -67,3 +67,9 @@ test-all:
     BUILD +check-quality
     BUILD +test --distribution=kind
     BUILD +test --distribution=k3d
+
+test-all-amd64:
+    BUILD --platform linux/amd64 +test-all
+
+test-all-arm64:
+    BUILD --platform linux/arm64 +test-all
