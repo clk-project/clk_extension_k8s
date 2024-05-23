@@ -823,7 +823,7 @@ def wait_ready():
 @k8s.command(flowdepends=['k8s.install-dependency.all'], handle_dry_run=True)
 @flag('--reinstall', help='Reinstall it if it already exists')
 def install_local_registry(reinstall):
-    """Install k3d local registry"""
+    """Install the local registry that will store the docker images pulled by the cluster"""
     if config.k8s.distribution == 'k3d':
         command = [
             'k3d',
