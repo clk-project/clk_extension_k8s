@@ -830,7 +830,7 @@ def install_local_registry(reinstall):
             'registry',
             'create',
             'registry.localhost',
-            '-p',
+            '--port',
             f'{config.k8s.host_ip}:{config.k8s.registry_port}',
         ]
         if config.dry_run:
