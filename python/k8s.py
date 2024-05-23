@@ -279,11 +279,11 @@ def make_earthly_accept_http_connection_from_our_local_registry():
         config_ = yaml.safe_load(config_file.read_text())
         if 'global' not in config_:
             config_['global'] = {'buildkit_additional_config': ''}
-    if f'[registry."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]' not in config_['global'][
-            'buildkit_additional_config']:
+    if f'[registry."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]' not in config_['global'].get(
+            'buildkit_additional_config', ''):
         config_['global']['buildkit_additional_config'] = (
             f'[registry."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]\n  http=true\n' +
-            config_['global']['buildkit_additional_config'])
+            config_['global'].get('buildkit_additional_config', ''))
         yaml.add_representer(str, str_presenter)
         config_file.write_text(yaml.dump(config_))
 
