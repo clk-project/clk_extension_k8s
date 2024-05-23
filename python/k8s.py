@@ -279,10 +279,10 @@ def make_earthly_accept_http_connection_from_our_local_registry():
         config_ = yaml.safe_load(config_file.read_text())
         if 'global' not in config_:
             config_['global'] = {'buildkit_additional_config': ''}
-    if f'[registry."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]' not in config_['global'].get(
+    if f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]' not in config_['global'].get(
             'buildkit_additional_config', ''):
         config_['global']['buildkit_additional_config'] = (
-            f'[registry."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]\n  http=true\n' +
+            f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]\n  http=true\n' +
             config_['global'].get('buildkit_additional_config', ''))
         yaml.add_representer(str, str_presenter)
         config_file.write_text(yaml.dump(config_))
@@ -456,17 +456,17 @@ class K8s:
     def __init__(self):
         self._distribution = None
         self._explicit_distribution = None
-        self._gateway_ip = None
+        self._host_ip = None
 
     @property
-    def gateway_ip(self):
-        if self._gateway_ip is None:
-            self._gateway_ip = json.loads(check_output([
+    def host_ip(self):
+        if self._host_ip is None:
+            self._host_ip = json.loads(check_output([
                 'docker',
                 'inspect',
                 'bridge',
             ]))[0]['IPAM']['Config'][0]['Gateway']
-        return self._gateway_ip
+        return self._host_ip
 
     @property
     def distribution(self):
@@ -831,7 +831,7 @@ def install_local_registry(reinstall):
             'create',
             'registry.localhost',
             '-p',
-            f'{config.k8s.gateway_ip}:{config.k8s.registry_port}',
+            f'{config.k8s.host_ip}:{config.k8s.registry_port}',
         ]
         if config.dry_run:
             LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
@@ -953,7 +953,7 @@ def create_cluster(recreate, volume, nodes):
             kind_config_to_use += f"""
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.gateway_ip}:{config.k8s.registry_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.host_ip}:{config.k8s.registry_port}"]
     endpoint = ["http://{reg_name}:5000"]
 """
         with temporary_file(content=kind_config_to_use) as f:
@@ -969,7 +969,7 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "{config.k8s.gateway_ip}:{config.k8s.registry_port}"
+    host: "{config.k8s.host_ip}:{config.k8s.registry_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
                 silent_call([str(Kubectl.program_path), 'apply', '-f', f.name])
@@ -1257,7 +1257,7 @@ def install_dnsmasq():
 def add_domain(domain, ip, reset):
     """Add a new domain entry in K8s dns"""
     import yaml
-    ip = ip or config.k8s.gateway_ip
+    ip = ip or config.k8s.host_ip
     if config.k8s.distribution == 'k3d':
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
