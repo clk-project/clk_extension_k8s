@@ -59,6 +59,7 @@ platforms = {
     },
     'darwin': {
         'arm64': {
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-amd64',
             'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
             'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
