@@ -838,7 +838,8 @@ def install_local_registry(reinstall):
             LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
             return
         if 'k3d-registry.localhost' in [
-                registry['name'] for registry in json.loads(check_output(split('k3d registry list -o json')))
+                registry['name']
+                for registry in json.loads(check_output(split(f'{K3d.program_path} registry list -o json')))
         ]:
             if reinstall:
                 ctx = click.get_current_context()
@@ -893,7 +894,7 @@ def create_cluster(recreate, volume, nodes):
                        ' so please submit a pull request if you need it.')
     if config.k8s.distribution == 'k3d':
         name = CLUSTER_NAME
-        clusters = json.loads(check_output(split('k3d cluster list -o json')))
+        clusters = json.loads(check_output(split(f'{K3d.program_path} cluster list -o json')))
         already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
         if already_existing_clusters:
             if recreate:
