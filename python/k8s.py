@@ -601,9 +601,6 @@ kubeadmConfigPatches:
   nodeRegistration:
     kubeletExtraArgs:
       "feature-gates": "EphemeralContainers=true"
-networking:
-  disableDefaultCNI: true
-  ipFamily: ipv4
 nodes:
 - role: control-plane
   kubeadmConfigPatches:
@@ -876,8 +873,9 @@ def install_local_registry(reinstall):
           ' In docker style format host_path:container_path.'
           ' Only implemented for k3d for the time being.'),
 )
+@option('--api-server-address', default='127.0.0.1', help='Use this in case you want to control the cluster remotely')
 @option('--nodes', '-n', default=1, type=int, help='Number of nodes in the cluster')
-def create_cluster(recreate, volume, nodes):
+def create_cluster(recreate, volume, nodes, api_server_address):
     """Create a k8s cluster"""
     if config.dry_run:
         LOGGER.info(f'(dry-run) create a {config.k8s.distribution} cluster.'
@@ -893,6 +891,9 @@ def create_cluster(recreate, volume, nodes):
                        '/62694361/how-to-reference-a-local-volume-in-kind-kubernetes-in-docker)'
                        ' so please submit a pull request if you need it.')
     if config.k8s.distribution == 'k3d':
+        if api_server_address != '127.0.0.1':  # the default value
+            LOGGER.warning(f'The option --api-server-address={api_server_address}'
+                           ' was given, but there is no support yet in k3d for this')
         name = CLUSTER_NAME
         clusters = json.loads(check_output(split(f'{K3d.program_path} cluster list -o json')))
         already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
@@ -957,6 +958,12 @@ containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.host_ip}:{config.k8s.registry_port}"]
     endpoint = ["http://{reg_name}:5000"]
+"""
+        kind_config_to_use += f"""
+networking:
+  apiServerAddress: {api_server_address}
+  disableDefaultCNI: true
+  ipFamily: ipv4
 """
         with temporary_file(content=kind_config_to_use) as f:
             cmd = [str(Kind.program_path), 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
