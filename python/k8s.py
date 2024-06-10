@@ -55,17 +55,25 @@ platforms = {
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/arm64/kubectl',
             'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.14/tilt.0.33.14.linux.arm64.tar.gz',
             'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-arm64',
-        }
+        },
     },
     'darwin': {
-        'arm64': {
+        'x86_64': {
             'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-amd64',
             'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
             'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
             'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.x86_64.tar.gz',
             'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-amd64',
-        }
+        },
+        'arm64': {
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-arm64',
+            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-arm64',
+            'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-arm64.tar.gz',
+            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/arm64/kubectl',
+            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.arm64.tar.gz',
+            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-arm64',
+        },
     },
 }
 urls = platforms.get(platform.system().lower(), {}).get(platform.machine())
