@@ -1084,29 +1084,51 @@ def dump_local_certificate():
 )
 def install_local_certificate(client):
     """Install the local certificate in a way webkit browsers will find it"""
-    certutil = which('certutil')
-    if certutil is None:
-        LOGGER.error('You have to install certutil to use this command.'
+    certutil = which('certutil');
+    security = which('security');
+
+    os_name = platform.system().lower()
+
+    if os_name == 'linux':
+        if certutil is None:
+            LOGGER.error('You have to install certutil to use this command.'
                      ' Hint: sudo apt install libnss3-tools')
+            exit(1)
+    elif os_name == 'darwin':  # macOS
+        if security is None:
+            LOGGER.error('The "security" command is missing. This is unusual as "security" is built into macOS. Please ensure your system is properly configured.')
+            exit(1)
+    else:
+        logging.error('Unsupported operating system')
         exit(1)
+
     cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
 
     def install_with_certutil(directory):
         silent_call([certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', directory])
 
+
+    def install_with_security(cert_file):
+        silent_call([security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', cert_file])
+
     with temporary_file() as f:
         f.write(cert)
         f.close()
         did_something = False
-        if client in ('webkit', 'chrome', 'brave', 'qutebrowser', 'chromium', 'all', 'browsers'):
-            install_with_certutil(f"sql:{os.environ['HOME']}/.pki/nssdb/")
+        if os_name == 'darwin':
+            install_with_security(f.name)
             did_something = True
-        if client in ('mozilla', 'firefox', 'all', 'browsers'):
-            # https://stackoverflow.com/questions/1435000/programmatically-install-certificate-into-mozilla
-            for directory, _, filenames in os.walk(Path(os.environ['HOME']) / '.mozilla'):
-                if 'cert9.db' in filenames:
-                    install_with_certutil(f'sql:{directory}/')
-            did_something = True
+        else:
+            if client in ('webkit', 'chrome', 'brave', 'qutebrowser', 'chromium', 'all', 'browsers'):
+                install_with_certutil(f"sql:{os.environ['HOME']}/.pki/nssdb/")
+                did_something = True
+            if client in ('mozilla', 'firefox', 'all', 'browsers'):
+                # https://stackoverflow.com/questions/1435000/programmatically-install-certificate-into-mozilla
+                for directory, _, filenames in os.walk(Path(os.environ['HOME']) / '.mozilla'):
+                    if 'cert9.db' in filenames:
+                        install_with_certutil(f'sql:{directory}/')
+                did_something = True
+        # Throw an Error if no certificates were installed on linux / macOS
         if not did_something:
             raise NotImplementedError(f'Sounds like we forgot to deal with the client {client}')
 
