@@ -1073,6 +1073,7 @@ def dump_local_certificate(secret_name, namespace):
     """
     click.echo(base64.b64decode(config.kubectl.get('secret', secret_name, namespace)[0]['data']['tls.crt']))
 
+
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 @option(
     '--client',
@@ -1087,19 +1088,21 @@ def dump_local_certificate(secret_name, namespace):
 @option('--namespace', default='cert-manager', help='The namespace from which you wanna pull the certificate.')
 def install_local_certificate(client, secret_name, namespace):
     """Install the local certificate in a way webkit browsers will find it"""
-    certutil = which('certutil');
-    security = which('security');
+    certutil = which('certutil')
+    security = which('security')
 
     os_name = platform.system().lower()
 
     if os_name == 'linux':
         if certutil is None:
             LOGGER.error('You have to install certutil to use this command.'
-                     ' Hint: sudo apt install libnss3-tools')
+                         ' Hint: sudo apt install libnss3-tools')
             exit(1)
     elif os_name == 'darwin':  # macOS
         if security is None:
-            LOGGER.error('The "security" command is missing. This is unusual as "security" is built into macOS. Please ensure your system is properly configured.')
+            LOGGER.error('The "security" command is missing.'
+                         ' This is unusual as "security" is built into macOS.'
+                         ' Please ensure your system is properly configured.')
             exit(1)
     else:
         raise NotImplementedError(f'Operating system not supported {os_name}, supported systems are: darwin, linux')
@@ -1109,11 +1112,12 @@ def install_local_certificate(client, secret_name, namespace):
     def install_with_certutil(directory):
         silent_call([certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', directory])
 
-
     def install_with_security(cert_file):
         # NOTE: This is adding a certificate to SYSTEM keychain since otherwise the chrome is not accepting it as valid.
-        silent_call(['sudo', security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', cert_file])
-
+        silent_call([
+            'sudo', security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain',
+            cert_file
+        ])
 
     with temporary_file() as f:
         f.write(cert)
