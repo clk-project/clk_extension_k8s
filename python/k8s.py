@@ -1063,14 +1063,15 @@ def generate_certificate_authority():
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
-def dump_local_certificate():
+@option('--secret-name', default='ca-key-pair', help='The secret name to pull as a certificate.')
+@option('--namespace', default='cert-manager', help='The namespace from which you wanna pull the certificate.')
+def dump_local_certificate(secret_name, namespace):
     """Expose the local certificate to import in your browser
 
     See it in more detail using
     clk k8s cert-manager dump-local-certificate | openssl x509 -in i -text
     """
-    click.echo(base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt']))
-
+    click.echo(base64.b64decode(config.kubectl.get('secret', secret_name, namespace)[0]['data']['tls.crt']))
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 @option(
@@ -1082,7 +1083,9 @@ def dump_local_certificate():
           ' Use all to install for all of them.'
           ' Use browsers to install only for the web browsers.'),
 )
-def install_local_certificate(client):
+@option('--secret-name', default='ca-key-pair', help='The secret name to pull as a certificate.')
+@option('--namespace', default='cert-manager', help='The namespace from which you wanna pull the certificate.')
+def install_local_certificate(client, secret_name, namespace):
     """Install the local certificate in a way webkit browsers will find it"""
     certutil = which('certutil');
     security = which('security');
@@ -1101,15 +1104,16 @@ def install_local_certificate(client):
     else:
         raise NotImplementedError(f'Operating system not supported {os_name}, supported systems are: darwin, linux')
 
-    cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
+    cert = base64.b64decode(config.kubectl.get('secret', secret_name, namespace)[0]['data']['tls.crt'])
 
     def install_with_certutil(directory):
         silent_call([certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', directory])
 
 
     def install_with_security(cert_file):
-        # NOTE: This is adding a certificate to user keychain to omit sudo access.
-        silent_call([security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', os.path.expanduser('~/Library/Keychains/login.keychain-db'), cert_file])
+        # NOTE: This is adding a certificate to SYSTEM keychain since otherwise the chrome is not accepting it as valid.
+        silent_call(['sudo', security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', cert_file])
+
 
     with temporary_file() as f:
         f.write(cert)
