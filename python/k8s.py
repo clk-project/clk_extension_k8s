@@ -1099,8 +1099,7 @@ def install_local_certificate(client):
             LOGGER.error('The "security" command is missing. This is unusual as "security" is built into macOS. Please ensure your system is properly configured.')
             exit(1)
     else:
-        logging.error('Unsupported operating system')
-        exit(1)
+        raise NotImplementedError(f'Operating system not supported {os_name}, supported systems are: darwin, linux')
 
     cert = base64.b64decode(config.kubectl.get('secret', 'ca-key-pair', 'cert-manager')[0]['data']['tls.crt'])
 
