@@ -1109,7 +1109,8 @@ def install_local_certificate(client):
 
 
     def install_with_security(cert_file):
-        silent_call([security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', cert_file])
+        # NOTE: This is adding a certificate to user keychain to omit sudo access.
+        silent_call([security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', os.path.expanduser('~/Library/Keychains/login.keychain-db'), cert_file])
 
     with temporary_file() as f:
         f.write(cert)
