@@ -1086,7 +1086,8 @@ def dump_local_certificate(secret_name, namespace):
 )
 @option('--secret-name', default='ca-key-pair', help='The secret name to pull as a certificate.')
 @option('--namespace', default='cert-manager', help='The namespace from which you wanna pull the certificate.')
-def install_local_certificate(client, secret_name, namespace):
+@option('--type', type=click.Choice(['CA', 'Peer']), help='Only needed by certutil', default='CA')
+def install_local_certificate(client, secret_name, namespace, type):
     """Install the local certificate in a way webkit browsers will find it"""
     certutil = which('certutil')
     security = which('security')
@@ -1124,12 +1125,9 @@ def install_local_certificate(client, secret_name, namespace):
         else:
 
             def install(directory):
-                # install the certificate as a certificate authority
-                silent_call(
-                    [certutil, '-A', '-n', 'local-cluster-as-CA', '-t', 'C,,', '-i', f.name, '-d', f'sql:{directory}/'])
-                # install the certificate as a simple peer
                 silent_call([
-                    certutil, '-A', '-n', 'local-cluster-as-peer', '-t', 'P,,', '-i', f.name, '-d', f'sql:{directory}/'
+                    certutil, '-A', '-n', 'local-cluster-as-CA', '-t', f'{"C" if type == "CA" else "P"},,', '-i',
+                    f.name, '-d', f'sql:{directory}/'
                 ])
 
             if client in ('webkit', 'chrome', 'brave', 'qutebrowser', 'chromium', 'all', 'browsers'):
