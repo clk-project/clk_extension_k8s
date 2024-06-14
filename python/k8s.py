@@ -1124,8 +1124,13 @@ def install_local_certificate(client, secret_name, namespace):
         else:
 
             def install(directory):
+                # install the certificate as a certificate authority
                 silent_call(
-                    [certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', f'sql:{directory}/'])
+                    [certutil, '-A', '-n', 'local-cluster-as-CA', '-t', 'C,,', '-i', f.name, '-d', f'sql:{directory}/'])
+                # install the certificate as a simple peer
+                silent_call([
+                    certutil, '-A', '-n', 'local-cluster-as-peer', '-t', 'P,,', '-i', f.name, '-d', f'sql:{directory}/'
+                ])
 
             if client in ('webkit', 'chrome', 'brave', 'qutebrowser', 'chromium', 'all', 'browsers'):
                 install(f"{os.environ['HOME']}/.pki/nssdb")
