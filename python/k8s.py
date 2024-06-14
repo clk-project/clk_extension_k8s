@@ -1109,32 +1109,32 @@ def install_local_certificate(client, secret_name, namespace):
 
     cert = base64.b64decode(config.kubectl.get('secret', secret_name, namespace)[0]['data']['tls.crt'])
 
-    def install_with_certutil(directory):
-        silent_call([certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', directory])
-
-    def install_with_security(cert_file):
-        # NOTE: This is adding a certificate to SYSTEM keychain since otherwise the chrome is not accepting it as valid.
-        silent_call([
-            'sudo', security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain',
-            cert_file
-        ])
-
     with temporary_file() as f:
         f.write(cert)
         f.close()
         did_something = False
         if os_name == 'darwin':
-            install_with_security(f.name)
+            # NOTE: This is adding a certificate to SYSTEM keychain since
+            # otherwise the chrome is not accepting it as valid.
+            silent_call([
+                'sudo', security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k',
+                '/Library/Keychains/System.keychain', f.name
+            ])
             did_something = True
         else:
+
+            def install(directory):
+                silent_call(
+                    [certutil, '-A', '-n', 'local-cluster', '-t', 'C,', '-i', f.name, '-d', f'sql:{directory}/'])
+
             if client in ('webkit', 'chrome', 'brave', 'qutebrowser', 'chromium', 'all', 'browsers'):
-                install_with_certutil(f"sql:{os.environ['HOME']}/.pki/nssdb/")
+                install(f"{os.environ['HOME']}/.pki/nssdb")
                 did_something = True
             if client in ('mozilla', 'firefox', 'all', 'browsers'):
                 # https://stackoverflow.com/questions/1435000/programmatically-install-certificate-into-mozilla
                 for directory, _, filenames in os.walk(Path(os.environ['HOME']) / '.mozilla'):
                     if 'cert9.db' in filenames:
-                        install_with_certutil(f'sql:{directory}/')
+                        install(directory)
                 did_something = True
         # Throw an Error if no certificates were installed on linux / macOS
         if not did_something:
