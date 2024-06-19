@@ -726,6 +726,9 @@ docker_registries_configs = {
         'secret-name': 'gitlab-registry',
         'server': 'registry.gitlab.com',
     },
+    'aws': {
+        'secret-name': 'aws-registry',
+    },
 }
 
 
@@ -737,7 +740,7 @@ docker_registries_configs = {
 @option(
     '--username',
     help=('The username of the provider registry'
-          ' (your gitlab id in case you use gitlab)'),
+          ' (your gitlab id in case you use gitlab, or AWS in case of aws)'),
 )
 @option(
     '--password',
@@ -745,14 +748,19 @@ docker_registries_configs = {
           ' (in case of gitlab, an API key with read_registry grants'
           ' generated using https://gitlab.com/-/profile/personal_access_tokens)'),
 )
+@option('--server', help='Should be needed only when using aws, where it cannot be inferred easily')
 @flag('--force', help='Overwrite the existing secret')
 @option('--docker-login/--no-docker-login', default=True, help='Also log into docker')
 @option('--helm-login/--no-helm-login', default=True, help='Also log into helm')
 @option('--k8s-login/--no-k8s-login', default=True, help='Also log into helm')
-def registry_login(registry_provider, username, password, force, docker_login, helm_login, k8s_login):
+def registry_login(registry_provider, username, password, force, docker_login, server, helm_login, k8s_login):
     """Install the credential to get access to the given registry provider."""
     registry = docker_registries_configs[registry_provider]
     secret_name = registry['secret-name']
+    if not username and registry_provider == 'aws':
+        username = 'AWS'
+    if not password and registry_provider == 'aws':
+        password = check_output(['aws', 'ecr', 'get-login-password'])
     if not (username and password):
         if username or password:
             LOGGER.warning('I need to be given both username and password to use them.'
@@ -767,6 +775,12 @@ def registry_login(registry_provider, username, password, force, docker_login, h
             LOGGER.warning('Could not find the password from your password manager')
     username = username or click.prompt('username', hide_input=True, default='', show_default=False)
     password = password or click.prompt('password', hide_input=True, default='', show_default=False)
+    if not server and registry_provider == 'aws':
+        server = check_output(
+            ['aws', 'ecr', 'describe-repositories', '--query', 'repositories[0].repositoryUri', '--output',
+             'text']).split('/')[0]
+    if not server:
+        server = registry['server']
     if k8s_login:
         run = True
         if config.kubectl.get('secret', secret_name):
@@ -779,14 +793,14 @@ def registry_login(registry_provider, username, password, force, docker_login, h
         if run:
             config.kubectl.call([
                 'create', 'secret', 'docker-registry', secret_name,
-                f'--docker-server={registry["server"]}',
+                f'--docker-server={server}',
                 f'--docker-username={username}',
                 f'--docker-password={password}',
             ])  # yapf: disable
     if docker_login:
-        silent_call(['docker', 'login', registry['server'], '-u', username, '-p', password])
+        silent_call(['docker', 'login', server, '-u', username, '-p', password])
     if helm_login:
-        silent_call([str(Helm.program_path), 'registry', 'login', registry['server'], '-u', username, '-p', password])
+        silent_call([str(Helm.program_path), 'registry', 'login', server, '-u', username, '-p', password])
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
