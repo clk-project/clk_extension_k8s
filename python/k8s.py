@@ -913,9 +913,6 @@ def create_cluster(recreate, volume, nodes, api_server_address):
                        '/62694361/how-to-reference-a-local-volume-in-kind-kubernetes-in-docker)'
                        ' so please submit a pull request if you need it.')
     if config.k8s.distribution == 'k3d':
-        if api_server_address != '127.0.0.1':  # the default value
-            LOGGER.warning(f'The option --api-server-address={api_server_address}'
-                           ' was given, but there is no support yet in k3d for this')
         name = CLUSTER_NAME
         clusters = json.loads(check_output(split(f'{K3d.program_path} cluster list -o json')))
         already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
@@ -967,6 +964,17 @@ def create_cluster(recreate, volume, nodes, api_server_address):
             local_volume = volume.split(':')[0]
             makedirs(local_volume)
             cmd.extend(['--volume', volume])
+        if api_server_address:
+            # find an open port
+            import socket
+            port = 9715
+            while True:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    if s.connect_ex((api_server_address, port)) == 0:
+                        port = port + 1
+                    else:
+                        break
+            cmd += ['--api-port', f'{api_server_address}:{port}']
         silent_call(cmd)
 
     elif config.k8s.distribution == 'kind':
