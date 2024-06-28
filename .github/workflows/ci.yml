@@ -28,3 +28,9 @@ jobs:
       run: earthly --version
     - name: Test
       run: earthly -P --ci --push +test-all
+    - uses: actions/upload-artifact@v3
+      with:
+        name: output
+        path: out
+    - name: Decide if failed
+      run: ! test -e out/fail

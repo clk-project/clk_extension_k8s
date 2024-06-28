@@ -17,9 +17,16 @@ then
 fi
 
 show_context () {
-    kubectl get -A networkpolicies.networking.k8s.io
-    kubectl get -A pods
-    kubectl describe -A pods
+    {
+        kubectl get -A networkpolicies.networking.k8s.io
+        kubectl get -A pods
+        kubectl describe -A pods
+    } | tee "${TMP}/context"
+}
+
+fail () {
+    touch "${TMP}/fail"
+    exit 0
 }
 
 clk "${clk_args[@]}" k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all
@@ -30,9 +37,8 @@ fi
 # wait a bit for the network policy to be ready
 sleep 5
 
-TMP="$(mktemp -d)"
-trap "rm -rf '${TMP}'" 0
-
+TMP=/tmp/out
+mkdir -p "${TMP}"
 
 curl http://hello.localtest.me/ > "${TMP}/out"
 if ! grep -q 'Welcome to nginx' "${TMP}/out"
@@ -40,7 +46,7 @@ then
     echo "Failed to connect to the example"
     cat "${TMP}/out"
     show_context
-    exit 1
+    fail
 fi
 
 kubectl delete --wait networkpolicies.networking.k8s.io ingress-to-app-hello
@@ -50,7 +56,7 @@ then
     echo "Removing the network policy did not block the connection"
     cat "${TMP}/out"
     show_context
-    exit 1
+    fail
 fi
 
 helm upgrade --install app hello --wait
@@ -60,5 +66,5 @@ then
     echo "Putting back the network policy did not restore the connection"
     cat "${TMP}/out"
     show_context
-    exit 1
+    fail
 fi

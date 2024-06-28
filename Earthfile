@@ -37,7 +37,7 @@ fix-quality:
 test:
     FROM earthly/dind:ubuntu-23.04-docker-24.0.5-1
     ARG shell=bash
-    RUN apt-get update && apt-get install --yes git wget python3-distutils python3-venv
+    RUN apt-get update && apt-get install --yes git wget python3-distutils python3-venv tee
     DO e+USE_USER --uid=1001
     ARG from=source
     WORKDIR /app
@@ -62,6 +62,7 @@ test:
     WITH DOCKER
         RUN --no-cache bash test.sh
     END
+    SAVE ARTIFACT /tmp/out AS LOCAL out/${distribution}-${from}
 
 test-all:
     BUILD +check-quality
