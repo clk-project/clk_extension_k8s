@@ -897,7 +897,10 @@ def install_local_registry(reinstall):
 )
 @option('--api-server-address', default='127.0.0.1', help='Use this in case you want to control the cluster remotely')
 @option('--nodes', '-n', default=1, type=int, help='Number of nodes in the cluster')
-def create_cluster(recreate, volume, nodes, api_server_address):
+@option('--calico-version',
+        default='v3.28.0',
+        help="The version of calico to install along kind (k3d uses flannel and we don't mess with that)")
+def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
     """Create a k8s cluster"""
     if config.dry_run:
         LOGGER.info(f'(dry-run) create a {config.k8s.distribution} cluster.'
@@ -1014,9 +1017,11 @@ data:
                 ['docker', 'network', 'inspect', 'kind', '-f', '{{range .Containers}}{{.Name}} {{end}}']).split()
             if reg_name not in containers:
                 silent_call(split(f'docker network connect kind {reg_name}'))
-        # install calico
-        config.kubectl.call(
-            ['create', '-f', 'https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml'])
+        # install calico, see https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind
+        config.kubectl.call([
+            'create', '-f',
+            f'https://raw.githubusercontent.com/projectcalico/calico/{calico_version}/manifests/calico.yaml'
+        ])
 
 
 @k8s.group()
