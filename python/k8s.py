@@ -954,8 +954,6 @@ def create_cluster(recreate, volume, nodes, api_server_address):
             '--registry-use', f'k3d-registry.localhost:{config.k8s.registry_port}',
             '--k3s-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%@agent:*',
             '--k3s-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
-            '--k3s-arg', '--flannel-backend=none@server:*',
-            '--k3s-arg', '--disable-network-policy@server:*',
             '--k3s-arg', '--no-deploy=traefik@server:*',
         ]  # yapf: disable
         for manifest in k3s_manifests.iterdir():
