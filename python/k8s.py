@@ -41,7 +41,7 @@ if not bin_dir.exists():
 platforms = {
     'linux': {
         'x86_64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.6.3/k3d-linux-amd64',
             'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
             'helm': 'https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz',
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl',
@@ -49,7 +49,7 @@ platforms = {
             'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-amd64',
         },
         'aarch64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-arm64',
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.6.3/k3d-linux-arm64',
             'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-arm64',
             'helm': 'https://get.helm.sh/helm-v3.14.4-linux-arm64.tar.gz',
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/arm64/kubectl',
@@ -59,7 +59,7 @@ platforms = {
     },
     'darwin': {
         'x86_64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-amd64',
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.6.3/k3d-darwin-amd64',
             'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
             'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
@@ -67,7 +67,7 @@ platforms = {
             'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-amd64',
         },
         'arm64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-arm64',
+            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.6.3/k3d-darwin-arm64',
             'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-arm64',
             'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-arm64.tar.gz',
             'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/arm64/kubectl',
