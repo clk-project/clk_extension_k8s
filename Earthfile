@@ -58,9 +58,9 @@ test:
     COPY hello hello
     COPY test.sh ./test.sh
     RUN --no-cache echo "Invalidate the cache (somehow the next one don't work)"
-    ARG debug=no
+    ARG args # could be --debug
     WITH DOCKER
-        RUN --no-cache bash test.sh
+        RUN --no-cache clk ${args} k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all && bash test.sh
     END
     SAVE ARTIFACT /tmp/out AS LOCAL out/${distribution}-${from}
 

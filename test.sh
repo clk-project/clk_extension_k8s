@@ -9,13 +9,6 @@ shopt -s inherit_errexit
 trap "exit 2" SIGINT
 trap "exit 3" SIGQUIT
 
-clk_args=()
-if test "${debug}" = "yes"
-then
-    clk_args+=(--debug)
-    set -x
-fi
-
 show_context () {
     {
         kubectl get -A networkpolicies.networking.k8s.io
@@ -29,7 +22,6 @@ fail () {
     exit 0
 }
 
-clk "${clk_args[@]}" k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all
 if ! helm upgrade --install app hello --wait
 then
     show_context
