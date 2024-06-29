@@ -33,4 +33,4 @@ jobs:
         name: output
         path: out
     - name: Decide if failed
-      run: ! test -e out/fail
+      run: ( ! test -e out/fail )
