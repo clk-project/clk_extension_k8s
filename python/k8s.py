@@ -35,51 +35,80 @@ warned = False
 
 CLUSTER_NAME = 'clk-k8s'
 
+EARTHLY_VERSION = '0.8.14'
+HELM_VERSION = '3.15.2'
+KUBECTL_VERSION = '1.30.2'
+TILT_VERSION = '0.33.17'
+
 bin_dir = Path('~/.local/bin').expanduser()
 if not bin_dir.exists():
     os.makedirs(bin_dir)
 platforms = {
     'linux': {
         'x86_64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
-            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
-            'helm': 'https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz',
-            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl',
-            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.linux.x86_64.tar.gz',
-            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-amd64',
+            'k3d':
+            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
+            'kind':
+            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
+            'helm':
+            f'https://get.helm.sh/helm-v{HELM_VERSION}-linux-amd64.tar.gz',
+            'kubectl':
+            f'https://dl.k8s.io/release/v{KUBECTL_VERSION}/bin/linux/amd64/kubectl',
+            'tilt': ('https://github.com/tilt-dev/tilt/releases/download/'
+                     f'v{TILT_VERSION}/tilt.{TILT_VERSION}.linux.x86_64.tar.gz'),
+            'earthly':
+            f'https://github.com/earthly/earthly/releases/download/v{EARTHLY_VERSION}/earthly-linux-amd64',
         },
         'aarch64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-arm64',
-            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-arm64',
-            'helm': 'https://get.helm.sh/helm-v3.14.4-linux-arm64.tar.gz',
-            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/linux/arm64/kubectl',
-            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.14/tilt.0.33.14.linux.arm64.tar.gz',
-            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-linux-arm64',
+            'k3d':
+            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-arm64',
+            'kind':
+            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-arm64',
+            'helm':
+            f'https://get.helm.sh/helm-v{HELM_VERSION}-linux-arm64.tar.gz',
+            'kubectl':
+            f'https://dl.k8s.io/release/v{KUBECTL_VERSION}/bin/linux/arm64/kubectl',
+            'tilt': ('https://github.com/tilt-dev/tilt/releases/download/'
+                     f'v{TILT_VERSION}/tilt.{TILT_VERSION}.linux.arm64.tar.gz'),
+            'earthly':
+            f'https://github.com/earthly/earthly/releases/download/v{EARTHLY_VERSION}/earthly-linux-arm64',
         },
     },
     'darwin': {
         'x86_64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-amd64',
-            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
-            'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-amd64.tar.gz',
-            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/amd64/kubectl',
-            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.x86_64.tar.gz',
-            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-amd64',
+            'k3d':
+            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-amd64',
+            'kind':
+            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
+            'helm':
+            f'https://get.helm.sh/helm-v{HELM_VERSION}-darwin-amd64.tar.gz',
+            'kubectl':
+            f'https://dl.k8s.io/release/v{KUBECTL_VERSION}/bin/darwin/amd64/kubectl',
+            'tilt': ('https://github.com/tilt-dev/tilt/releases/download/'
+                     f'v{TILT_VERSION}/tilt.{TILT_VERSION}.mac.x86_64.tar.gz'),
+            'earthly':
+            f'https://github.com/earthly/earthly/releases/download/v{EARTHLY_VERSION}/earthly-darwin-amd64',
         },
         'arm64': {
-            'k3d': 'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-arm64',
-            'kind': 'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-arm64',
-            'helm': 'https://get.helm.sh/helm-v3.14.4-darwin-arm64.tar.gz',
-            'kubectl': 'https://dl.k8s.io/release/v1.30.0/bin/darwin/arm64/kubectl',
-            'tilt': 'https://github.com/tilt-dev/tilt/releases/download/v0.33.13/tilt.0.33.13.mac.arm64.tar.gz',
-            'earthly': 'https://github.com/earthly/earthly/releases/download/v0.8.9/earthly-darwin-arm64',
+            'k3d':
+            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-arm64',
+            'kind':
+            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-arm64',
+            'helm':
+            f'https://get.helm.sh/helm-v{HELM_VERSION}-darwin-arm64.tar.gz',
+            'kubectl':
+            f'https://dl.k8s.io/release/v{KUBECTL_VERSION}/bin/darwin/arm64/kubectl',
+            'tilt': ('https://github.com/tilt-dev/tilt/releases/download/'
+                     f'v{TILT_VERSION}/tilt.{TILT_VERSION}.mac.arm64.tar.gz'),
+            'earthly':
+            f'https://github.com/earthly/earthly/releases/download/v{EARTHLY_VERSION}/earthly-darwin-arm64',
         },
     },
 }
 urls = platforms.get(platform.system().lower(), {}).get(platform.machine())
 if urls is None:
     supported_systems = ', '.join([f"{system} ({', '.join(assoc.keys())})" for system, assoc in platforms.items()])
-    LOGGER.warning(f'We don\'t support {platform.system().lower()} ({platform.machine()})'
+    LOGGER.warning(f"We don't support {platform.system().lower()} ({platform.machine()})"
                    f' only those platforms are supported: {supported_systems}')
 
 
@@ -157,11 +186,16 @@ class InstallDependency:
             else:
                 LOGGER.status(f'No need to install {self.name}, force with --force')
 
-        group.command(handle_dry_run=self.handle_dry_run, name=self.name, help=self.__doc__)(wrapper)
+        group.command(
+            handle_dry_run=self.handle_dry_run,
+            name=self.name,
+            help=self.__doc__,
+        )(wrapper)
 
 
 class Kind(InstallDependency):
     """Install kind"""
+
     program_path = bin_dir / 'kind'
 
     def precondition(self):
@@ -176,13 +210,25 @@ class Kind(InstallDependency):
 
     def compute_version(self):
         if self.program_path.exists():
-            return re.match('kind (v[0-9.]+) .+', check_output([Kind.program_path, 'version'])).group(1)
+            return re.match(
+                'kind (v[0-9.]+) .+',
+                check_output([Kind.program_path, 'version']),
+            ).group(1)
 
     def install(self):
-        download(urls['kind'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
+        download(
+            urls['kind'],
+            outdir=self.program_path.parent,
+            outfilename=self.program_path.name,
+            mode=0o755,
+        )
 
     def post_install_check(self):
-        if self.found_version is not None and self.found_version.split('.')[1] in ('12', '13', '14'):
+        if self.found_version is not None and self.found_version.split('.')[1] in (
+                '12',
+                '13',
+                '14',
+        ):
             LOGGER.error(
                 f'You are using version {self.found_version} of {self.program_path}.'
                 f' clk k8s is known not to work with versions of {self.program_path} greater than {self.needed_version}'
@@ -209,10 +255,18 @@ class K3d(InstallDependency):
 
     def compute_version(self):
         if self.program_path.exists():
-            return re.match('k3d version (.+)', check_output([str(K3d.program_path), '--version'])).group(1)
+            return re.match(
+                'k3d version (.+)',
+                check_output([str(K3d.program_path), '--version']),
+            ).group(1)
 
     def install(self):
-        download(urls['k3d'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
+        download(
+            urls['k3d'],
+            outdir=self.program_path.parent,
+            outfilename=self.program_path.name,
+            mode=0o755,
+        )
 
 
 K3d(handle_dry_run=True)
@@ -220,6 +274,7 @@ K3d(handle_dry_run=True)
 
 class Helm(InstallDependency):
     """Install helm"""
+
     program_path = bin_dir / 'helm'
 
     def compute_needed_version(self):
@@ -227,7 +282,10 @@ class Helm(InstallDependency):
 
     def compute_version(self):
         if self.program_path.exists():
-            return re.search('Version:"(v[0-9.]+)"', check_output([str(Helm.program_path), 'version'])).group(1)
+            return re.search(
+                'Version:"(v[0-9.]+)"',
+                check_output([str(Helm.program_path), 'version']),
+            ).group(1)
 
     def install(self):
         with tempdir() as d:
@@ -242,6 +300,7 @@ Helm(handle_dry_run=True)
 
 class Tilt(InstallDependency):
     """Install tilt"""
+
     program_path = bin_dir / 'tilt'
 
     def compute_needed_version(self):
@@ -263,6 +322,7 @@ Tilt(handle_dry_run=True)
 
 class Earthly(InstallDependency):
     """Install earthly"""
+
     program_path = bin_dir / 'earthly'
 
     def compute_needed_version(self):
@@ -270,11 +330,19 @@ class Earthly(InstallDependency):
 
     def compute_version(self):
         if self.program_path.exists():
-            return re.match('^.*(v[0-9.]+).*$', check_output([str(Earthly.program_path), '--version'])).group(1)
+            return re.match(
+                '^.*(v[0-9.]+).*$',
+                check_output([str(Earthly.program_path), '--version']),
+            ).group(1)
 
     def install(self):
         makedirs(str(self.program_path.parent))
-        download(urls['earthly'], str(self.program_path.parent), self.program_path.name, mode=0o755)
+        download(
+            urls['earthly'],
+            str(self.program_path.parent),
+            self.program_path.name,
+            mode=0o755,
+        )
 
 
 Earthly(handle_dry_run=True)
@@ -288,18 +356,19 @@ def make_earthly_accept_http_connection_from_our_local_registry():
         config_ = yaml.safe_load(config_file.read_text())
         if 'global' not in config_:
             config_['global'] = {'buildkit_additional_config': ''}
-    if f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]' not in config_['global'].get(
-            'buildkit_additional_config', ''):
-        config_['global']['buildkit_additional_config'] = (
-            f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]\n  http=true\n' +
-            config_['global'].get('buildkit_additional_config', ''))
+    if (f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]'
+            not in config_['global'].get('buildkit_additional_config', '')):
+        config_['global'][
+            'buildkit_additional_config'] = f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]'
+        '\n  http=true\n' + config_['global'].get('buildkit_additional_config', '')
         yaml.add_representer(str, str_presenter)
         config_file.write_text(yaml.dump(config_))
 
 
 def str_presenter(dumper, data):
     """configures yaml for dumping multiline strings
-    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+    """
     if data.count('\n') > 0:  # check for multiline string
         return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
@@ -307,6 +376,7 @@ def str_presenter(dumper, data):
 
 class Kubectl(InstallDependency):
     """Install kubectl"""
+
     program_path = bin_dir / 'kubectl'
 
     def compute_needed_version(self):
@@ -325,7 +395,12 @@ class Kubectl(InstallDependency):
     def install(self):
         if self.program_path.exists():
             rm(self.program_path)
-        download(urls['kubectl'], outdir=self.program_path.parent, outfilename=self.program_path.name, mode=0o755)
+        download(
+            urls['kubectl'],
+            outdir=self.program_path.parent,
+            outfilename=self.program_path.name,
+            mode=0o755,
+        )
 
 
 Kubectl(handle_dry_run=True)
@@ -341,13 +416,19 @@ class HelmApplication:
     def _already_installed(self):
         releases = [
             release for release in json.loads(
-                check_output([str(Helm.program_path), 'list', '--namespace', self.namespace, '--output', 'json']))
-            if release['name'] == self.name
+                check_output([
+                    str(Helm.program_path),
+                    'list',
+                    '--namespace',
+                    self.namespace,
+                    '--output',
+                    'json',
+                ])) if release['name'] == self.name
         ]
         if releases:
             release = releases[0]
             installed_version = release['chart'].split('-')[-1]
-            if installed_version == self.version or 'v' + installed_version == self.version:
+            if (installed_version == self.version or 'v' + installed_version == self.version):
                 if release['status'] != 'deployed':
                     LOGGER.warning(f'{self.name} was already installed, but it had the status {release["status"]}.')
                     LOGGER.warning(
@@ -372,8 +453,8 @@ class HelmApplication:
             ] + helm_args)
         except SilentCallFailed as e:
             LOGGER.error(f'The installation with helm of {self.name} failed')
-            if 'content deadline exceeded' in e.content.strip().splitlines(
-            )[-1] or 'timed out waiting' in e.content.strip().splitlines()[-1]:
+            if ('content deadline exceeded' in e.content.strip().splitlines()[-1]
+                    or 'timed out waiting' in e.content.strip().splitlines()[-1]):
                 LOGGER.warning('It looks like it was due to a time out,'
                                ' so may be you can try running the command'
                                ' again and everything may be alright.')
@@ -412,7 +493,10 @@ def guess_context_and_distribution(context, distribution):
         context = None
         if current_context := config.kubectl.current_context():
             LOGGER.debug("There is a current context! Let's see whether I can make use of it!")
-            guessed_context, guessed_distribution = guess_context_and_distribution(current_context, None)
+            (
+                guessed_context,
+                guessed_distribution,
+            ) = guess_context_and_distribution(current_context, None)
             if guessed_context is not None or guessed_distribution is not None:
                 LOGGER.debug(f'Guessed context {guessed_context} and distribution {distribution}')
                 distribution = guessed_distribution
@@ -510,14 +594,23 @@ class KubeCtl:
     @staticmethod
     def list_contexts():
         return [
-            line[1:].split()[0]
-            for line in safe_check_output([str(Kubectl.program_path), 'config', 'get-contexts', '--no-headers'],
-                                          internal=True).splitlines()
+            line[1:].split()[0] for line in safe_check_output(
+                [
+                    str(Kubectl.program_path),
+                    'config',
+                    'get-contexts',
+                    '--no-headers',
+                ],
+                internal=True,
+            ).splitlines()
         ]
 
     @staticmethod
     def current_context():
-        return safe_check_output([str(Kubectl.program_path), 'config', 'current-context'], internal=True).strip()
+        return safe_check_output(
+            [str(Kubectl.program_path), 'config', 'current-context'],
+            internal=True,
+        ).strip()
 
     def call(self, arguments, silent=True):
         context = self.context
@@ -546,7 +639,10 @@ class KubeCtl:
     def output(self, arguments, **kwargs):
         context = self.context
         if context is not None:
-            return check_output([str(Kubectl.program_path), '--context', context] + arguments, **kwargs)
+            return check_output(
+                [str(Kubectl.program_path), '--context', context] + arguments,
+                **kwargs,
+            )
         else:
             return check_output([str(Kubectl.program_path)] + arguments, **kwargs)
 
@@ -628,21 +724,21 @@ nodes:
     protocol: TCP
 """
 
-cluster_issuer = '''apiVersion: cert-manager.io/v1
+cluster_issuer = """apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: local
 spec:
   ca:
     secretName: ca-key-pair
-'''
+"""
 
 
 @k8s.command()
 def current_distribution():
     """Print the currently used distribution
 
-Useful to ensure we correctly guessed it."""
+    Useful to ensure we correctly guessed it."""
     print(config.k8s.distribution)
 
 
@@ -650,7 +746,7 @@ Useful to ensure we correctly guessed it."""
 def current_context():
     """Print the currently used context
 
-Useful to ensure we correctly guessed it."""
+    Useful to ensure we correctly guessed it."""
     print(config.kubectl.context)
 
 
@@ -733,10 +829,12 @@ docker_registries_configs = {
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-@argument('registry-provider',
-          type=click.Choice(docker_registries_configs.keys()),
-          help='What registry provider to connect to',
-          default=list(docker_registries_configs)[0])
+@argument(
+    'registry-provider',
+    type=click.Choice(docker_registries_configs.keys()),
+    help='What registry provider to connect to',
+    default=list(docker_registries_configs)[0],
+)
 @option(
     '--username',
     help=('The username of the provider registry'
@@ -748,12 +846,28 @@ docker_registries_configs = {
           ' (in case of gitlab, an API key with read_registry grants'
           ' generated using https://gitlab.com/-/profile/personal_access_tokens)'),
 )
-@option('--server', help='Should be needed only when using aws, where it cannot be inferred easily')
+@option(
+    '--server',
+    help='Should be needed only when using aws, where it cannot be inferred easily',
+)
 @flag('--force', help='Overwrite the existing secret')
-@option('--docker-login/--no-docker-login', default=True, help='Also log into docker')
+@option(
+    '--docker-login/--no-docker-login',
+    default=True,
+    help='Also log into docker',
+)
 @option('--helm-login/--no-helm-login', default=True, help='Also log into helm')
 @option('--k8s-login/--no-k8s-login', default=True, help='Also log into helm')
-def registry_login(registry_provider, username, password, force, docker_login, server, helm_login, k8s_login):
+def registry_login(
+    registry_provider,
+    username,
+    password,
+    force,
+    docker_login,
+    server,
+    helm_login,
+    k8s_login,
+):
     """Install the credential to get access to the given registry provider."""
     registry = docker_registries_configs[registry_provider]
     secret_name = registry['secret-name']
@@ -776,9 +890,15 @@ def registry_login(registry_provider, username, password, force, docker_login, s
     username = username or click.prompt('username', hide_input=True, default='', show_default=False)
     password = password or click.prompt('password', hide_input=True, default='', show_default=False)
     if not server and registry_provider == 'aws':
-        server = check_output(
-            ['aws', 'ecr', 'describe-repositories', '--query', 'repositories[0].repositoryUri', '--output',
-             'text']).split('/')[0]
+        server = check_output([
+            'aws',
+            'ecr',
+            'describe-repositories',
+            '--query',
+            'repositories[0].repositoryUri',
+            '--output',
+            'text',
+        ]).split('/')[0]
     if not server:
         server = registry['server']
     if k8s_login:
@@ -791,16 +911,30 @@ def registry_login(registry_provider, username, password, force, docker_login, s
                     f'There is already a secret called {secret_name}, doing nothing (unless called with --force)')
                 run = False
         if run:
-            config.kubectl.call([
-                'create', 'secret', 'docker-registry', secret_name,
-                f'--docker-server={server}',
-                f'--docker-username={username}',
-                f'--docker-password={password}',
-            ])  # yapf: disable
+            config.kubectl.call(
+                [
+                    'create',
+                    'secret',
+                    'docker-registry',
+                    secret_name,
+                    f'--docker-server={server}',
+                    f'--docker-username={username}',
+                    f'--docker-password={password}',
+                ]
+            )  # yapf: disable
     if docker_login:
         silent_call(['docker', 'login', server, '-u', username, '-p', password])
     if helm_login:
-        silent_call([str(Helm.program_path), 'registry', 'login', server, '-u', username, '-p', password])
+        silent_call([
+            str(Helm.program_path),
+            'registry',
+            'login',
+            server,
+            '-u',
+            username,
+            '-p',
+            password,
+        ])
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
@@ -874,10 +1008,10 @@ def install_local_registry(reinstall):
         if config.dry_run:
             LOGGER.info(f'(dry-run) run: {command}')
             return
-        if name in check_output(split('docker ps --format {{.Names}}')).split():
+        if (name in check_output(split('docker ps --format {{.Names}}')).split()):
             LOGGER.status(f'A registry with the name {name} already exists.')
         else:
-            if name in check_output(split('docker ps --all --format {{.Names}}')).split():
+            if (name in check_output(split('docker ps --all --format {{.Names}}')).split()):
                 silent_call(split(f'docker rm {name}'))
             silent_call(split(command))
 
@@ -895,11 +1029,17 @@ def install_local_registry(reinstall):
           ' In docker style format host_path:container_path.'
           ' Only implemented for k3d for the time being.'),
 )
-@option('--api-server-address', default='127.0.0.1', help='Use this in case you want to control the cluster remotely')
+@option(
+    '--api-server-address',
+    default='127.0.0.1',
+    help='Use this in case you want to control the cluster remotely',
+)
 @option('--nodes', '-n', default=1, type=int, help='Number of nodes in the cluster')
-@option('--calico-version',
-        default='v3.28.0',
-        help="The version of calico to install along kind (k3d uses flannel and we don't mess with that)")
+@option(
+    '--calico-version',
+    default='v3.28.0',
+    help="The version of calico to install along kind (k3d uses flannel and we don't mess with that)",
+)
 def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
     """Create a k8s cluster"""
     if config.dry_run:
@@ -950,17 +1090,29 @@ def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
     if config.k8s.distribution == 'k3d':
         k3s_manifests = Path(__file__).parent.parent / 'k3s-manifests'
         cmd = [
-            str(K3d.program_path), 'cluster', 'create', name,
+            str(K3d.program_path),
+            'cluster',
+            'create',
+            name,
             '--wait',
-            '--port', '80:80@loadbalancer',
-            '--port', '443:443@loadbalancer',
-            '--registry-use', f'k3d-registry.localhost:{config.k8s.registry_port}',
-            '--k3s-arg', '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%@agent:*',
-            '--k3s-arg', '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
-            '--k3s-arg', '--no-deploy=traefik@server:*',
+            '--port',
+            '80:80@loadbalancer',
+            '--port',
+            '443:443@loadbalancer',
+            '--registry-use',
+            f'k3d-registry.localhost:{config.k8s.registry_port}',
+            '--k3s-arg',
+            '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%@agent:*',
+            '--k3s-arg',
+            '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
+            '--k3s-arg',
+            '--no-deploy=traefik@server:*',
         ]  # yapf: disable
         for manifest in k3s_manifests.iterdir():
-            cmd.extend(['--volume', f'{manifest}:/var/lib/rancher/k3s/server/manifests/{manifest.name}'])
+            cmd.extend([
+                '--volume',
+                f'{manifest}:/var/lib/rancher/k3s/server/manifests/{manifest.name}',
+            ])
         if volume:
             local_volume = volume.split(':')[0]
             makedirs(local_volume)
@@ -968,6 +1120,7 @@ def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
         if api_server_address:
             # find an open port
             import socket
+
             port = 9715
             while True:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -982,7 +1135,7 @@ def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
         reg_name = f'{config.k8s.distribution}-registry'
         kind_config_to_use = kind_config
         kind_config_to_use += '- role: worker\n' * (nodes - 1)
-        using_local_registry = reg_name in check_output(split('docker ps --format {{.Names}}')).split()
+        using_local_registry = (reg_name in check_output(split('docker ps --format {{.Names}}')).split())
         if using_local_registry:
             kind_config_to_use += f"""
 containerdConfigPatches:
@@ -997,7 +1150,15 @@ networking:
   ipFamily: ipv4
 """
         with temporary_file(content=kind_config_to_use) as f:
-            cmd = [str(Kind.program_path), 'create', 'cluster', '--name', CLUSTER_NAME, '--config', f.name]
+            cmd = [
+                str(Kind.program_path),
+                'create',
+                'cluster',
+                '--name',
+                CLUSTER_NAME,
+                '--config',
+                f.name,
+            ]
             if config.log_level in ('debug', 'develop'):
                 cmd += ['--loglevel', '3']
             silent_call(cmd)
@@ -1013,14 +1174,21 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """) as f:
                 silent_call([str(Kubectl.program_path), 'apply', '-f', f.name])
-            containers = check_output(
-                ['docker', 'network', 'inspect', 'kind', '-f', '{{range .Containers}}{{.Name}} {{end}}']).split()
+            containers = check_output([
+                'docker',
+                'network',
+                'inspect',
+                'kind',
+                '-f',
+                '{{range .Containers}}{{.Name}} {{end}}',
+            ]).split()
             if reg_name not in containers:
                 silent_call(split(f'docker network connect kind {reg_name}'))
         # install calico, see https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind
         config.kubectl.call([
-            'create', '-f',
-            f'https://raw.githubusercontent.com/projectcalico/calico/{calico_version}/manifests/calico.yaml'
+            'create',
+            '-f',
+            f'https://raw.githubusercontent.com/projectcalico/calico/{calico_version}/manifests/calico.yaml',
         ])
 
 
@@ -1030,20 +1198,30 @@ def cert_manager():
 
 
 @cert_manager.command(flowdepends=['k8s.install-ingress-controller'], handle_dry_run=True)
-@option('--version', default='v1.2.0', help='The version of cert-manager chart to install')
-@flag('--force/--no-force', help='Force the installation even if the required version is already installed')
+@option(
+    '--version',
+    default='v1.2.0',
+    help='The version of cert-manager chart to install',
+)
+@flag(
+    '--force/--no-force',
+    help='Force the installation even if the required version is already installed',
+)
 def _install(version, force):
     """Install a certificate manager in the current cluster"""
-    HelmApplication('cert-manager', 'cert-manager', version).install(force, [
-        '--repo',
-        'https://charts.jetstack.io',
-        '--set',
-        'installCRDs=true',
-        '--set',
-        'ingressShim.defaultIssuerName=local',
-        '--set',
-        'ingressShim.defaultIssuerKind=ClusterIssuer',
-    ])
+    HelmApplication('cert-manager', 'cert-manager', version).install(
+        force,
+        [
+            '--repo',
+            'https://charts.jetstack.io',
+            '--set',
+            'installCRDs=true',
+            '--set',
+            'ingressShim.defaultIssuerName=local',
+            '--set',
+            'ingressShim.defaultIssuerKind=ClusterIssuer',
+        ],
+    )
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.install'], handle_dry_run=True)
@@ -1059,26 +1237,44 @@ def generate_certificate_authority():
         LOGGER.debug(f'Already have a secret with name {secret_name}')
     else:
         with tempdir() as d, cd(d):
-            ca_key = check_output(['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'], nostderr=True)
+            ca_key = check_output(
+                ['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'],
+                nostderr=True,
+            )
             with open('ca.key', 'w') as f:
                 f.write(ca_key)
 
-            ca_crt = check_output([
-                'docker', 'run', '--rm', '--entrypoint', '/bin/sh', 'alpine/openssl', '-c',
-                'echo -e "' + '\\n'.join(ca_key.split(sep='\n')) +
-                '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650' +
-                ' -reqexts v3_req -extensions v3_ca',
-            ])  # yapf: disable
+            ca_crt = check_output(
+                [
+                    'docker',
+                    'run',
+                    '--rm',
+                    '--entrypoint',
+                    '/bin/sh',
+                    'alpine/openssl',
+                    '-c',
+                    'echo -e "'
+                    + '\\n'.join(ca_key.split(sep='\n'))
+                    + '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650'
+                    + ' -reqexts v3_req -extensions v3_ca',
+                ]
+            )  # yapf: disable
             with open('ca.crt', 'w') as f:
                 f.write(ca_crt)
 
-            config.kubectl.output([
-                'create', 'secret', 'tls', secret_name,
-                '--cert=ca.crt',
-                '--key=ca.key',
-                '--namespace=cert-manager',
-                '-o', 'yaml',
-            ])  # yapf: disable
+            config.kubectl.output(
+                [
+                    'create',
+                    'secret',
+                    'tls',
+                    secret_name,
+                    '--cert=ca.crt',
+                    '--key=ca.key',
+                    '--namespace=cert-manager',
+                    '-o',
+                    'yaml',
+                ]
+            )  # yapf: disable
     if config.kubectl.get('clusterissuer', 'local', 'cert-manager'):
         LOGGER.debug('Already have a cluster issuer with name local')
     else:
@@ -1089,8 +1285,16 @@ def generate_certificate_authority():
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
-@option('--secret-name', default='ca-key-pair', help='The secret name to pull as a certificate.')
-@option('--namespace', default='cert-manager', help='The namespace from which you wanna pull the certificate.')
+@option(
+    '--secret-name',
+    default='ca-key-pair',
+    help='The secret name to pull as a certificate.',
+)
+@option(
+    '--namespace',
+    default='cert-manager',
+    help='The namespace from which you wanna pull the certificate.',
+)
 def dump_local_certificate(secret_name, namespace):
     """Expose the local certificate to import in your browser
 
@@ -1103,16 +1307,38 @@ def dump_local_certificate(secret_name, namespace):
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 @option(
     '--client',
-    type=click.Choice(['webkit', 'mozilla', 'qutebrowser', 'firefox', 'chrome', 'brave', 'chromium', 'all',
-                       'browsers']),
+    type=click.Choice([
+        'webkit',
+        'mozilla',
+        'qutebrowser',
+        'firefox',
+        'chrome',
+        'brave',
+        'chromium',
+        'all',
+        'browsers',
+    ]),
     default='browsers',
     help=('Install the certificate for the given client.'
           ' Use all to install for all of them.'
           ' Use browsers to install only for the web browsers.'),
 )
-@option('--secret-name', default='ca-key-pair', help='The secret name to pull as a certificate.')
-@option('--namespace', default='cert-manager', help='The namespace from which you wanna pull the certificate.')
-@option('--type', type=click.Choice(['CA', 'Peer']), help='Only needed by certutil', default='CA')
+@option(
+    '--secret-name',
+    default='ca-key-pair',
+    help='The secret name to pull as a certificate.',
+)
+@option(
+    '--namespace',
+    default='cert-manager',
+    help='The namespace from which you wanna pull the certificate.',
+)
+@option(
+    '--type',
+    type=click.Choice(['CA', 'Peer']),
+    help='Only needed by certutil',
+    default='CA',
+)
 def install_local_certificate(client, secret_name, namespace, type):
     """Install the local certificate in a way webkit browsers will find it"""
     certutil = which('certutil')
@@ -1144,19 +1370,42 @@ def install_local_certificate(client, secret_name, namespace, type):
             # NOTE: This is adding a certificate to SYSTEM keychain since
             # otherwise the chrome is not accepting it as valid.
             silent_call([
-                'sudo', security, 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k',
-                '/Library/Keychains/System.keychain', f.name
+                'sudo',
+                security,
+                'add-trusted-cert',
+                '-d',
+                '-r',
+                'trustRoot',
+                '-k',
+                '/Library/Keychains/System.keychain',
+                f.name,
             ])
             did_something = True
         else:
 
             def install(directory):
                 silent_call([
-                    certutil, '-A', '-n', 'local-cluster-as-CA', '-t', f'{"C" if type == "CA" else "P"},,', '-i',
-                    f.name, '-d', f'sql:{directory}/'
+                    certutil,
+                    '-A',
+                    '-n',
+                    'local-cluster-as-CA',
+                    '-t',
+                    f'{"C" if type == "CA" else "P"},,',
+                    '-i',
+                    f.name,
+                    '-d',
+                    f'sql:{directory}/',
                 ])
 
-            if client in ('webkit', 'chrome', 'brave', 'qutebrowser', 'chromium', 'all', 'browsers'):
+            if client in (
+                    'webkit',
+                    'chrome',
+                    'brave',
+                    'qutebrowser',
+                    'chromium',
+                    'all',
+                    'browsers',
+            ):
                 install(f"{os.environ['HOME']}/.pki/nssdb")
                 did_something = True
             if client in ('mozilla', 'firefox', 'all', 'browsers'):
@@ -1207,7 +1456,11 @@ def silent_check_output(args):
 
 
 @k8s.command(flowdepends=['k8s.wait-ready'], handle_dry_run=True)
-@option('--version', default='v3.35.0', help='The version of ingress-nginx chart to install')
+@option(
+    '--version',
+    default='v3.35.0',
+    help='The version of ingress-nginx chart to install',
+)
 @option('--timeout', help='Timeout before considering the installation as failing')
 @flag('--force', help='Install even if already present')
 def install_ingress_controller(version, force, timeout):
@@ -1222,8 +1475,10 @@ def install_ingress_controller(version, force, timeout):
     ]
     if config.k8s.distribution == 'kind':
         helm_args += [
-            '--set', 'controller.service.type=NodePort',
-            '--set', 'controller.hostPort.enabled=true',
+            '--set',
+            'controller.service.type=NodePort',
+            '--set',
+            'controller.hostPort.enabled=true',
         ]  # yapf: disable
     if timeout:
         helm_args += ['--timeout', timeout]
@@ -1231,51 +1486,109 @@ def install_ingress_controller(version, force, timeout):
 
 
 @k8s.command(handle_dry_run=True)
-@option('--version', default='39.13.3', help='The version of kube-prometheus-stack chart to install')
+@option(
+    '--version',
+    default='39.13.3',
+    help='The version of kube-prometheus-stack chart to install',
+)
 @option('--alertmanager/--no-alertmanager', help='Enable alertmanager')
 @option('--pushgateway/--no-pushgateway', help='Enable pushgateway')
 @option('--coredns/--no-coredns', help='Enable coreDns')
 @option('--kubedns/--no-kubedns', help='Enable kubeDns')
 @option('--kube-scheduler/--no-kube-scheduler', help='Enable kubeScheduler')
-@option('--kube-controller-manager/--no-kube-controller-manager', help='Enable kubeControllerManager')
+@option(
+    '--kube-controller-manager/--no-kube-controller-manager',
+    help='Enable kubeControllerManager',
+)
 @option('--prometheus-retention', default='1d', help='Server retention')
-@option('--prometheus-persistence-size', default='1Gi', help='Prometheus persistent volume size')
+@option(
+    '--prometheus-persistence-size',
+    default='1Gi',
+    help='Prometheus persistent volume size',
+)
 @option('--grafana-host', default='grafana.localhost', help='Grafana host')
-@option('--grafana-persistence-size', default='1Gi', help='Grafana persistent volume size')
-@option('--grafana-admin-password', default='grafana', help='Grafana admin password')
+@option(
+    '--grafana-persistence-size',
+    default='1Gi',
+    help='Grafana persistent volume size',
+)
+@option(
+    '--grafana-admin-password',
+    default='grafana',
+    help='Grafana admin password',
+)
 @flag('--force', help='Install even if already present')
-def install_kube_prometheus_stack(version, force, alertmanager, pushgateway, coredns, kubedns, kube_scheduler,
-                                  kube_controller_manager, prometheus_retention, prometheus_persistence_size,
-                                  grafana_host, grafana_persistence_size, grafana_admin_password):
+def install_kube_prometheus_stack(
+    version,
+    force,
+    alertmanager,
+    pushgateway,
+    coredns,
+    kubedns,
+    kube_scheduler,
+    kube_controller_manager,
+    prometheus_retention,
+    prometheus_persistence_size,
+    grafana_host,
+    grafana_persistence_size,
+    grafana_admin_password,
+):
     """Install a kube-prometheus-stack instance in the current cluster"""
-    HelmApplication('kube-prometheus-stack', 'monitoring',
-                    version).install(force, [
-                        '--repo', 'https://prometheus-community.github.io/helm-charts',
-                        '--set', 'alertmanager.enabled=' + str(alertmanager).lower(),
-                        '--set', 'pushgateway.enabled=' + str(pushgateway).lower(),
-                        '--set', 'coreDns.enabled=' + str(coredns).lower(),
-                        '--set', 'kubeDns.enabled=' + str(kubedns).lower(),
-                        '--set', 'kubeScheduler.enabled=' + str(kube_scheduler).lower(),
-                        '--set', 'kubeControllerManager.enabled=' + str(kube_controller_manager).lower(),
-                        '--set', 'prometheus.prometheusSpec.retention=' + prometheus_retention,
-                        '--set', 'prometheus.prometheusSpec.persistentVolume.size=' + prometheus_persistence_size,
-                        '--set', 'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
-                        '--set', 'prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false',
-                        '--set', 'prometheus.prometheusSpec.probeSelectorNilUsesHelmValues=false',
-                        '--set', 'prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false',
-                        # '--set', 'prometheus-node-exporter.hostRootFsMount=' +
-                        #          str(not (config.k8s.distribution == 'docker-desktop')).lower(),
-                        '--set', 'grafana.ingress.enabled=true',
-                        '--set', 'grafana.ingress.hosts[0]=' + str(grafana_host),
-                        '--set', 'grafana.adminPassword=' + str(grafana_admin_password),
-                        '--set', 'grafana.persistence.enabled=true',
-                        '--set', 'grafana.persistence.size=' + grafana_persistence_size,
-                        '--set', 'grafana.deploymentStrategy.type=Recreate',
-                    ])  # yapf: disable
+    HelmApplication('kube-prometheus-stack', 'monitoring', version).install(
+        force,
+        [
+            '--repo',
+            'https://prometheus-community.github.io/helm-charts',
+            '--set',
+            'alertmanager.enabled=' + str(alertmanager).lower(),
+            '--set',
+            'pushgateway.enabled=' + str(pushgateway).lower(),
+            '--set',
+            'coreDns.enabled=' + str(coredns).lower(),
+            '--set',
+            'kubeDns.enabled=' + str(kubedns).lower(),
+            '--set',
+            'kubeScheduler.enabled=' + str(kube_scheduler).lower(),
+            '--set',
+            'kubeControllerManager.enabled='
+            + str(kube_controller_manager).lower(),
+            '--set',
+            'prometheus.prometheusSpec.retention=' + prometheus_retention,
+            '--set',
+            'prometheus.prometheusSpec.persistentVolume.size='
+            + prometheus_persistence_size,
+            '--set',
+            'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
+            '--set',
+            'prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false',
+            '--set',
+            'prometheus.prometheusSpec.probeSelectorNilUsesHelmValues=false',
+            '--set',
+            'prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false',
+            # '--set', 'prometheus-node-exporter.hostRootFsMount=' +
+            #          str(not (config.k8s.distribution == 'docker-desktop')).lower(),
+            '--set',
+            'grafana.ingress.enabled=true',
+            '--set',
+            'grafana.ingress.hosts[0]=' + str(grafana_host),
+            '--set',
+            'grafana.adminPassword=' + str(grafana_admin_password),
+            '--set',
+            'grafana.persistence.enabled=true',
+            '--set',
+            'grafana.persistence.size=' + grafana_persistence_size,
+            '--set',
+            'grafana.deploymentStrategy.type=Recreate',
+        ],
+    )  # yapf: disable
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-@option('--version', default='v0.50.0', help='The version of prometheus operator CRDs to install')
+@option(
+    '--version',
+    default='v0.50.0',
+    help='The version of prometheus operator CRDs to install',
+)
 def install_prometheus_operator_crds(version):
     """Install prometheus operator CRDs in the current cluster"""
     base_url = ('https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/' +
@@ -1294,14 +1607,21 @@ def install_prometheus_operator_crds(version):
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-@option('--version', default='v0.0.99', help='The version of reloader chart to install')
+@option(
+    '--version',
+    default='v0.0.99',
+    help='The version of reloader chart to install',
+)
 @flag('--force', help='Install even if already present')
 def install_reloader(version, force):
     """Install a reloader in the current cluster"""
-    HelmApplication('reloader', 'reloader', version).install(force, [
-        '--repo',
-        'https://stakater.github.io/stakater-charts',
-    ])
+    HelmApplication('reloader', 'reloader', version).install(
+        force,
+        [
+            '--repo',
+            'https://stakater.github.io/stakater-charts',
+        ],
+    )
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'])
@@ -1333,6 +1653,7 @@ def install_dnsmasq():
 def add_domain(domain, ip, reset):
     """Add a new domain entry in K8s dns"""
     import yaml
+
     ip = ip or config.k8s.host_ip
     if config.k8s.distribution == 'k3d':
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
@@ -1345,8 +1666,8 @@ def add_domain(domain, ip, reset):
         if reset:
             dns_lines = [dns_line for dns_line in dns_lines if not re.match('.+' + watermark, dns_line)]
             update = True
-        if (data not in dns_lines and added_data not in dns_lines):
-            coredns_conf['data']['NodeHosts'] = added_data + '\n' + '\n'.join(dns_lines)
+        if data not in dns_lines and added_data not in dns_lines:
+            coredns_conf['data']['NodeHosts'] = (added_data + '\n' + '\n'.join(dns_lines))
             update = True
         if update:
             with temporary_file() as f:
@@ -1367,17 +1688,20 @@ def add_domain(domain, ip, reset):
                 coredns_conf['data']['Corefile'] = new_value
                 update = True
         if 'hosts {' not in coredns_conf['data']['Corefile']:
-            data = '''
+            data = """
         hosts {
             fallthrough
         }
-            '''
+            """
             last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
-            coredns_conf['data']['Corefile'] = coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n'
+            coredns_conf['data']['Corefile'] = (coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n')
             update = True
         data = f'{ip} {domain} # {watermark}'
-        header, hosts, footer = re.match(r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
-                                         coredns_conf['data']['Corefile'], re.DOTALL).groups()
+        header, hosts, footer = re.match(
+            r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
+            coredns_conf['data']['Corefile'],
+            re.DOTALL,
+        ).groups()
         if f'{data}\n' not in hosts:
             update = True
             coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'            {data}\n' + footer)
@@ -1387,16 +1711,25 @@ def add_domain(domain, ip, reset):
                 f.write(yaml.dump(coredns_conf).encode('utf8'))
                 f.close()
                 config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
-                config.kubectl.call(['rollout', 'restart', '-n', 'kube-system', 'deployment/coredns'])
+                config.kubectl.call([
+                    'rollout',
+                    'restart',
+                    '-n',
+                    'kube-system',
+                    'deployment/coredns',
+                ])
 
 
-@k8s.flow_command(flowdepends=[
-    'k8s.cert-manager.generate-certificate-authority',
-    'k8s.install-prometheus-operator-crds',
-    'k8s.install-reloader',
-    'k8s.install-network-policy',
-    'k8s.setup-credentials',
-], handle_dry_run=True,)  # yapf: disable
+@k8s.flow_command(
+    flowdepends=[
+        'k8s.cert-manager.generate-certificate-authority',
+        'k8s.install-prometheus-operator-crds',
+        'k8s.install-reloader',
+        'k8s.install-network-policy',
+        'k8s.setup-credentials',
+    ],
+    handle_dry_run=True,
+)  # yapf: disable
 def flow():
     """Run the full k8s setup flow"""
     if not config.dry_run:
@@ -1404,20 +1737,36 @@ def flow():
 
 
 @k8s.command()
-@argument('target', type=click.Choice(['cluster', 'registry', 'all']), default='all', help='What should removed')
+@argument(
+    'target',
+    type=click.Choice(['cluster', 'registry', 'all']),
+    default='all',
+    help='What should removed',
+)
 def remove(target):
     """Remove the k8s cluster"""
     if config.k8s.distribution == 'k3d':
         if target in ['all', 'cluster']:
             silent_call([str(K3d.program_path), 'cluster', 'delete', CLUSTER_NAME])
         if target in ['all', 'registry']:
-            silent_call([str(K3d.program_path), 'registry', 'delete', 'k3d-registry.localhost'])
+            silent_call([
+                str(K3d.program_path),
+                'registry',
+                'delete',
+                'k3d-registry.localhost',
+            ])
     elif config.k8s.distribution == 'kind':
         if target in ['all', 'cluster']:
-            silent_call([str(Kind.program_path), 'delete', 'cluster', '--name', CLUSTER_NAME])
+            silent_call([
+                str(Kind.program_path),
+                'delete',
+                'cluster',
+                '--name',
+                CLUSTER_NAME,
+            ])
         if target in ['all', 'registry']:
             reg_name = f'{config.k8s.distribution}-registry'
-            if reg_name in check_output(split('docker ps --format {{.Names}}')).split():
+            if (reg_name in check_output(split('docker ps --format {{.Names}}')).split()):
                 silent_call(['docker', 'kill', reg_name])
                 silent_call(['docker', 'rm', reg_name])
 
@@ -1474,8 +1823,11 @@ class Chart:
         self._actual_dependencies = None
 
     def sanity_check_dependencies(self):
-        deps = Counter([(dependency['name'], dependency['version'], dependency.get('alias'))
-                        for dependency in self.dependencies])
+        deps = Counter([(
+            dependency['name'],
+            dependency['version'],
+            dependency.get('alias'),
+        ) for dependency in self.dependencies])
         non_unique_deps = [f'{key[0]}-{key[1]} as {key[2]}' for key, value in deps.items() if value > 1]
         if non_unique_deps:
             raise ChartDuplicatedDependencies(f"{', '.join(non_unique_deps)} are non unique"
@@ -1524,7 +1876,7 @@ class Chart:
             self.make_package_reproducible(src)
             dest = Path(directory) / self.archive_name
             if dest.exists():
-                if hashlib.sha256(dest.read_bytes()).hexdigest() == hashlib.sha256(src.read_bytes()).hexdigest():
+                if (hashlib.sha256(dest.read_bytes()).hexdigest() == hashlib.sha256(src.read_bytes()).hexdigest()):
                     LOGGER.status(f'Not overwriting {dest} already with the appropriate content')
                 else:
                     rm(dest)
@@ -1643,9 +1995,9 @@ class Chart:
             generated_dependencies = self.get_dependencies_with_helm(to_fetch_with_helm_unique)
         if generated_dependencies or to_resolve:
             with tempdir() as d:
-                for dependency_to_resolve in generated_dependencies | to_resolve:
-                    dependency_chart_location = self.subcharts_dir / dependency_to_resolve
-                    temp_dependency_location = Path(d) / Path(dependency_to_resolve).name
+                for dependency_to_resolve in (generated_dependencies | to_resolve):
+                    dependency_chart_location = (self.subcharts_dir / dependency_to_resolve)
+                    temp_dependency_location = (Path(d) / Path(dependency_to_resolve).name)
                     with tarfile.open(dependency_chart_location, mode='r:gz') as tar:
                         tar.extractall(temp_dependency_location)
                     dependency_chart = Chart(next(temp_dependency_location.iterdir()))
@@ -1677,7 +2029,7 @@ class Chart:
                     copy(src.location, subchart.location)
                     updated = True
                 else:
-                    updated = subchart.resolve_subcharts(subchart_sources=subchart_sources) or updated
+                    updated = (subchart.resolve_subcharts(subchart_sources=subchart_sources) or updated)
         return updated
 
     def clean_dependencies(self):
@@ -1702,7 +2054,10 @@ def helm():
 
 @helm.command()
 @argument('package', help='The package to make reproducible')
-@option('--output', help='Where to put the result, defaults to overwrite the package')
+@option(
+    '--output',
+    help='Where to put the result, defaults to overwrite the package',
+)
 def make_package_reproducible(package, output):
     """Read a package generated via helm package and rewrite it so that it is bitwise reproducible
 
@@ -1726,17 +2081,34 @@ def make_package_reproducible(package, output):
 
 @helm.command()
 @option('--force/--no-force', '-f', help='Force update')
-@option('--touch', '-t', help='Touch this file or directory when update is complete')
-@option('--experimental-oci/--no-experimental-oci', default=True, help='Activate experimental OCI feature')
-@option('subchart_sources',
-        '--package',
-        '-p',
-        multiple=True,
-        type=Chart,
-        help=('Directory of a helm package that can be used to override the dependency fetching mechanism'))
-@option('--remove/--no-remove', default=True, help='Remove extra dependency that may still be there')
-@flag('--uncompress', help=('Also leave out an uncompressed version.'
-                            ' Ideal for grepping into them.'))
+@option(
+    '--touch',
+    '-t',
+    help='Touch this file or directory when update is complete',
+)
+@option(
+    '--experimental-oci/--no-experimental-oci',
+    default=True,
+    help='Activate experimental OCI feature',
+)
+@option(
+    'subchart_sources',
+    '--package',
+    '-p',
+    multiple=True,
+    type=Chart,
+    help=('Directory of a helm package that can be used to override the dependency fetching mechanism'),
+)
+@option(
+    '--remove/--no-remove',
+    default=True,
+    help='Remove extra dependency that may still be there',
+)
+@flag(
+    '--uncompress',
+    help=('Also leave out an uncompressed version.'
+          ' Ideal for grepping into them.'),
+)
 @argument('chart', default='.', type=Chart, required=False, help='Helm chart path')
 def dependency_update(chart, force, touch, experimental_oci, subchart_sources, remove, uncompress):
     """Update helm dependencies
@@ -1823,34 +2195,64 @@ class DockerRegistrySecretName(DynamicChoice):
         if value not in choices:
             self.fail(
                 ('invalid choice: %s. (choose from %s, or create the docker-registry secret "%s" in your kubernetes'
-                 ' cluster)') % (value, ', '.join(choices), value), param, ctx)
+                 ' cluster)') % (value, ', '.join(choices), value),
+                param,
+                ctx,
+            )
         return DynamicChoice.convert(self, value, param, ctx)
 
 
 @k8s.command(flowdepends=['k8s.registry-login'])
 @option('--docker-login/--no-docker-login', '-d', help='Also log into docker')
 @option('--helm-login/--no-helm-login', '-h', help='Also log into helm')
-@option('--export-password', '-p', help='Export the passwords that directory, with the registry host as name')
-@argument('secret', help='Name of the k8s secret to use', type=DockerRegistrySecretName())
+@option(
+    '--export-password',
+    '-p',
+    help='Export the passwords that directory, with the registry host as name',
+)
+@argument(
+    'secret',
+    help='Name of the k8s secret to use',
+    type=DockerRegistrySecretName(),
+)
 def docker_credentials(docker_login, helm_login, secret, export_password):
     """Extract the docker credentials from a k8s secret"""
-    creds = config.kubectl.output(
-        ['get', 'secret', secret, '--template', '{{index .data ".dockerconfigjson" | base64decode }}'])
+    creds = config.kubectl.output([
+        'get',
+        'secret',
+        secret,
+        '--template',
+        '{{index .data ".dockerconfigjson" | base64decode }}',
+    ])
     creds = json.loads(creds)
     for registry, values in creds['auths'].items():
         if docker_login:
-            check_output(['docker', 'login', registry, '-u', values['username'], '-p', values['password']])
+            check_output([
+                'docker',
+                'login',
+                registry,
+                '-u',
+                values['username'],
+                '-p',
+                values['password'],
+            ])
         if helm_login:
             with updated_env(HELM_EXPERIMENTAL_OCI='1'):
                 check_output([
-                    str(Helm.program_path), 'registry', 'login', registry, '-u', values['username'], '-p',
-                    values['password']
+                    str(Helm.program_path),
+                    'registry',
+                    'login',
+                    registry,
+                    '-u',
+                    values['username'],
+                    '-p',
+                    values['password'],
                 ])
     if export_password:
         makedirs(export_password)
         for registry, values in creds['auths'].items():
             f_path = f'{export_password}/{registry}'
-            if not os.path.exists(f_path) or read(f_path) != values['password']:
+            if (not os.path.exists(f_path) or read(f_path) != values['password']):
                 with open(f_path, 'w') as f:
                     LOGGER.action(f'writing to {f_path}')
                     f.write(values['password'])
@@ -1877,10 +2279,12 @@ _features = {
     type=(str, bool),
     multiple=True,
 )
-@argument('keys',
-          type=click.Choice(list(_features['kind'].keys())),
-          nargs=-1,
-          help='Only display these key values. If no key is provided, all the key values are displayed')
+@argument(
+    'keys',
+    type=click.Choice(list(_features['kind'].keys())),
+    nargs=-1,
+    help='Only display these key values. If no key is provided, all the key values are displayed',
+)
 def features(fields, format, keys, set_key):
     """Show supported features for the current distribution"""
     for set_key_item in set_key:
@@ -1888,8 +2292,8 @@ def features(fields, format, keys, set_key):
         _features[config.k8s.distribution][key] = value
     if config.k8s.distribution == 'kind':
         reg_name = f'{config.k8s.distribution}-registry'
-        _features[config.k8s.distribution]['local_registry'] = reg_name in check_output(
-            split('docker ps --format {{.Names}}')).split()
+        _features[config.k8s.distribution]['local_registry'] = (reg_name in check_output(
+            split('docker ps --format {{.Names}}')).split())
     with TablePrinter(fields, format) as tp:
         fs = _features[config.k8s.distribution]
         keys = keys or sorted(fs.keys())
@@ -1939,7 +2343,11 @@ extra_network_policy = """
 
 
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-@option('--strict/--permissive', default=True, help='Whether the network policy is permissive or strict')
+@option(
+    '--strict/--permissive',
+    default=True,
+    help='Whether the network policy is permissive or strict',
+)
 def install_network_policy(strict):
     """Isolate the default namespace from the rest"""
     if config.dry_run:
@@ -1961,7 +2369,10 @@ def install_network_policy(strict):
 @argument('tiltfile-args', help='Arguments to give tilt', nargs=-1)
 @option('--tilt-arg', help='Arguments to give tilt', multiple=True)
 @flag('--open', help='Open the url in a browser')
-@flag('--use-context/--dont-use-context', help='Try to use the appropriate context before running tilt')
+@flag(
+    '--use-context/--dont-use-context',
+    help='Try to use the appropriate context before running tilt',
+)
 def _tilt(open, use_context, tilt_arg, tiltfile_args):
     'Run whatever is needed to run tilt'
     root = Path('.').absolute()
@@ -1989,13 +2400,21 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
 class NamespaceNameType(DynamicChoice):
 
     def choices(self):
-
         return [get_resource_name(item) for item in config.kubectl.json(['get', 'namespaces'], internal=True)['items']]
 
 
 @k8s.group()
-@option('--namespace', help='The namespace to share', default='default', type=NamespaceNameType())
-@option('--sa-name', help='The name of the service account created', default='shared-access')
+@option(
+    '--namespace',
+    help='The namespace to share',
+    default='default',
+    type=NamespaceNameType(),
+)
+@option(
+    '--sa-name',
+    help='The name of the service account created',
+    default='shared-access',
+)
 @option('--role-name', help='The name of the role to create', default='shared-role')
 def share_access(namespace, sa_name, role_name):
     """Some commands to ease sharing access to a cluster
@@ -2047,10 +2466,22 @@ def write_kubectl_config(output):
 
 
 @k8s.command(handle_dry_run=True)
-@argument('new-config', help='The new config used to update the current one', type=Path)
-@flag('--keep-current-context/--overwrite-current-context', help='Whether to use the new context or not')
+@argument(
+    'new-config',
+    help='The new config used to update the current one',
+    type=Path,
+)
+@flag(
+    '--keep-current-context/--overwrite-current-context',
+    help='Whether to use the new context or not',
+)
 @flag('--force', help='Force updating in case of conflicts')
-@option('--kube-config-location', help='What file to update', default=Path('~/.kube/config').expanduser(), type=Path)
+@option(
+    '--kube-config-location',
+    help='What file to update',
+    default=Path('~/.kube/config').expanduser(),
+    type=Path,
+)
 def update_config(new_config, keep_current_context, force, kube_config_location):
     """Get the values of the new config and put then in the current config"""
     config = yaml.safe_load(kube_config_location.read_text())
@@ -2085,7 +2516,11 @@ def pv():
 
 @pv.command()
 @argument('pvc-name', help='Name of the PV to attach to', type=PVCType())
-@argument('command', help='The optional command to run once attached to the volume', nargs=-1)
+@argument(
+    'command',
+    help='The optional command to run once attached to the volume',
+    nargs=-1,
+)
 def attach(pvc_name, command):
     'Run a temporary pod to see the content of a pv'
     command = list(command) or ['sh']
@@ -2115,7 +2550,13 @@ spec:
         LOGGER.info(f'Creating temporary pod to attach to {pvc_name}, mounted in /data')
         config.kubectl.call(['apply', '-f', f.name])
         try:
-            config.kubectl.call(['wait', '--for=condition=ready', 'pod', '-l', f'dataccess-{pvc_name}=true'])
+            config.kubectl.call([
+                'wait',
+                '--for=condition=ready',
+                'pod',
+                '-l',
+                f'dataccess-{pvc_name}=true',
+            ])
             LOGGER.info(f'Running command: {" ".join(quote(arg) for arg in command)}')
             config.kubectl.call(['exec', '-i', '-t', podname, '--'] + command, silent=False)
         finally:
@@ -2186,8 +2627,19 @@ spec:
         f.close()
         config.kubectl.call(['apply', '-f', f.name])
         try:
-            config.kubectl.call(['-n', 'kube-system', 'wait', '--for=condition=ready', 'pod', '-l', f'name={name}'])
-            config.kubectl.call(['-n', 'kube-system', 'exec', '-i', '-t', name, '--', 'sh'], silent=False)
+            config.kubectl.call([
+                '-n',
+                'kube-system',
+                'wait',
+                '--for=condition=ready',
+                'pod',
+                '-l',
+                f'name={name}',
+            ])
+            config.kubectl.call(
+                ['-n', 'kube-system', 'exec', '-i', '-t', name, '--', 'sh'],
+                silent=False,
+            )
         finally:
             LOGGER.info(f'Cleaning the temporary pod attached to this node {node}')
             config.kubectl.call(['delete', '--wait', '-f', f.name])
