@@ -1383,127 +1383,6 @@ def install_ingress_controller(version, force, timeout):
     HelmApplication('ingress', 'ingress-nginx', version).install(force, helm_args)
 
 
-@k8s.command(handle_dry_run=True)
-@option(
-    '--version',
-    default='39.13.3',
-    help='The version of kube-prometheus-stack chart to install',
-)
-@option('--alertmanager/--no-alertmanager', help='Enable alertmanager')
-@option('--pushgateway/--no-pushgateway', help='Enable pushgateway')
-@option('--coredns/--no-coredns', help='Enable coreDns')
-@option('--kubedns/--no-kubedns', help='Enable kubeDns')
-@option('--kube-scheduler/--no-kube-scheduler', help='Enable kubeScheduler')
-@option(
-    '--kube-controller-manager/--no-kube-controller-manager',
-    help='Enable kubeControllerManager',
-)
-@option('--prometheus-retention', default='1d', help='Server retention')
-@option(
-    '--prometheus-persistence-size',
-    default='1Gi',
-    help='Prometheus persistent volume size',
-)
-@option('--grafana-host', default='grafana.localhost', help='Grafana host')
-@option(
-    '--grafana-persistence-size',
-    default='1Gi',
-    help='Grafana persistent volume size',
-)
-@option(
-    '--grafana-admin-password',
-    default='grafana',
-    help='Grafana admin password',
-)
-@flag('--force', help='Install even if already present')
-def install_kube_prometheus_stack(
-    version,
-    force,
-    alertmanager,
-    pushgateway,
-    coredns,
-    kubedns,
-    kube_scheduler,
-    kube_controller_manager,
-    prometheus_retention,
-    prometheus_persistence_size,
-    grafana_host,
-    grafana_persistence_size,
-    grafana_admin_password,
-):
-    """Install a kube-prometheus-stack instance in the current cluster"""
-    HelmApplication('kube-prometheus-stack', 'monitoring', version).install(
-        force,
-        [
-            '--repo',
-            'https://prometheus-community.github.io/helm-charts',
-            '--set',
-            'alertmanager.enabled=' + str(alertmanager).lower(),
-            '--set',
-            'pushgateway.enabled=' + str(pushgateway).lower(),
-            '--set',
-            'coreDns.enabled=' + str(coredns).lower(),
-            '--set',
-            'kubeDns.enabled=' + str(kubedns).lower(),
-            '--set',
-            'kubeScheduler.enabled=' + str(kube_scheduler).lower(),
-            '--set',
-            'kubeControllerManager.enabled='
-            + str(kube_controller_manager).lower(),
-            '--set',
-            'prometheus.prometheusSpec.retention=' + prometheus_retention,
-            '--set',
-            'prometheus.prometheusSpec.persistentVolume.size='
-            + prometheus_persistence_size,
-            '--set',
-            'prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false',
-            '--set',
-            'prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false',
-            '--set',
-            'prometheus.prometheusSpec.probeSelectorNilUsesHelmValues=false',
-            '--set',
-            'prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false',
-            # '--set', 'prometheus-node-exporter.hostRootFsMount=' +
-            #          str(not (config.k8s.distribution == 'docker-desktop')).lower(),
-            '--set',
-            'grafana.ingress.enabled=true',
-            '--set',
-            'grafana.ingress.hosts[0]=' + str(grafana_host),
-            '--set',
-            'grafana.adminPassword=' + str(grafana_admin_password),
-            '--set',
-            'grafana.persistence.enabled=true',
-            '--set',
-            'grafana.persistence.size=' + grafana_persistence_size,
-            '--set',
-            'grafana.deploymentStrategy.type=Recreate',
-        ],
-    )  # yapf: disable
-
-
-@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
-@option(
-    '--version',
-    default='v0.50.0',
-    help='The version of prometheus operator CRDs to install',
-)
-def install_prometheus_operator_crds(version):
-    """Install prometheus operator CRDs in the current cluster"""
-    base_url = ('https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/' +
-                f'{version}/example/prometheus-operator-crd')
-    for crd in [
-            'monitoring.coreos.com_alertmanagerconfigs.yaml',
-            'monitoring.coreos.com_alertmanagers.yaml',
-            'monitoring.coreos.com_podmonitors.yaml',
-            'monitoring.coreos.com_probes.yaml',
-            'monitoring.coreos.com_prometheuses.yaml',
-            'monitoring.coreos.com_prometheusrules.yaml',
-            'monitoring.coreos.com_servicemonitors.yaml',
-            'monitoring.coreos.com_thanosrulers.yaml',
-    ]:
-        config.kubectl.output(['apply', '-f', f'{base_url}/{crd}'])
-
-
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option(
     '--version',
@@ -1602,7 +1481,6 @@ def add_domain(domain, ip, reset):
 @k8s.flow_command(
     flowdepends=[
         'k8s.cert-manager.generate-certificate-authority',
-        'k8s.install-prometheus-operator-crds',
         'k8s.install-reloader',
         'k8s.install-network-policy',
         'k8s.setup-credentials',
