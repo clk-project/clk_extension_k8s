@@ -50,8 +50,6 @@ if not bin_dir.exists():
 platforms = {
     'linux': {
         'x86_64': {
-            'k3d':
-            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
             'kind':
             f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-linux-amd64',
             'helm':
@@ -64,8 +62,6 @@ platforms = {
             f'https://github.com/earthly/earthly/releases/download/v{EARTHLY_VERSION}/earthly-linux-amd64',
         },
         'aarch64': {
-            'k3d':
-            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-arm64',
             'kind':
             f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-linux-arm64',
             'helm':
@@ -80,8 +76,6 @@ platforms = {
     },
     'darwin': {
         'x86_64': {
-            'k3d':
-            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-amd64',
             'kind':
             f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-darwin-amd64',
             'helm':
@@ -94,8 +88,6 @@ platforms = {
             f'https://github.com/earthly/earthly/releases/download/v{EARTHLY_VERSION}/earthly-darwin-amd64',
         },
         'arm64': {
-            'k3d':
-            'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-arm64',
             'kind':
             f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-darwin-arm64',
             'helm':
@@ -240,40 +232,6 @@ class Kind(InstallDependency):
 
 
 Kind(handle_dry_run=True)
-
-
-class K3d(InstallDependency):
-    """Install k3d"""
-
-    program_path = bin_dir / 'k3d'
-
-    def precondition(self):
-        if config.k8s.distribution != 'k3d':
-            LOGGER.status(f"I won't try to install k3d because you use --distribution={config.k8s.distribution}."
-                          ' To install k3d, run clk k8s --distribution k3d install-dependency k3d.')
-            return False
-        return True
-
-    def compute_needed_version(self):
-        return re.search('/(v[0-9.]+)/', urls['k3d']).group(1)
-
-    def compute_version(self):
-        if self.program_path.exists():
-            return re.match(
-                'k3d version (.+)',
-                check_output([str(K3d.program_path), '--version']),
-            ).group(1)
-
-    def install(self):
-        download(
-            urls['k3d'],
-            outdir=self.program_path.parent,
-            outfilename=self.program_path.name,
-            mode=0o755,
-        )
-
-
-K3d(handle_dry_run=True)
 
 
 class Helm(InstallDependency):
@@ -519,8 +477,6 @@ def guess_context_and_distribution(context, distribution):
                          ' and trying to infer a suitable context.')
 
     if context is None and distribution is not None:
-        if distribution == 'k3d':
-            context = f'k3d-{CLUSTER_NAME}'
         if distribution == 'kind':
             context = f'kind-{CLUSTER_NAME}'
         LOGGER.debug(f'Given the distribution {distribution}, I inferred the context {context}')
@@ -528,8 +484,6 @@ def guess_context_and_distribution(context, distribution):
         given_context = context
         if context.startswith('kind'):
             distribution = 'kind'
-        elif context.startswith('k3d'):
-            distribution = 'k3d'
         else:
             context = None
             distribution = None
@@ -667,7 +621,7 @@ class KubeCtl:
     '-d',
     expose_class=K8s,
     help='Distribution to use',
-    type=click.Choice(['k3d', 'kind']),
+    type=click.Choice(['kind']),
 )
 @option(
     '--registry-port',
@@ -804,7 +758,6 @@ InstallDependency.install_commands(install_dependency)
         'k8s.install-dependency.helm',
         'k8s.install-dependency.tilt',
         'k8s.install-dependency.earthly',
-        'k8s.install-dependency.k3d',
         'k8s.install-dependency.kind',
     ],
     handle_dry_run=True,
@@ -982,42 +935,17 @@ def wait_ready():
 @flag('--reinstall', help='Reinstall it if it already exists')
 def install_local_registry(reinstall):
     """Install the local registry that will store the docker images pulled by the cluster"""
-    if config.k8s.distribution == 'k3d':
-        command = [
-            'k3d',
-            'registry',
-            'create',
-            'registry.localhost',
-            '--port',
-            f'{config.k8s.host_ip}:{config.k8s.registry_port}',
-        ]
-        if config.dry_run:
-            LOGGER.info(f"(dry-run) create a registry using the command: {' '.join(command)}")
-            return
-        if 'k3d-registry.localhost' in [
-                registry['name']
-                for registry in json.loads(check_output(split(f'{K3d.program_path} registry list -o json')))
-        ]:
-            if reinstall:
-                ctx = click.get_current_context()
-                ctx.invoke(remove, target='registry')
-            else:
-                LOGGER.status('A registry with the name k3d-registry.localhost already exists.'
-                              ' Nothing to do.')
-                return
-        silent_call(command)
+    name = f'{config.k8s.distribution}-registry'
+    command = f'docker run -d --restart=always -p {config.k8s.registry_port}:5000 --name {name} registry:2'
+    if config.dry_run:
+        LOGGER.info(f'(dry-run) run: {command}')
+        return
+    if (name in check_output(split('docker ps --format {{.Names}}')).split()):
+        LOGGER.status(f'A registry with the name {name} already exists.')
     else:
-        name = f'{config.k8s.distribution}-registry'
-        command = f'docker run -d --restart=always -p {config.k8s.registry_port}:5000 --name {name} registry:2'
-        if config.dry_run:
-            LOGGER.info(f'(dry-run) run: {command}')
-            return
-        if (name in check_output(split('docker ps --format {{.Names}}')).split()):
-            LOGGER.status(f'A registry with the name {name} already exists.')
-        else:
-            if (name in check_output(split('docker ps --all --format {{.Names}}')).split()):
-                silent_call(split(f'docker rm {name}'))
-            silent_call(split(command))
+        if (name in check_output(split('docker ps --all --format {{.Names}}')).split()):
+            silent_call(split(f'docker rm {name}'))
+        silent_call(split(command))
 
     make_earthly_accept_http_connection_from_our_local_registry()
 
@@ -1028,12 +956,6 @@ def install_local_registry(reinstall):
 )
 @flag('--recreate', help='Recreate it if it already exists')
 @option(
-    '--volume',
-    help=('Some local directory that will be made available in the cluster.'
-          ' In docker style format host_path:container_path.'
-          ' Only implemented for k3d for the time being.'),
-)
-@option(
     '--api-server-address',
     default='127.0.0.1',
     help='Use this in case you want to control the cluster remotely',
@@ -1042,9 +964,9 @@ def install_local_registry(reinstall):
 @option(
     '--calico-version',
     default='v3.28.0',
-    help="The version of calico to install along kind (k3d uses flannel and we don't mess with that)",
+    help='The version of calico to install along kind',
 )
-def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
+def create_cluster(recreate, nodes, api_server_address, calico_version):
     """Create a k8s cluster"""
     if config.dry_run:
         LOGGER.info(f'(dry-run) create a {config.k8s.distribution} cluster.'
@@ -1054,28 +976,7 @@ def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
                     ' Please take a look at the code'
                     ' to find out what it does.')
         return
-    if volume and config.k8s.distribution != 'k3d':
-        LOGGER.warning('--local-volume is only implemented in k3d. It will be ignored.'
-                       ' It can be easily implemented (https://stackoverflow.com/questions'
-                       '/62694361/how-to-reference-a-local-volume-in-kind-kubernetes-in-docker)'
-                       ' so please submit a pull request if you need it.')
-    if config.k8s.distribution == 'k3d':
-        name = CLUSTER_NAME
-        clusters = json.loads(check_output(split(f'{K3d.program_path} cluster list -o json')))
-        already_existing_clusters = [cluster for cluster in clusters if cluster['name'] == name]
-        if already_existing_clusters:
-            if recreate:
-                silent_call([str(K3d.program_path), 'cluster', 'delete', name])
-            else:
-                LOGGER.status(f'A cluster with the name {name} already exists.')
-                cluster = already_existing_clusters[0]
-                if cluster['serversRunning'] == 0:
-                    LOGGER.info('Starting k3d!')
-                    silent_call([str(K3d.program_path), 'cluster', 'start', name])
-                else:
-                    LOGGER.status('Nothing to do!')
-                return
-    elif config.k8s.distribution == 'kind':
+    if config.k8s.distribution == 'kind':
         name = CLUSTER_NAME
         if name in silent_check_output([Kind.program_path, 'get', 'clusters']).split('\n'):
             if recreate:
@@ -1091,51 +992,7 @@ def create_cluster(recreate, volume, nodes, api_server_address, calico_version):
     if not is_port_available(443):
         raise click.ClickException('Port 443 is already in use by another process. Please stop this process and retry.')
 
-    if config.k8s.distribution == 'k3d':
-        k3s_manifests = Path(__file__).parent.parent / 'k3s-manifests'
-        cmd = [
-            str(K3d.program_path),
-            'cluster',
-            'create',
-            name,
-            '--wait',
-            '--port',
-            '80:80@loadbalancer',
-            '--port',
-            '443:443@loadbalancer',
-            '--registry-use',
-            f'k3d-registry.localhost:{config.k8s.registry_port}',
-            '--k3s-arg',
-            '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%@agent:*',
-            '--k3s-arg',
-            '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%@agent:*',
-            '--k3s-arg',
-            '--no-deploy=traefik@server:*',
-        ]  # yapf: disable
-        for manifest in k3s_manifests.iterdir():
-            cmd.extend([
-                '--volume',
-                f'{manifest}:/var/lib/rancher/k3s/server/manifests/{manifest.name}',
-            ])
-        if volume:
-            local_volume = volume.split(':')[0]
-            makedirs(local_volume)
-            cmd.extend(['--volume', volume])
-        if api_server_address:
-            # find an open port
-            import socket
-
-            port = 9715
-            while True:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    if s.connect_ex((api_server_address, port)) == 0:
-                        port = port + 1
-                    else:
-                        break
-            cmd += ['--api-port', f'{api_server_address}:{port}']
-        silent_call(cmd)
-
-    elif config.k8s.distribution == 'kind':
+    if config.k8s.distribution == 'kind':
         reg_name = f'{config.k8s.distribution}-registry'
         kind_config_to_use = kind_config
         kind_config_to_use += '- role: worker\n' * (nodes - 1)
@@ -1696,28 +1553,7 @@ def add_domain(domain, ip, reset):
     import yaml
 
     ip = ip or config.k8s.host_ip
-    if config.k8s.distribution == 'k3d':
-        coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
-        coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
-        data = f'{ip} {domain}'
-        watermark = 'LINE ADDED BY CLK K8S'
-        added_data = data + f' # {watermark}'
-        dns_lines = coredns_conf['data']['NodeHosts'].split('\n')
-        update = False
-        if reset:
-            dns_lines = [dns_line for dns_line in dns_lines if not re.match('.+' + watermark, dns_line)]
-            update = True
-        if data not in dns_lines and added_data not in dns_lines:
-            coredns_conf['data']['NodeHosts'] = (added_data + '\n' + '\n'.join(dns_lines))
-            update = True
-        if update:
-            with temporary_file() as f:
-                f.write(yaml.dump(coredns_conf).encode('utf8'))
-                f.close()
-                config.kubectl.call(['apply', '-n', 'kube-system', '-f', f.name])
     if config.k8s.distribution == 'kind':
-        if reset:
-            LOGGER.warn('In, clk k8s add-domain, --reset only works with k3d for the time being')
         coredns_conf = config.kubectl.output(['get', 'cm', 'coredns', '-n', 'kube-system', '-o', 'yaml'])
         coredns_conf = yaml.load(coredns_conf, Loader=yaml.FullLoader)
         update = False
@@ -1759,6 +1595,8 @@ def add_domain(domain, ip, reset):
                     'kube-system',
                     'deployment/coredns',
                 ])
+    else:
+        raise click.ClickException('Unsupported distribution')
 
 
 @k8s.flow_command(
@@ -1786,17 +1624,7 @@ def flow():
 )
 def remove(target):
     """Remove the k8s cluster"""
-    if config.k8s.distribution == 'k3d':
-        if target in ['all', 'cluster']:
-            silent_call([str(K3d.program_path), 'cluster', 'delete', CLUSTER_NAME])
-        if target in ['all', 'registry']:
-            silent_call([
-                str(K3d.program_path),
-                'registry',
-                'delete',
-                'k3d-registry.localhost',
-            ])
-    elif config.k8s.distribution == 'kind':
+    if config.k8s.distribution == 'kind':
         if target in ['all', 'cluster']:
             silent_call([
                 str(Kind.program_path),
@@ -1810,6 +1638,9 @@ def remove(target):
             if (reg_name in check_output(split('docker ps --format {{.Names}}')).split()):
                 silent_call(['docker', 'kill', reg_name])
                 silent_call(['docker', 'rm', reg_name])
+
+    else:
+        raise click.ClickException('Unsupported distribution')
 
 
 @k8s.command()
@@ -2304,9 +2135,6 @@ _features = {
     'kind': {
         'local_registry': False,
     },
-    'k3d': {
-        'local_registry': True,
-    },
 }
 
 
@@ -2427,7 +2255,6 @@ def _tilt(open, use_context, tilt_arg, tiltfile_args):
         webbrowser.open('http://localhost:10350')
     if use_context:
         context = {
-            'k3d': f'k3d-{CLUSTER_NAME}',
             'kind': f'kind-{CLUSTER_NAME}',
         }[config.k8s.distribution]
         silent_call([str(Kubectl.program_path), 'config', 'use-context', context])

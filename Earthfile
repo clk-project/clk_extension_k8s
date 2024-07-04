@@ -47,7 +47,7 @@ test:
     ENV PATH="/home/sam/.local/bin/:$PATH"
     IF [ "${from}" = "source" ]
         RUN wget -O - https://clk-project.org/install.sh | ${shell}
-        COPY --dir bin python tilt-extensions k3s-manifests clk.json version.txt /k8s/
+        COPY --dir bin python tilt-extensions clk.json version.txt /k8s/
         RUN clk extension install /k8s
     ELSE
         RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s ${shell}
@@ -67,7 +67,6 @@ test:
 test-all:
     BUILD +check-quality
     BUILD +test --distribution=kind
-    BUILD +test --distribution=k3d
 
 test-all-amd64:
     BUILD --platform linux/amd64 +test-all
