@@ -62,7 +62,7 @@ test:
     WITH DOCKER
         RUN --no-cache clk ${args} k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all && bash test.sh
     END
-   SAVE ARTIFACT /tmp/out AS LOCAL out/${distribution}-${from}
+    SAVE ARTIFACT /tmp/out AS LOCAL out/${distribution}-${from}
 
 test-all:
     BUILD +check-quality
