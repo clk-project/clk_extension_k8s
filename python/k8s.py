@@ -1387,17 +1387,32 @@ def install_local_certificate(client, secret_name, namespace, type):
         else:
 
             def install(directory):
+                name = f'local-cluster-as-{type}'
+                while name in check_output([
+                        certutil,
+                        '-d',
+                        f'sql:{directory}/',
+                        '-L',
+                ]):
+                    silent_call([
+                        certutil,
+                        '-d',
+                        f'sql:{directory}/',
+                        '-D',
+                        '-n',
+                        name,
+                    ])
                 silent_call([
                     certutil,
+                    '-d',
+                    f'sql:{directory}/',
                     '-A',
                     '-n',
-                    'local-cluster-as-CA',
+                    name,
                     '-t',
                     f'{"C" if type == "CA" else "P"},,',
                     '-i',
                     f.name,
-                    '-d',
-                    f'sql:{directory}/',
                 ])
 
             if client in (
