@@ -39,6 +39,9 @@ EARTHLY_VERSION = '0.8.14'
 HELM_VERSION = '3.15.2'
 KUBECTL_VERSION = '1.30.2'
 TILT_VERSION = '0.33.17'
+KIND_VERSION = '0.23.0'
+INGRESS_NGINX_VERSION = '4.10.1'
+CERT_MANAGER_VERSION = '1.15.1'
 
 bin_dir = Path('~/.local/bin').expanduser()
 if not bin_dir.exists():
@@ -49,7 +52,7 @@ platforms = {
             'k3d':
             'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-amd64',
             'kind':
-            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64',
+            f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-linux-amd64',
             'helm':
             f'https://get.helm.sh/helm-v{HELM_VERSION}-linux-amd64.tar.gz',
             'kubectl':
@@ -63,7 +66,7 @@ platforms = {
             'k3d':
             'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-linux-arm64',
             'kind':
-            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-arm64',
+            f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-linux-arm64',
             'helm':
             f'https://get.helm.sh/helm-v{HELM_VERSION}-linux-arm64.tar.gz',
             'kubectl':
@@ -79,7 +82,7 @@ platforms = {
             'k3d':
             'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-amd64',
             'kind':
-            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-amd64',
+            f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-darwin-amd64',
             'helm':
             f'https://get.helm.sh/helm-v{HELM_VERSION}-darwin-amd64.tar.gz',
             'kubectl':
@@ -93,7 +96,7 @@ platforms = {
             'k3d':
             'https://github.com/rancher/k3d/releases/download/v5.2.2/k3d-darwin-arm64',
             'kind':
-            'https://kind.sigs.k8s.io/dl/v0.11.1/kind-darwin-arm64',
+            f'https://kind.sigs.k8s.io/dl/v{KIND_VERSION}/kind-darwin-arm64',
             'helm':
             f'https://get.helm.sh/helm-v{HELM_VERSION}-darwin-arm64.tar.gz',
             'kubectl':
@@ -1200,7 +1203,7 @@ def cert_manager():
 @cert_manager.command(flowdepends=['k8s.install-ingress-controller'], handle_dry_run=True)
 @option(
     '--version',
-    default='v1.2.0',
+    default=f'v{CERT_MANAGER_VERSION}',
     help='The version of cert-manager chart to install',
 )
 @flag(
@@ -1458,7 +1461,7 @@ def silent_check_output(args):
 @k8s.command(flowdepends=['k8s.wait-ready'], handle_dry_run=True)
 @option(
     '--version',
-    default='v3.35.0',
+    default=f'v{INGRESS_NGINX_VERSION}',
     help='The version of ingress-nginx chart to install',
 )
 @option('--timeout', help='Timeout before considering the installation as failing')
@@ -1472,6 +1475,8 @@ def install_ingress_controller(version, force, timeout):
         'rbac.create=true',
         '--set',
         'controller.extraArgs.enable-ssl-passthrough=',
+        '--set',
+        'controller.ingressClassResource.default=true',
     ]
     if config.k8s.distribution == 'kind':
         helm_args += [
