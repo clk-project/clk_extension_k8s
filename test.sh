@@ -32,7 +32,9 @@ sleep 5
 TMP=/tmp/out
 mkdir -p "${TMP}"
 
-curl http://hello.localtest.me/ > "${TMP}/out"
+clk k8s cert-manager install-local-certificate --client ca-certificates
+
+curl https://hello.localtest.me/ > "${TMP}/out"
 if ! grep -q 'Welcome to nginx' "${TMP}/out"
 then
     echo "Failed to connect to the example"
@@ -42,7 +44,7 @@ then
 fi
 
 kubectl delete --wait networkpolicies.networking.k8s.io ingress-to-app-hello
-curl http://hello.localtest.me/ > "${TMP}/out"
+curl https://hello.localtest.me/ > "${TMP}/out"
 if ! grep -q '502 Bad Gateway\|504 Gateway Time-out' "${TMP}/out"
 then
     echo "Removing the network policy did not block the connection"
@@ -52,7 +54,7 @@ then
 fi
 
 helm upgrade --install app hello --wait
-curl http://hello.localtest.me/ > "${TMP}/out"
+curl https://hello.localtest.me/ > "${TMP}/out"
 if ! grep -q 'Welcome to nginx' "${TMP}/out"
 then
     echo "Putting back the network policy did not restore the connection"

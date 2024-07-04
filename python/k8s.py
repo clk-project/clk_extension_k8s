@@ -1320,6 +1320,7 @@ def dump_local_certificate(secret_name, namespace):
         'chromium',
         'all',
         'browsers',
+        'ca-certificates',
     ]),
     default='browsers',
     help=('Install the certificate for the given client.'
@@ -1346,13 +1347,27 @@ def install_local_certificate(client, secret_name, namespace, type):
     """Install the local certificate in a way webkit browsers will find it"""
     certutil = which('certutil')
     security = which('security')
-
+    update_ca_certificates = which('update-ca-certificates')
     os_name = platform.system().lower()
 
     if os_name == 'linux':
-        if certutil is None:
+        if certutil is None and client in (
+                'webkit',
+                'mozilla',
+                'qutebrowser',
+                'firefox',
+                'chrome',
+                'brave',
+                'chromium',
+                'all',
+                'browsers',
+        ):
             LOGGER.error('You have to install certutil to use this command.'
                          ' Hint: sudo apt install libnss3-tools')
+            exit(1)
+        if update_ca_certificates is None and client == 'ca-certificates':
+            LOGGER.error('You have to install ca-certificates to use this command.'
+                         ' Hint: sudo apt install ca-certificates')
             exit(1)
     elif os_name == 'darwin':  # macOS
         if security is None:
@@ -1432,9 +1447,14 @@ def install_local_certificate(client, secret_name, namespace, type):
                     if 'cert9.db' in filenames:
                         install(directory)
                 did_something = True
-        # Throw an Error if no certificates were installed on linux / macOS
+            if client in ('ca-certificates', 'all'):
+                call((['sudo'] if os.getuid() != 0 else []) + ['mkdir', '-p', '/usr/local/share/ca-certificates/mine'])
+                call((['sudo'] if os.getuid() != 0 else []) +
+                     ['cp', f.name, '/usr/local/share/ca-certificates/mine/mine.crt'])
+                call((['sudo'] if os.getuid() != 0 else []) + [update_ca_certificates])
+                did_something = True
         if not did_something:
-            raise NotImplementedError(f'Sounds like we forgot to deal with the client {client}')
+            raise NotImplementedError(f'Sounds like we did not actually deal with the client {client}')
 
 
 class SilentCallFailed(Exception):
