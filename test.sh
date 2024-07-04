@@ -62,3 +62,24 @@ then
     show_context
     fail
 fi
+
+helm upgrade --install app hello --wait
+curl https://hello.localtest.me/somepath/somefile > "${TMP}/out"
+if test "$(cat "${TMP}/out")" != "somecontent"
+then
+    echo "The content of the config map is not correct before running the test of reloader"
+    cat "${TMP}/out"
+    show_context
+    fail
+fi
+
+sed -i 's/somefile: somecontent/somefile: someothercontent/' hello/templates/configmap.yaml
+helm upgrade --install app hello --wait
+curl https://hello.localtest.me/somepath/somefile > "${TMP}/out"
+if test "$(cat "${TMP}/out")" != "someothercontent"
+then
+    echo "The content of the config map is not correct after running the test of reloader"
+    cat "${TMP}/out"
+    show_context
+    fail
+fi

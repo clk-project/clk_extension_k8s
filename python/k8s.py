@@ -42,6 +42,7 @@ TILT_VERSION = '0.33.17'
 KIND_VERSION = '0.23.0'
 INGRESS_NGINX_VERSION = '4.10.1'
 CERT_MANAGER_VERSION = '1.15.1'
+RELOADER = '1.0.115'
 
 bin_dir = Path('~/.local/bin').expanduser()
 if not bin_dir.exists():
@@ -1649,7 +1650,7 @@ def install_prometheus_operator_crds(version):
 @k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option(
     '--version',
-    default='v0.0.99',
+    default=f'v{RELOADER}',
     help='The version of reloader chart to install',
 )
 @flag('--force', help='Install even if already present')
