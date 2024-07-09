@@ -20,6 +20,8 @@ from pathlib import Path
 from shlex import split
 
 import click
+import tomli
+import tomli_w
 import yaml
 from clk.config import config
 from clk.decorators import argument, flag, group, option, table_fields, table_format
@@ -318,11 +320,14 @@ def make_earthly_accept_http_connection_from_our_local_registry():
         config_ = yaml.safe_load(config_file.read_text())
         if 'global' not in config_:
             config_['global'] = {'buildkit_additional_config': ''}
-    if (f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]'
-            not in config_['global'].get('buildkit_additional_config', '')):
-        config_['global'][
-            'buildkit_additional_config'] = f'[registry."{config.k8s.host_ip}:{config.k8s.registry_port}"]'
-        '\n  http=true\n' + config_['global'].get('buildkit_additional_config', '')
+    additional_config = tomli.loads(config_['global']['buildkit_additional_config'])
+    registry = additional_config.get('registry', {})
+    myregistry = registry.get(f'{config.k8s.host_ip}:{config.k8s.registry_port}', {})
+    if not myregistry.get('http'):
+        myregistry['http'] = True
+        registry[f'{config.k8s.host_ip}:{config.k8s.registry_port}'] = myregistry
+        additional_config['registry'] = registry
+        config_['global']['buildkit_additional_config'] = tomli_w.dumps(additional_config)
         yaml.add_representer(str, str_presenter)
         config_file.write_text(yaml.dump(config_))
 
