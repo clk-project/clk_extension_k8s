@@ -1159,6 +1159,17 @@ def generate_certificate_authority():
             LOGGER.warning('The secret was not created after waiting for a long time.')
 
 
+def _get_local_certificate(name, namespace):
+    secrets = config.kubectl.get('secret', name, namespace)
+    if not secrets:
+        LOGGER.error('I could not find the secret'
+                     f' {name} in the namespace {namespace}.'
+                     ' Did you run the command'
+                     ' `clk k8s cert-manager generate-certificate-authority`?')
+        exit(1)
+    return base64.b64decode(secrets[0]['data']['tls.crt'])
+
+
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
 @option(
     '--secret-name',
@@ -1176,7 +1187,8 @@ def dump_local_certificate(secret_name, namespace):
     See it in more detail using
     clk k8s cert-manager dump-local-certificate | openssl x509 -in i -text
     """
-    click.echo(base64.b64decode(config.kubectl.get('secret', secret_name, namespace)[0]['data']['tls.crt']))
+
+    click.echo(_get_local_certificate(secret_name, namespace))
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
@@ -1250,7 +1262,7 @@ def install_local_certificate(client, secret_name, namespace, type):
     else:
         raise NotImplementedError(f'Operating system not supported {os_name}, supported systems are: darwin, linux')
 
-    cert = base64.b64decode(config.kubectl.get('secret', secret_name, namespace)[0]['data']['tls.crt'])
+    cert = _get_local_certificate(secret_name, namespace)
 
     with temporary_file() as f:
         f.write(cert)
