@@ -37,7 +37,7 @@ warned = False
 
 CLUSTER_NAME = 'clk-k8s'
 
-EARTHLY_VERSION = '0.8.14'
+EARTHLY_VERSION = '0.8.15'
 HELM_VERSION = '3.15.2'
 KUBECTL_VERSION = '1.30.2'
 TILT_VERSION = '0.33.17'
@@ -812,7 +812,7 @@ docker_registries_configs = {
     '--server',
     help='Should be needed only when using aws, where it cannot be inferred easily',
 )
-@flag('--force', help='Overwrite the existing secret')
+@flag('--force', help='Overwrite the existing secret, default for aws that has very short lived token')
 @option(
     '--docker-login/--no-docker-login',
     default=True,
@@ -831,6 +831,7 @@ def registry_login(
     k8s_login,
 ):
     """Install the credential to get access to the given registry provider."""
+    force = force or registry_provider == 'aws'
     registry = docker_registries_configs[registry_provider]
     secret_name = registry['secret-name']
     if not username and registry_provider == 'aws':
