@@ -1149,6 +1149,14 @@ def generate_certificate_authority():
             f.write(cluster_issuer.encode('utf8'))
             f.close()
             config.kubectl.call(['apply', '-n', 'cert-manager', '-f', f.name])
+        retries = 5
+        wait_time = 5
+        while not config.kubectl.get('secret', secret_name, 'cert-manager') and retries:
+            time.wait(wait_time)
+            retries -= 1
+            wait_time *= 1.5
+        if not retries:
+            LOGGER.warning('The secret was not created after waiting for a long time.')
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.generate-certificate-authority'])
