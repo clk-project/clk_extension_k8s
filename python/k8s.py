@@ -1269,8 +1269,9 @@ def install_local_certificate(client, secret_name, namespace, type):
         f.close()
         did_something = False
         if os_name == 'darwin':
-            # NOTE: This is adding a certificate to SYSTEM keychain since
-            # otherwise the chrome is not accepting it as valid.
+            LOGGER.info('I need your sudo password to use security to install the local certificate.'
+                        ' I cannot install it only for the current user because chrome would'
+                        ' not accept it that way (at least, this is what "they" told me...).')
             silent_call([
                 'sudo',
                 security,
