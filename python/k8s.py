@@ -972,8 +972,20 @@ def install_local_registry(reinstall):
     default='v3.28.0',
     help='The version of calico to install along kind',
 )
-def create_cluster(recreate, nodes, api_server_address, calico_version):
-    """Create a k8s cluster"""
+@flag('--use-public-dns', help="Don't rely on the host dns fallback resolving (only implemented in kind)")
+def create_cluster(recreate, nodes, api_server_address, calico_version, use_public_dns):
+    """Create a k8s cluster
+
+    The option `--use-public-dns` may be needed to circumvent issues when
+    discussing with the host dns
+
+    For instance, in a Mac, running colima, running earthly-buildkit, running
+    docker, running kind, I found out that the name resolutions using 192.168.5.2
+    did not work. I'm did not find why.
+
+    But using 1.1.1.1 in that case helps workaround that issue.
+
+    """
     if config.dry_run:
         LOGGER.info(f'(dry-run) create a {config.k8s.distribution} cluster.'
                     ' Here, there are many subtle hacks that'
@@ -1029,6 +1041,11 @@ networking:
             if config.log_level in ('debug', 'develop'):
                 cmd += ['--loglevel', '3']
             silent_call(cmd)
+        if use_public_dns:
+            call([
+                'docker', 'exec', f'{CLUSTER_NAME}-control-plane', 'bash', '-c',
+                '''echo 'nameserver 1.1.1.1' > /etc/resolv.conf'''
+            ])
         if using_local_registry:
             with temporary_file(content=f"""apiVersion: v1
 kind: ConfigMap

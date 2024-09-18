@@ -58,6 +58,7 @@ test:
     COPY hello hello
     COPY test.sh ./test.sh
     RUN --no-cache echo "Invalidate the cache (somehow the next one don't work)"
+    RUN clk parameter set k8s.create-cluster --use-public-dns # needed to workaround image pull issues in mac->colima->docker->earthlybuildkit->docker->kind
     ARG args # could be --debug
     WITH DOCKER
         RUN --no-cache clk ${args} k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all && bash test.sh
