@@ -1949,6 +1949,16 @@ def setup_credentials():
     You might want to take advantage of `clk k8s docker-credentials` and `clk
     k8s registry-login` in this command.
 
+    You might also want to use `clk k8s cert-manager install-local-certificate`
+    to make sure your local browser will be able to connect to the cluster.
+
+    Therefore, a good default could be to do in your project `clk alias set
+    k8s.setup-credentials k8s.docker-credentials
+    k8s.cert-manager.install-local-certificate`
+
+    This is not the default because I believe this depends too much on the
+    project you are working on.
+
     """
     LOGGER.debug('No credentials added in the cluster.'
                  ' You might want to customize this to automatically'
