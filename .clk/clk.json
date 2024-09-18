@@ -1,0 +1,15 @@
+{
+    "alias": {
+        "test": {
+            "commands": [
+                [
+                    "exec",
+                    "earthly",
+                    "-P",
+                    "+test"
+                ]
+            ],
+            "documentation": null
+        }
+    }
+}
