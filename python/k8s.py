@@ -1244,7 +1244,12 @@ def dump_local_certificate(secret_name, namespace):
     help='Only needed by certutil',
     default='CA',
 )
-def install_local_certificate(client, secret_name, namespace, type):
+@option(
+    '--output-file',
+    type=Path,
+    help='Where to save certificates',
+)
+def install_local_certificate(client, secret_name, namespace, type, output_file):
     """Install the local certificate in a way webkit browsers will find it"""
     certutil = which('certutil')
     security = which('security')
@@ -1357,6 +1362,10 @@ def install_local_certificate(client, secret_name, namespace, type):
                 did_something = True
         if not did_something:
             raise NotImplementedError(f'Sounds like we did not actually deal with the client {client}')
+
+    if output_file is not None:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(cert)
 
 
 class SilentCallFailed(Exception):
