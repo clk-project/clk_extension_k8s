@@ -28,12 +28,13 @@ def build_chart_update_command(
     return command
 
 
-def earthly_build(image, target, earthly_args=None, output=False, args=None, **kwargs):
+def earthly_build(image, target, allow_privileged=False, earthly_args=None, output=False, args=None, **kwargs):
     args = args or {}
     earthly_args = earthly_args or {}
     args['ref'] = '$EXPECTED_REF'
     custom_build(image,
                  "earthly --push " + ("" if output else "--no-output ") +
+                 ("--allow-privileged" if allow_privileged else "") +
                  " ".join(["--" + k + "=" + v for k, v in earthly_args.items()]) + " " + target + " " +
                  " ".join(["--" + k + "=" + v for k, v in args.items()]),
                  skips_local_docker=True,
