@@ -1109,8 +1109,14 @@ def _install(version, force):
 
 
 @cert_manager.command(flowdepends=['k8s.cert-manager.install'], handle_dry_run=True)
-def generate_certificate_authority():
+@option('--ca-key-path', type=Path, help='The key to use instead of generating one dynamically')
+@option('--ca-crt-path',
+        type=Path,
+        help='The certificate to use instead of generating one dynamically (only makes sense if --ca-key is provided)')
+def generate_certificate_authority(ca_key_path, ca_crt_path):
     """Generate a certificate authority for cert-manager to use."""
+    if ca_crt_path and not ca_key_path:
+        raise click.UsageError('--ca-key-path must be used when --ca-crt-path is provided')
     if config.dry_run:
         LOGGER.info('(dry-run) generating a certificate authority.'
                     ' I cannot describe in short what is done there.'
@@ -1120,15 +1126,24 @@ def generate_certificate_authority():
     if config.kubectl.get('secret', secret_name, 'cert-manager'):
         LOGGER.debug(f'Already have a secret with name {secret_name}')
     else:
-        with tempdir() as d, cd(d):
-            ca_key = check_output(
-                ['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'],
-                nostderr=True,
-            )
-            with open('ca.key', 'w') as f:
-                f.write(ca_key)
 
-            ca_crt = check_output(
+        def install_certificate_pair(key_path, crt_path):
+            config.kubectl.output(
+                [
+                    'create',
+                    'secret',
+                    'tls',
+                    secret_name,
+                    f'--cert={crt_path}',
+                    f'--key={key_path}',
+                    '--namespace=cert-manager',
+                    '-o',
+                    'yaml',
+                ]
+            )  # yapf: disable
+
+        def generate_certificate(ca_key):
+            return check_output(
                 [
                     'docker',
                     'run',
@@ -1143,22 +1158,24 @@ def generate_certificate_authority():
                     + ' -reqexts v3_req -extensions v3_ca',
                 ]
             )  # yapf: disable
-            with open('ca.crt', 'w') as f:
-                f.write(ca_crt)
 
-            config.kubectl.output(
-                [
-                    'create',
-                    'secret',
-                    'tls',
-                    secret_name,
-                    '--cert=ca.crt',
-                    '--key=ca.key',
-                    '--namespace=cert-manager',
-                    '-o',
-                    'yaml',
-                ]
-            )  # yapf: disable
+        with tempdir() as d, cd(d):
+            if ca_key_path:
+                ca_key = ca_key_path.read_text()
+            else:
+                ca_key_path = Path('ca.key')
+                ca_key = check_output(
+                    ['docker', 'run', '--rm', 'alpine/openssl', 'genrsa', '2048'],
+                    nostderr=True,
+                )
+                ca_key_path.write_text(ca_key)
+            if not ca_crt_path:
+                ca_crt_path = Path('ca.crt')
+                ca_crt = generate_certificate(ca_key)
+                ca_crt_path.write_text(ca_crt)
+
+            install_certificate_pair(ca_key_path, ca_crt_path)
+
     if config.kubectl.get('clusterissuer', 'local', 'cert-manager'):
         LOGGER.debug('Already have a cluster issuer with name local')
     else:
