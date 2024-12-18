@@ -35,9 +35,9 @@ fix-quality:
     SAVE ARTIFACT . AS LOCAL fixed
 
 test:
-    FROM earthly/dind:ubuntu-23.04-docker-24.0.5-1
+    FROM earthly/dind:ubuntu-24.04-docker-27.3.1-1
     ARG shell=bash
-    RUN apt-get update && apt-get install --yes git wget python3-distutils python3-venv coreutils
+    RUN apt-get update && apt-get install --yes git wget python3-venv coreutils
     DO e+USE_USER --uid=1001
     ARG from=source
     WORKDIR /app
