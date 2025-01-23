@@ -24,6 +24,7 @@ import tomli
 import tomli_w
 import yaml
 from clk.config import config
+from clk.core import cache_disk
 from clk.decorators import argument, flag, group, option, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, createfile, deepcopy, download, extract, get_keyring,
                      glob, is_port_available, makedirs, move, quote, read, rm, safe_check_output, tempdir,
@@ -2192,7 +2193,12 @@ def install_network_policy(strict):
             config.kubectl.call(['apply', '-f', f.name])
 
 
-@k8s.command(flowdepends=['k8s.flow'], ignore_unknown_options=True)
+@k8s.group()
+def tilt():
+    'Commands to deal with tilt'
+
+
+@tilt.command(flowdepends=['k8s.flow'], ignore_unknown_options=True)
 @argument('tiltfile-args', help='Arguments to give tilt', nargs=-1)
 @option('--tilt-arg', help='Arguments to give tilt', multiple=True)
 @flag('--open', help='Open the url in a browser')
@@ -2200,7 +2206,7 @@ def install_network_policy(strict):
     '--use-context/--dont-use-context',
     help='Try to use the appropriate context before running tilt',
 )
-def _tilt(open, use_context, tilt_arg, tiltfile_args):
+def _run(open, use_context, tilt_arg, tiltfile_args):
     'Run whatever is needed to run tilt'
     root = Path('.').absolute()
     tiltfile_name = 'Tiltfile'
@@ -2469,3 +2475,35 @@ spec:
         finally:
             LOGGER.info(f'Cleaning the temporary pod attached to this node {node}')
             config.kubectl.call(['delete', '--wait', '-f', f.name])
+
+
+class TiltLabelType(DynamicChoice):
+
+    def choices(self):
+
+        @cache_disk(expire=600)
+        def get_labels():
+            resources = json.loads(check_output([
+                'tilt',
+                'get',
+                'uiresources',
+                '--output',
+                'json',
+            ]))
+            return {label for item in resources['items'] for label in item['metadata'].get('labels', [])}
+
+        return get_labels()
+
+
+@tilt.command()
+@argument('label', type=TiltLabelType(), help='What labels to disable')
+def disable(label):
+    'Disable the resources that match the given label'
+    call(['tilt', 'disable', '-l', label])
+
+
+@tilt.command()
+@argument('label', type=TiltLabelType(), help='What labels to disable')
+def enable(label):
+    'Disable the resources that match the given label'
+    call(['tilt', 'enable', '-l', label])
