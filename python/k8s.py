@@ -24,7 +24,7 @@ import tomli
 import tomli_w
 import yaml
 from clk.config import config
-from clk.core import cache_disk
+from clk.core import cache_disk, run
 from clk.decorators import argument, flag, group, option, table_fields, table_format
 from clk.lib import (TablePrinter, call, cd, check_output, copy, createfile, deepcopy, download, extract, get_keyring,
                      glob, is_port_available, makedirs, move, quote, read, rm, safe_check_output, tempdir,
@@ -2479,31 +2479,73 @@ spec:
 
 class TiltLabelType(DynamicChoice):
 
+    @staticmethod
+    @cache_disk(expire=60)
+    def get_labels():
+        resources = json.loads(check_output([
+            'tilt',
+            'get',
+            'uiresources',
+            '--output',
+            'json',
+        ]))
+        return {label for item in resources['items'] for label in item['metadata'].get('labels', [])}
+
     def choices(self):
-
-        @cache_disk(expire=600)
-        def get_labels():
-            resources = json.loads(check_output([
-                'tilt',
-                'get',
-                'uiresources',
-                '--output',
-                'json',
-            ]))
-            return {label for item in resources['items'] for label in item['metadata'].get('labels', [])}
-
-        return get_labels()
+        return self.get_labels()
 
 
-@tilt.command()
-@argument('label', type=TiltLabelType(), help='What labels to disable')
-def disable(label):
-    'Disable the resources that match the given label'
-    call(['tilt', 'disable', '-l', label])
+class TiltConfig:
+    pass
 
 
-@tilt.command()
-@argument('label', type=TiltLabelType(), help='What labels to disable')
-def enable(label):
-    'Disable the resources that match the given label'
-    call(['tilt', 'enable', '-l', label])
+@tilt.group()
+@option(
+    '--label',
+    type=TiltLabelType(),
+    help='What labels to select',
+    multiple=True,
+    expose_class=TiltConfig,
+)
+@option(
+    '--but',
+    type=TiltLabelType(),
+    help='Exclude those',
+    multiple=True,
+    expose_class=TiltConfig,
+)
+@flag(
+    '--all',
+    help='Select all of them',
+    expose_class=TiltConfig,
+)
+def resources():
+    'Select the resources that match the given criteria'
+    if config.tilt.all:
+        config.tilt.label = TiltLabelType.get_labels()
+    config.tilt.label = [label for label in config.tilt.label if label not in config.tilt.but]
+
+
+def able_command(direction):
+
+    def able():
+        args = ['tilt', direction]
+        for label in config.tilt.label:
+            args += ['-l', label]
+        call(args)
+
+    resources.command(name=direction, help=f'{direction.capitalize()} the selected resources')(able)
+
+
+able_command('disable')
+able_command('enable')
+
+
+@resources.command()
+def only():
+    'Enable ONLY those resources'
+    args = ['tilt', 'disable']
+    for label in TiltLabelType.get_labels():
+        args += ['-l', label]
+    call(args)
+    run(['k8s', 'tilt', 'resources', 'enable'])
