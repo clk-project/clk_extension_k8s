@@ -18,6 +18,7 @@ import webbrowser
 from collections import Counter, defaultdict
 from pathlib import Path
 from shlex import split
+from subprocess import Popen
 
 import click
 import tomli
@@ -2206,7 +2207,12 @@ def tilt():
     '--use-context/--dont-use-context',
     help='Try to use the appropriate context before running tilt',
 )
-def _run(open, use_context, tilt_arg, tiltfile_args):
+@option(
+    '--label',
+    help='What labels to select',
+    multiple=True,
+)
+def _run(open, use_context, tilt_arg, tiltfile_args, label):
     'Run whatever is needed to run tilt'
     root = Path('.').absolute()
     tiltfile_name = 'Tiltfile'
@@ -2222,11 +2228,24 @@ def _run(open, use_context, tilt_arg, tiltfile_args):
             'kind': f'kind-{CLUSTER_NAME}',
         }[config.k8s.distribution]
         silent_call([str(Kubectl.program_path), 'config', 'use-context', context])
-    with cd(root):
-        call([
+    tiltfile_args = list(tiltfile_args)
+    tiltfile_args += ['--clear-enabled-resources']
+    process = Popen(
+        [
             str(Tilt.program_path),
             'up',
-        ] + split(' '.join(tilt_arg)) + ['--'] + list(tiltfile_args))
+        ] + split(' '.join(tilt_arg)) + ['--'] + tiltfile_args,
+        cwd=root,
+    )
+    LOGGER.info('Now, waiting for tilt to be ready')
+    time.sleep(2)
+    call(['tilt', 'wait', '--timeout=3m', '--for=condition=Ready', 'uiresources/(Tiltfile)'])
+    if label:
+        args = ['tilt', 'enable']
+        for label_ in label:
+            args += ['-l', label_]
+        call(args)
+    process.wait()
 
 
 class NamespaceNameType(DynamicChoice):
