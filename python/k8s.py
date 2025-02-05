@@ -2241,7 +2241,7 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label):
     time.sleep(2)
     call(['tilt', 'wait', '--timeout=3m', '--for=condition=Ready', 'uiresources/(Tiltfile)'])
     if label:
-        args = ['tilt', 'enable']
+        args = ['tilt', 'enable', 'uncategorized']
         for label_ in label:
             args += ['-l', label_]
         call(args)
