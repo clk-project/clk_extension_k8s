@@ -14,7 +14,6 @@ import sys
 import tarfile
 import time
 import uuid
-import webbrowser
 from collections import Counter, defaultdict
 from pathlib import Path
 from shlex import split
@@ -2224,7 +2223,7 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label):
         raise click.UsageError(f'I looked for a file called {tiltfile_name} in this'
                                ' directory and all its parents, without finding any.')
     if open:
-        webbrowser.open('http://localhost:10350')
+        Popen([os.environ['BROWSER'], 'http://localhost:10350'])
     if use_context:
         context = {
             'kind': f'kind-{CLUSTER_NAME}',
