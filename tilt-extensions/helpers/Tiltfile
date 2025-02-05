@@ -76,6 +76,12 @@ def helm_dependency_update(path):
     local(clk_k8s + 'helm dependency-update ' + path)
 
 
-def add_domain(domain):
-    "Make sure this domain can be accessed from the pods using the ingress"
-    local(clk_k8s + 'add-domain ' + domain)
+def add_domain(*domains):
+    "Make sure this domains can be accessed from the pods using the ingress"
+    domains = list(domains)
+    main_domain = domains.pop(0)
+    other_domains = ""
+    for domain in domains:
+        other_domains += " --other-domain {}".format(domain)
+
+    local(clk_k8s + 'add-domain ' + domain + other_domains)

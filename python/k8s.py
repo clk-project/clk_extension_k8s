@@ -1499,7 +1499,8 @@ def install_dnsmasq():
           ' (default to guess from the current docker env, most likely 172.17.0.1)'),
 )
 @flag('--reset', help='Remove previous domains set by this command')
-def add_domain(domain, ip, reset):
+@option('--other-domain', multiple=True, help='Some other domain to associate with this IP address')
+def add_domain(domain, ip, reset, other_domain):
     """Add a new domain entry in K8s dns"""
     import yaml
 
@@ -1524,15 +1525,16 @@ def add_domain(domain, ip, reset):
             last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
             coredns_conf['data']['Corefile'] = (coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n')
             update = True
-        data = f'{ip} {domain} # {watermark}'
         header, hosts, footer = re.match(
             r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
             coredns_conf['data']['Corefile'],
             re.DOTALL,
         ).groups()
-        if f'{data}\n' not in hosts:
-            update = True
-            coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'            {data}\n' + footer)
+        for domain_ in [domain] + list(other_domain):
+            data = f'{ip} {domain} # {watermark}'
+            if f'{data}\n' not in hosts:
+                update = True
+                coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'            {data}\n' + footer)
 
         if update:
             with temporary_file() as f:
