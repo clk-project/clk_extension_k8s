@@ -27,7 +27,7 @@ jobs:
     - name: Earthly version
       run: earthly --version
     - name: Test
-      run: earthly -P --ci --push +test-all
+      run: earthly -P --strict --push +test-all
     - uses: actions/upload-artifact@v4
       with:
         name: output
