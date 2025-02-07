@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ master ]
 
+# this concurrency settings means that there will be only one job at a time,
+concurrency:
+  group: ${{ github.ref_name }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
