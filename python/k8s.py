@@ -1524,13 +1524,15 @@ def add_domain(domain, ip, reset, other_domain):
             last_bracket_index = coredns_conf['data']['Corefile'].rindex('}')
             coredns_conf['data']['Corefile'] = (coredns_conf['data']['Corefile'][0:last_bracket_index] + data + '\n}\n')
             update = True
-        header, hosts, footer = re.match(
-            r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
-            coredns_conf['data']['Corefile'],
-            re.DOTALL,
-        ).groups()
         for domain_ in [domain] + list(other_domain):
             data = f'{ip} {domain_} # {watermark}'
+
+            header, hosts, footer = re.match(
+                r'^(.+hosts \{\n)([^}]*?\n?)(\s+fallthrough\s+\}.+)$',
+                coredns_conf['data']['Corefile'],
+                re.DOTALL,
+            ).groups()
+
             if f'{data}\n' not in hosts:
                 update = True
                 coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'            {data}\n' + footer)
