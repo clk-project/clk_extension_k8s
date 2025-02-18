@@ -1530,7 +1530,7 @@ def add_domain(domain, ip, reset, other_domain):
             re.DOTALL,
         ).groups()
         for domain_ in [domain] + list(other_domain):
-            data = f'{ip} {domain} # {watermark}'
+            data = f'{ip} {domain_} # {watermark}'
             if f'{data}\n' not in hosts:
                 update = True
                 coredns_conf['data']['Corefile'] = (header + hosts + '\n' + f'            {data}\n' + footer)
