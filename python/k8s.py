@@ -2571,3 +2571,45 @@ def only():
         args += ['-l', label]
     call(args)
     run(['k8s', 'tilt', 'resources', 'enable'])
+
+
+class K8sgoConfig:
+    pass
+
+
+class K8sContextType(DynamicChoice):
+
+    def choices(self):
+
+        @cache_disk(expire=60)
+        def k8s_contexts():
+            return check_output(['kubectl', 'config', 'get-contexts', '-o', 'name']).splitlines()
+
+        return k8s_contexts()
+
+
+class K8sNamespaceType(DynamicChoice):
+
+    def choices(self):
+
+        @cache_disk(expire=60)
+        def k8s_namespace(context):
+            return [
+                '/'.join(name.split('/')[1:]) for name in check_output(
+                    ['kubectl', '--context', context, 'get', 'namespaces', '-o', 'name']).splitlines()
+            ]
+
+        return k8s_namespace(config.k8sgo.context)
+
+
+@k8s.command()
+@argument('context', help='Use that context', type=K8sContextType(), expose_class=K8sgoConfig)
+@argument('namespace',
+          help='Use that namespace in that context',
+          default='default',
+          type=K8sNamespaceType(),
+          expose_class=K8sgoConfig)
+def go():
+    """Configure k8s to use that context and that namespace"""
+    call(['kubectl', 'config', 'use-context', config.k8sgo.context])
+    call(['kubectl', 'config', 'set-context', config.k8sgo.context, '--namespace', config.k8sgo.namespace])
