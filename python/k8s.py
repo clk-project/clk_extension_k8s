@@ -475,7 +475,7 @@ def guess_context_and_distribution(context, distribution):
                            f' that would fit your current context ({current_context}).'
                            ' I will ignore it and use another one.'
                            ' See `clk k8s current-context` to know the'
-                           ' inferred context ({context}) and `clk k8s current-context` to know the'
+                           ' inferred context ({context}) and `clk k8s current-distribution` to know the'
                            ' inferred distribution ({distribution}).'
                            ' Finally, use `clk k8s --distribution kind` to avoid this warning.')
         else:
