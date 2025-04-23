@@ -686,7 +686,7 @@ nodes:
         eviction-minimum-reclaim: "imagefs.available=1%,nodefs.available=1%"
   extraMounts:
     - hostPath: /tmp/kind
-      containerPath: /tmp
+      containerPath: /shared
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
