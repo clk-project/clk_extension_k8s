@@ -679,6 +679,9 @@ nodes:
         node-labels: "ingress-ready=true"
         eviction-hard: "imagefs.available<1%,nodefs.available<1%"
         eviction-minimum-reclaim: "imagefs.available=1%,nodefs.available=1%"
+  extraMounts:
+    - hostPath: /tmp/kind
+      containerPath: /tmp
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
