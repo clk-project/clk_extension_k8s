@@ -1560,7 +1560,7 @@ def add_domain(domain, ip, reset, other_domain):
     flowdepends=[
         'k8s.cert-manager.generate-certificate-authority',
         'k8s.install-reloader',
-        'k8s.install-network-policy',
+        'k8s.network-policy.install',
         'k8s.setup-credentials',
     ],
     handle_dry_run=True,
@@ -2177,22 +2177,30 @@ extra_network_policy = """
 """
 
 
-@k8s.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
+@k8s.group()
+def _network_policy():
+    'Play with network policies'
+
+
+@_network_policy.command(flowdepends=['k8s.create-cluster'], handle_dry_run=True)
 @option(
     '--strict/--permissive',
     default=True,
     help='Whether the network policy is permissive or strict',
 )
-def install_network_policy(strict):
+@flag('--force', help='Upgrade them if already installed')
+def __install(strict, force):
     """Isolate the default namespace from the rest"""
     if config.dry_run:
         LOGGER.info('(dry-run) run kubectl apply to install some network policies. '
                     ' Take a look at the code to understand what is installed exactly.')
         return
+    install_them = True
     name = 'deny-from-other-namespaces'
     if config.kubectl.get('NetworkPolicy', name):
         LOGGER.debug(f'A network policy already exists with name {name}')
-    else:
+        install_them = force
+    if install_them:
         content = network_policy
         if not strict:
             content += extra_network_policy
