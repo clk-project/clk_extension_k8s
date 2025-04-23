@@ -2226,7 +2226,8 @@ def tilt():
     help='What labels to select',
     multiple=True,
 )
-def _run(open, use_context, tilt_arg, tiltfile_args, label):
+@option('--namespace', help='Given to tilt', default='default')
+def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace):
     'Run whatever is needed to run tilt'
     root = Path('.').absolute()
     tiltfile_name = 'Tiltfile'
@@ -2244,6 +2245,8 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label):
         silent_call([str(Kubectl.program_path), 'config', 'use-context', context])
     tiltfile_args = list(tiltfile_args)
     tiltfile_args += ['--clear-enabled-resources']
+    tilt_arg = list(tilt_arg)
+    tilt_arg += ['--namespace', namespace]
     process = Popen(
         [
             str(Tilt.program_path),
