@@ -411,7 +411,9 @@ class HelmApplication:
 
     def install(self, force, helm_args):
         if not force and self._already_installed():
-            LOGGER.status(f'{self.name} already installed in {self.namespace} with version {self.version}')
+            LOGGER.status(f'{self.name} already installed in'
+                          f' namespace {self.namespace}'
+                          f' with version {self.version}')
             return
         try:
             self._helm_install([
