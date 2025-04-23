@@ -387,6 +387,8 @@ class HelmApplication:
             release for release in json.loads(
                 check_output([
                     str(Helm.program_path),
+                    '--kube-context',
+                    config.kubectl.context,
                     'list',
                     '--namespace',
                     self.namespace,
