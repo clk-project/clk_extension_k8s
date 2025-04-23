@@ -45,6 +45,7 @@ TILT_VERSION = '0.33.17'
 KIND_VERSION = '0.23.0'
 INGRESS_NGINX_VERSION = '4.10.1'
 CERT_MANAGER_VERSION = '1.15.1'
+METRICS_VERSION = '3.12.2'
 RELOADER = '1.0.115'
 
 bin_dir = Path('~/.local/bin').expanduser()
@@ -1112,6 +1113,30 @@ def _install(version, force):
     )
 
 
+@k8s.command(flowdepends=['k8s.wait-ready'], handle_dry_run=True)
+@option(
+    '--version',
+    default=f'v{METRICS_VERSION}',
+    help='The version of metrics chart to install',
+)
+@flag(
+    '--force/--no-force',
+    help='Force the installation even if the required version is already installed',
+)
+def install_metrics_server(version, force):
+    """Install the metrics in the current cluster"""
+    HelmApplication('metrics', 'metrics-server', version).install(
+        force,
+        [
+            '--repo',
+            'https://kubernetes-sigs.github.io/metrics-server/',
+            # see
+            # https://www.zeng.dev/post/2023-kubeadm-enable-kubelet-serving-certs/ ,
+            '--set=args[0]=--kubelet-insecure-tls'
+        ],
+    )
+
+
 @cert_manager.command(flowdepends=['k8s.cert-manager.install'], handle_dry_run=True)
 @option('--ca-key-path', type=Path, help='The key to use instead of generating one dynamically')
 @option('--ca-crt-path',
@@ -1559,6 +1584,7 @@ def add_domain(domain, ip, reset, other_domain):
 @k8s.flow_command(
     flowdepends=[
         'k8s.cert-manager.generate-certificate-authority',
+        'k8s.install-metrics-server',
         'k8s.install-reloader',
         'k8s.network-policy.install',
         'k8s.setup-credentials',
