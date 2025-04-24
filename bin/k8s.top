@@ -8,7 +8,7 @@ $0
 
 Watch the resources usage
 --
-O:--sort:["cpu", "memory"]:What value to sort with:cpu
+O:--sort:["cpu", "memory"]:What value to sort with:memory
 M:I
 N:Arguments given to kubectl top pod
 EOF
