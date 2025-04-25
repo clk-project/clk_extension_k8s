@@ -828,7 +828,7 @@ docker_registries_configs = {
     help='Also log into docker',
 )
 @option('--helm-login/--no-helm-login', default=True, help='Also log into helm')
-@option('--k8s-login/--no-k8s-login', default=True, help='Also log into helm')
+@option('--k8s-login/--no-k8s-login', default=True, help='Also add the secret into the local cluster')
 def registry_login(
     registry_provider,
     username,
