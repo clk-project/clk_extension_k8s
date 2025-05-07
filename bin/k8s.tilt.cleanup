@@ -1,0 +1,21 @@
+#!/bin/bash -eu
+
+source "_clk.sh"
+
+clk_usage () {
+    cat<<EOF
+$0
+
+Remove ALL the resources created using tilt
+
+Some times, when changing the configuration, you end up with a lot of garbage
+resources. This command tries to find and remove them.
+--
+
+EOF
+}
+
+clk_help_handler "$@"
+
+allkinds=$(kubectl api-resources --verbs=list --namespaced -o name | paste -sd, -)
+kubectl delete ${allkinds} --all-namespaces -l app.kubernetes.io/managed-by=tilt
