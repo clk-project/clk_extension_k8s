@@ -84,4 +84,4 @@ def add_domain(*domains):
     for domain in domains:
         other_domains += " --other-domain {}".format(domain)
 
-    local(clk_k8s + 'add-domain ' + domain + other_domains)
+    local(clk_k8s + 'add-domain ' + main_domain + other_domains)
