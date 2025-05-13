@@ -34,10 +34,11 @@ fix-quality:
     RUN pre-commit run -a || echo OK
     SAVE ARTIFACT . AS LOCAL fixed
 
-test:
+test-base:
     FROM earthly/dind:ubuntu-24.04-docker-27.3.1-1
     ARG shell=bash
-    RUN apt-get update && apt-get install --yes git wget python3-venv coreutils
+    ARG extra_packages=""
+    RUN apt-get update && apt-get install --yes git wget python3-venv coreutils ${extra_packages}
     DO e+USE_USER --uid=1001
     ARG from=source
     WORKDIR /app
@@ -54,16 +55,26 @@ test:
     END
     ARG distribution=kind
     RUN clk k8s --distribution=$distribution install-dependency all
-    USER root
-    COPY hello hello
-    COPY test.sh ./test.sh
-    RUN --no-cache echo "Invalidate the cache (somehow the next one don't work)"
     RUN clk parameter set k8s.create-cluster --use-public-dns # needed to workaround image pull issues in mac->colima->docker->earthlybuildkit->docker->kind
+
+RUN_TEST:
+    FUNCTION
     ARG args # could be --debug
+    USER root
+    ARG distribution=kind
+    ARG from=source
     WITH DOCKER
         RUN --no-cache clk ${args} k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all && bash test.sh
     END
-    SAVE ARTIFACT /tmp/out AS LOCAL out/${distribution}-${from}
+    SAVE ARTIFACT --if-exists /tmp/out AS LOCAL out/${distribution}-${from}
+
+test:
+    ARG distribution=kind
+    ARG from=source
+    FROM +test-base --distribution=$distribution --from=$from
+    COPY hello hello
+    COPY test.sh ./test.sh
+    DO +RUN_TEST --distribution=$distribution --from=$from
 
 test-all:
     BUILD +check-quality
