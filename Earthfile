@@ -54,7 +54,10 @@ test-base:
         RUN wget -O - https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s ${shell}
     END
     ARG distribution=kind
-    RUN clk k8s --distribution=$distribution install-dependency all
+    ARG dependencies="kind kubectl"
+    FOR dependency IN ${dependencies}
+        RUN clk k8s --distribution=$distribution install-dependency ${dependency}
+    END
     RUN clk parameter set k8s.create-cluster --use-public-dns # needed to workaround image pull issues in mac->colima->docker->earthlybuildkit->docker->kind
 
 RUN_TEST:
@@ -63,15 +66,16 @@ RUN_TEST:
     USER root
     ARG distribution=kind
     ARG from=source
+    ARG base="minimal-flow --flow-from k8s.create-cluster"
     WITH DOCKER
-        RUN --no-cache clk ${args} k8s --distribution=$distribution flow --flow-after k8s.install-dependency.all && bash test.sh
+        RUN --no-cache clk --flow-verbose ${args} k8s --distribution=$distribution ${base} && bash test.sh
     END
     SAVE ARTIFACT --if-exists /tmp/out AS LOCAL out/${distribution}-${from}
 
 test:
     ARG distribution=kind
     ARG from=source
-    FROM +test-base --distribution=$distribution --from=$from
+    FROM +test-base --distribution=$distribution --from=$from --dependencies="all"
     COPY hello hello
     COPY test.sh ./test.sh
     DO +RUN_TEST --distribution=$distribution --from=$from

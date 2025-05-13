@@ -946,7 +946,7 @@ def wait_ready():
                        ' for a nice k8s experience.')
 
 
-@k8s.command(flowdepends=['k8s.install-dependency.all'], handle_dry_run=True)
+@k8s.command(handle_dry_run=True)
 @flag('--reinstall', help='Reinstall it if it already exists')
 def install_local_registry(reinstall):
     """Install the local registry that will store the docker images pulled by the cluster"""
@@ -966,7 +966,7 @@ def install_local_registry(reinstall):
 
 
 @k8s.command(
-    flowdepends=['k8s.install-local-registry'],
+    flowdepends=['k8s.install-dependency.kind', 'k8s.install-dependency.kubectl'],
     handle_dry_run=True,
 )
 @flag('--recreate', help='Recreate it if it already exists')
@@ -1587,6 +1587,10 @@ def add_domain(domain, ip, reset, other_domain):
 
 @k8s.flow_command(
     flowdepends=[
+        'k8s.install-dependency.all',
+        'k8s.install-local-registry',
+        'k8s.create-cluster',
+        # add ons
         'k8s.cert-manager.generate-certificate-authority',
         'k8s.install-metrics-server',
         'k8s.install-reloader',
@@ -1599,6 +1603,19 @@ def flow():
     """Run the full k8s setup flow"""
     if not config.dry_run:
         LOGGER.status('Everything worked well. Now enjoy your new cluster ready to go!')
+
+
+@k8s.flow_command(
+    flowdepends=[
+        'k8s.install-dependency.kubectl',
+        'k8s.create-cluster',
+    ],
+    handle_dry_run=True,
+)
+def minimal_flow():
+    """Run the minimal k8s setup flow"""
+    if not config.dry_run:
+        LOGGER.status('Everything worked well. Now enjoy your new (minimal) cluster ready to go!')
 
 
 @k8s.command()
