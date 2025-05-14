@@ -2635,7 +2635,9 @@ def only():
 
 
 class K8sgoConfig:
-    pass
+
+    def __init__(self):
+        self.context = KubeCtl.current_context()
 
 
 class K8sContextType(DynamicChoice):
@@ -2674,3 +2676,14 @@ def go():
     """Configure k8s to use that context and that namespace"""
     call(['kubectl', 'config', 'use-context', config.k8sgo.context])
     call(['kubectl', 'config', 'set-context', config.k8sgo.context, '--namespace', config.k8sgo.namespace])
+
+
+@k8s.command()
+@argument('namespace',
+          help='Use that namespace in that context',
+          default='default',
+          type=K8sNamespaceType(),
+          expose_class=K8sgoConfig)
+def namespace():
+    """Configure k8s to use that context and that namespace"""
+    call(['kubectl', 'config', 'set-context', '--current', '--namespace', config.k8sgo.namespace])
