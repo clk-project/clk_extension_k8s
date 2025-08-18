@@ -1587,9 +1587,8 @@ def add_domain(domain, ip, reset, other_domain):
 
 @k8s.flow_command(
     flowdepends=[
-        'k8s.install-dependency.all',
+        'k8s.minimal-flow',
         'k8s.install-local-registry',
-        'k8s.create-cluster',
         # add ons
         'k8s.cert-manager.generate-certificate-authority',
         'k8s.install-metrics-server',
