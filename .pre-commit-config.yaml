@@ -20,7 +20,3 @@ repos:
   hooks:
   - id: pycln
     args: [--config=pycln.toml]
-- repo: https://github.com/PyCQA/flake8
-  rev: 7.2.0
-  hooks:
-    - id: flake8
