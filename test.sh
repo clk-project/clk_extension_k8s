@@ -4,10 +4,14 @@ set -o errtrace # -E
 set -o nounset # -u
 set -o pipefail
 shopt -s inherit_errexit
+set -x
 
 # ctrl-c
 trap "exit 2" SIGINT
 trap "exit 3" SIGQUIT
+
+TMP=/tmp/out
+mkdir -p "${TMP}"
 
 show_context () {
     {
@@ -22,17 +26,21 @@ fail () {
     exit 0
 }
 
+clk k8s cert-manager install-local-certificate --client ca-certificates --flow
+
+if echo | openssl s_client -showcerts -connect hello.localtest.me:443 2>/dev/null | grep -q "Kubernetes Ingress Controller Fake Certificate"
+then
+    echo "Cert-manager did not work, I still see the fake one from the ingress"
+    show_context
+    fail
+fi
+
 if ! helm upgrade --install app hello --wait
 then
     show_context
 fi
 # wait a bit for the network policy to be ready
 sleep 5
-
-TMP=/tmp/out
-mkdir -p "${TMP}"
-
-clk k8s cert-manager install-local-certificate --client ca-certificates
 
 curl https://hello.localtest.me/ > "${TMP}/out"
 if ! grep -q 'Welcome to nginx' "${TMP}/out"
