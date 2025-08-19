@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import base64
 import grp
@@ -2379,11 +2378,9 @@ class DockerRegistrySecretName(DynamicChoice):
         choices = self.choices()
         if value not in choices:
             self.fail(
-                (
-                    'invalid choice: %s. (choose from %s, or create the docker-registry secret "%s" in your kubernetes'
-                    " cluster)"
-                )
-                % (value, ", ".join(choices), value),
+                f"invalid choice: {value}. "
+                f"(choose from {', '.join(choices)}, or create"
+                f" the docker-registry secret '{value}' in your kubernetes' cluster)",
                 param,
                 ctx,
             )
