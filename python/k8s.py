@@ -1185,6 +1185,7 @@ def create_cluster(recreate, nodes, api_server_address, calico_version, use_publ
             reg_name in check_output(split("docker ps --format {{.Names}}")).split()
         )
         if using_local_registry:
+            LOGGER.debug("Found a local registry, using it")
             kind_config_to_use += f"""
 containerdConfigPatches:
 - |-
