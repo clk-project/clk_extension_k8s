@@ -1373,7 +1373,8 @@ def generate_certificate_authority(ca_key_path, ca_crt_path):
                     'echo -e "'
                     + '\\n'.join(ca_key.split(sep='\n'))
                     + '" | openssl req -x509 -new -nodes -key /dev/stdin -subj /CN=localhost -days 3650'
-                    + ' -reqexts v3_req -extensions v3_ca',
+                    + ' -reqexts v3_req -extensions v3_ca'
+                    + ' -addext "keyUsage=critical,digitalSignature,keyCertSign"'
                 ]
             )  # yapf: disable
 
