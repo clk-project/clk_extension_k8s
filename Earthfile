@@ -38,7 +38,7 @@ test-base:
     FROM earthly/dind:ubuntu-24.04-docker-27.3.1-1
     ARG shell=bash
     ARG extra_packages=""
-    RUN apt-get update && apt-get install --yes git wget python3-venv coreutils ${extra_packages}
+    RUN apt-get update && apt-get install --yes git wget python3-venv coreutils httpie ${extra_packages}
     DO e+USE_USER --uid=1001
     ARG from=source
     WORKDIR /app
