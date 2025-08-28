@@ -1826,6 +1826,7 @@ def add_domain(domain, ip, reset, other_domain):
     flowdepends=[
         'k8s.install-local-registry',
         'k8s.minimal-flow',
+        'k8s.install-dependency.all',
         # add ons
         'k8s.cert-manager.generate-certificate-authority',
         'k8s.install-metrics-server',
