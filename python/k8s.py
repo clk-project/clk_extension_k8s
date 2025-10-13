@@ -1024,7 +1024,9 @@ def registry_login(
                 ]
             )  # yapf: disable
     if docker_login:
-        silent_call(["docker", "login", server, "-u", username, "-p", password])
+        silent_call(
+            ["docker", "login", server, "--username", username, "--password", password]
+        )
     if helm_login:
         silent_call(
             [
