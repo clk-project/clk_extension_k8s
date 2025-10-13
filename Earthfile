@@ -78,7 +78,10 @@ test:
     FROM +test-base --distribution=$distribution --from=$from --dependencies="all"
     COPY hello hello
     COPY test.sh ./test.sh
-    DO +RUN_TEST --distribution=$distribution --from=$from
+    WAIT
+        DO +RUN_TEST --distribution=$distribution --from=$from
+    END
+    RUN ! test -e /tmp/out/fail # make the target fail if the tests failed
 
 test-all:
     BUILD +check-quality
