@@ -33,28 +33,72 @@ fail () {
 
 clk k8s cert-manager install-local-certificate --client ca-certificates --flow
 
-if echo | openssl s_client -showcerts -connect hello.localtest.me:443 2>/dev/null | grep -q "Kubernetes Ingress Controller Fake Certificate"
-then
-    echo "Cert-manager did not work, I still see the fake one from the ingress"
-    show_context
-    fail
-fi
-
 if ! helm upgrade --install app hello --wait
 then
     show_context
 fi
-# wait a bit for the network policy to be ready
-sleep 5
 
-http https://hello.localtest.me/ > "${TMP}/out"
-if ! grep -q 'Welcome to nginx' "${TMP}/out"
-then
-    echo "Failed to connect to the example"
-    cat "${TMP}/out"
-    show_context
-    fail
-fi
+check_certificate () {
+    if echo | openssl s_client -showcerts -connect hello.localtest.me:443 2>/dev/null | grep -q "Kubernetes Ingress Controller Fake Certificate"
+    then
+        echo "Cert-manager did not work, I still see the fake one from the ingress"
+        return 1
+    fi
+}
+
+attempts=5
+while ! check_certificate
+do
+    if test "${attempts}" -gt "0"
+    then
+        echo "Waiting a bit for the certificate"
+        attempts=$((attempts - 1))
+        sleep 15
+    else
+        echo "Something must have gone wrong"
+        show_context
+        fail
+    fi
+done
+
+attempts=5
+while ! check_certificate
+do
+    if test "${attempts}" -gt "0"
+    then
+        echo "Waiting a bit for the certificate"
+        attempts=$((attempts - 1))
+        sleep 15
+    else
+        echo "Something must have gone wrong"
+        show_context
+        fail
+    fi
+done
+
+check_ingress () {
+    http https://hello.localtest.me/ > "${TMP}/out"
+    if ! grep -q 'Welcome to nginx' "${TMP}/out"
+    then
+        return 1
+    fi
+}
+
+attempts=5
+while ! check_ingress
+do
+    if test "${attempts}" -gt "0"
+    then
+        echo "Waiting a bit for the ingress to be setup"
+        attempts=$((attempts - 1))
+        sleep 15
+    else
+        echo "Something must have gone wrong"
+        cat "${TMP}/out"
+        show_context
+        fail
+    fi
+done
 
 kubectl delete --wait networkpolicies.networking.k8s.io ingress-to-app-hello
 http https://hello.localtest.me/ > "${TMP}/out"
