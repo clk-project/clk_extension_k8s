@@ -110,6 +110,8 @@ then
     fail
 fi
 
+sleep 3
+
 helm upgrade --install app hello --wait
 get https://hello.localtest.me/somepath/somefile > "${TMP}/out"
 if test "$(cat "${TMP}/out")" != "somecontent"
@@ -119,6 +121,8 @@ then
     show_context
     fail
 fi
+
+sleep 3
 
 sed -i 's/somefile: somecontent/somefile: someothercontent/' hello/templates/configmap.yaml
 helm upgrade --install app hello --wait
