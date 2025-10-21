@@ -43,94 +43,80 @@ then
     show_context
 fi
 
-check_certificate () {
+docheck () {
+    attempts=5
+    while ! check
+    do
+        if test "${attempts}" -gt "0"
+        then
+            echo "${msg}"
+            attempts=$((attempts - 1))
+            sleep 15
+        else
+            if test -e "${TMP}/out"
+            then
+                cat "${TMP}/out"
+            fi
+            show_context
+            fail
+        fi
+    done
+    rm -rf "${TMP}/out"
+}
+
+check () {
     if echo | openssl s_client -showcerts -connect hello.localtest.me:443 2>/dev/null | grep -q "Kubernetes Ingress Controller Fake Certificate"
     then
         echo "Cert-manager did not work, I still see the fake one from the ingress"
         return 1
     fi
 }
+msg="Waiting for the certificate to be issued"
+docheck
 
-attempts=5
-while ! check_certificate
-do
-    if test "${attempts}" -gt "0"
-    then
-        echo "Waiting a bit for the certificate"
-        attempts=$((attempts - 1))
-        sleep 15
-    else
-        echo "Something must have gone wrong"
-        show_context
-        fail
-    fi
-done
-
-check_ingress () {
+ingress () {
     get https://hello.localtest.me/ > "${TMP}/out"
     if ! grep -q 'Welcome to nginx' "${TMP}/out"
     then
         return 1
     fi
 }
-
-attempts=5
-while ! check_ingress
-do
-    if test "${attempts}" -gt "0"
-    then
-        echo "Waiting a bit for the ingress to be setup"
-        attempts=$((attempts - 1))
-        sleep 15
-    else
-        echo "Something must have gone wrong"
-        cat "${TMP}/out"
-        show_context
-        fail
-    fi
-done
+msg="Waiting for the ingress to be setup"
+docheck
 
 kubectl delete --wait networkpolicies.networking.k8s.io ingress-to-app-hello
-get https://hello.localtest.me/ > "${TMP}/out"
-if ! grep -q '502 Bad Gateway\|504 Gateway Time-out' "${TMP}/out"
-then
-    echo "Removing the network policy did not block the connection"
-    cat "${TMP}/out"
-    show_context
-    fail
-fi
+
+check ( ) {
+    get https://hello.localtest.me/ > "${TMP}/out"
+    grep -q '502 Bad Gateway\|504 Gateway Time-out' "${TMP}/out"
+}
+msg="Removing the network policy did not block the connection"
+docheck
 
 helm upgrade --install app hello --wait
-get https://hello.localtest.me/ > "${TMP}/out"
-if ! grep -q 'Welcome to nginx' "${TMP}/out"
-then
-    echo "Putting back the network policy did not restore the connection"
-    cat "${TMP}/out"
-    show_context
-    fail
-fi
 
-sleep 3
+check () {
+    get https://hello.localtest.me/ > "${TMP}/out"
+    grep -q 'Welcome to nginx' "${TMP}/out"
+}
+msg="Putting back the network policy did not restore the connection"
+docheck
 
 helm upgrade --install app hello --wait
+
+check () {
 get https://hello.localtest.me/somepath/somefile > "${TMP}/out"
-if test "$(cat "${TMP}/out")" != "somecontent"
-then
-    echo "The content of the config map is not correct before running the test of reloader"
-    cat "${TMP}/out"
-    show_context
-    fail
-fi
-
-sleep 3
+test "$(cat "${TMP}/out")" = "somecontent"
+}
+msg="The content of the config map is not correct before running the test of reloader"
+docheck
 
 sed -i 's/somefile: somecontent/somefile: someothercontent/' hello/templates/configmap.yaml
 helm upgrade --install app hello --wait
-get https://hello.localtest.me/somepath/somefile > "${TMP}/out"
-if test "$(cat "${TMP}/out")" != "someothercontent"
-then
-    echo "The content of the config map is not correct after running the test of reloader"
-    cat "${TMP}/out"
-    show_context
-    fail
-fi
+
+check () {
+    get https://hello.localtest.me/somepath/somefile > "${TMP}/out"
+    test "$(cat "${TMP}/out")" = "someothercontent"
+    }
+msg="The content of the config map is not correct after running the test of reloader"
+docheck
