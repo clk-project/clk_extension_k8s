@@ -13,6 +13,10 @@ trap "exit 3" SIGQUIT
 TMP=/tmp/out
 mkdir -p "${TMP}"
 
+get () {
+    http --ignore-stdin "$@"
+}
+
 show_context () {
     {
         kubectl get -A networkpolicies.networking.k8s.io
@@ -77,7 +81,7 @@ do
 done
 
 check_ingress () {
-    http https://hello.localtest.me/ > "${TMP}/out"
+    get https://hello.localtest.me/ > "${TMP}/out"
     if ! grep -q 'Welcome to nginx' "${TMP}/out"
     then
         return 1
@@ -101,7 +105,7 @@ do
 done
 
 kubectl delete --wait networkpolicies.networking.k8s.io ingress-to-app-hello
-http https://hello.localtest.me/ > "${TMP}/out"
+get https://hello.localtest.me/ > "${TMP}/out"
 if ! grep -q '502 Bad Gateway\|504 Gateway Time-out' "${TMP}/out"
 then
     echo "Removing the network policy did not block the connection"
@@ -111,7 +115,7 @@ then
 fi
 
 helm upgrade --install app hello --wait
-http https://hello.localtest.me/ > "${TMP}/out"
+get https://hello.localtest.me/ > "${TMP}/out"
 if ! grep -q 'Welcome to nginx' "${TMP}/out"
 then
     echo "Putting back the network policy did not restore the connection"
@@ -121,7 +125,7 @@ then
 fi
 
 helm upgrade --install app hello --wait
-http https://hello.localtest.me/somepath/somefile > "${TMP}/out"
+get https://hello.localtest.me/somepath/somefile > "${TMP}/out"
 if test "$(cat "${TMP}/out")" != "somecontent"
 then
     echo "The content of the config map is not correct before running the test of reloader"
@@ -132,7 +136,7 @@ fi
 
 sed -i 's/somefile: somecontent/somefile: someothercontent/' hello/templates/configmap.yaml
 helm upgrade --install app hello --wait
-http https://hello.localtest.me/somepath/somefile > "${TMP}/out"
+get https://hello.localtest.me/somepath/somefile > "${TMP}/out"
 if test "$(cat "${TMP}/out")" != "someothercontent"
 then
     echo "The content of the config map is not correct after running the test of reloader"
