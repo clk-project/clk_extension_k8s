@@ -36,6 +36,7 @@ fail () {
 }
 
 clk k8s cert-manager install-local-certificate --client ca-certificates --flow
+clk k8s network-policy install
 
 if ! helm upgrade --install app hello --wait
 then
@@ -49,21 +50,6 @@ check_certificate () {
         return 1
     fi
 }
-
-attempts=5
-while ! check_certificate
-do
-    if test "${attempts}" -gt "0"
-    then
-        echo "Waiting a bit for the certificate"
-        attempts=$((attempts - 1))
-        sleep 15
-    else
-        echo "Something must have gone wrong"
-        show_context
-        fail
-    fi
-done
 
 attempts=5
 while ! check_certificate
