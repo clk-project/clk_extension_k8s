@@ -67,6 +67,7 @@ RUN_TEST:
     ARG distribution=kind
     ARG from=source
     ARG base="minimal-flow --flow-from k8s.create-cluster"
+    ARG directfail=no
     WITH DOCKER
         RUN --no-cache clk --flow-verbose ${args} k8s --distribution=$distribution ${base} && bash test.sh
     END
@@ -78,8 +79,9 @@ test:
     FROM +test-base --distribution=$distribution --from=$from --dependencies="all"
     COPY hello hello
     COPY test.sh ./test.sh
+    ARG directfail=no
     WAIT
-        DO +RUN_TEST --distribution=$distribution --from=$from
+        DO +RUN_TEST --distribution=$distribution --from=$from --directfail="${directfail}"
     END
     RUN ! test -e /tmp/out/fail # make the target fail if the tests failed
 
@@ -92,3 +94,6 @@ test-all-amd64:
 
 test-all-arm64:
     BUILD --platform linux/arm64 +test-all
+
+test-interactive:
+    BUILD +test --directfail=yes

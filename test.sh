@@ -23,7 +23,12 @@ show_context () {
 
 fail () {
     touch "${TMP}/fail"
-    exit 0
+    if test "${directfail}" = "yes"
+    then
+        exit 1
+    else
+        exit 0
+    fi
 }
 
 clk k8s cert-manager install-local-certificate --client ca-certificates --flow
