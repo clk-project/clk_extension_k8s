@@ -1561,6 +1561,7 @@ def install_local_certificate(client, secret_name, namespace, type, output_file)
                     f.name,
                 ]
             )
+            LOGGER.info("Local certificate installed")
             did_something = True
         else:
 
