@@ -2583,6 +2583,7 @@ def tilt():
 @flag(
     "--use-context/--dont-use-context",
     help="Try to use the appropriate context before running tilt",
+    default=True,
 )
 @option(
     "--label",
