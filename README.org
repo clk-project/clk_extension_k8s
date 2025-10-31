@@ -61,3 +61,24 @@ v1alpha1.extension(
 )
 load('ext://clk-helpers', 'update_helm_chart')
   #+END_SRC
+* observability
+  ~clk k8s flow~ will automatically install the [[https://github.com/open-telemetry/opentelemetry-operator][opentelementry operator]],
+  so that you only have to provide [[https://github.com/open-telemetry/opentelemetry-operator/blob/main/docs/api/opentelemetrycollectors.md][open telemetry collector custom resources]]
+  depending on your need.
+
+  ~clk~ does not install any observability database like prometheus, loki,
+  tempo, pyroscope etc. This is because they consume a lot of ram and in our
+  experience it is enough to distract us from our job.
+
+  Because of this, clk is unable to create a collector without prior knowledge
+  on where to send the data.
+
+  The command ~clk k8s otel create-collector~ is part of the ~clk k8s flow~ but
+  does noting by default, to make it actually create a collector, you have to
+  add a parameter that will set the option ~--log-endpoint~ to whatever endpoint
+  you have at hand.
+
+  So in short, something like, ~clk k8s otel create-collector --log-endpoint http://mydatabase:4318~ will do the trick.
+
+  That collector is configured to discover pods with the annotation
+  ~io.opentelemetry.discovery.logs/enabled: "true"~ and send their log to the otlphttp database you configured.

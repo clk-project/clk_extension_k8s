@@ -1,0 +1,50 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: clk
+  namespace: otel
+spec:
+  config:
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+      k8s_observer:
+        auth_type: serviceAccount
+        node: ${env:K8S_NODE_NAME}
+        observe_pods: true # this is the default, but without it, the operator won't create the appropriate cluster roles
+    receivers:
+      receiver_creator:
+        watch_observers: [k8s_observer]
+        discovery:
+          enabled: true
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 15
+      batch:
+        send_batch_size: 10000
+        timeout: 12s
+
+    exporters:
+      otlphttp/logs:
+        endpoint:
+            {{ .Values.otel.log_endpoint }}
+    service:
+      extensions:
+      - k8s_observer
+      pipelines:
+        logs:
+          receivers: [receiver_creator]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/logs]
+
+  # see https://github.com/open-telemetry/opentelemetry-operator/issues/3791
+  volumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+  volumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods

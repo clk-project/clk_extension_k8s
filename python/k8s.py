@@ -67,6 +67,8 @@ INGRESS_NGINX_VERSION = "4.10.1"
 CERT_MANAGER_VERSION = "1.15.1"
 METRICS_VERSION = "3.12.2"
 RELOADER = "1.0.115"
+# curl -s "https://open-telemetry.github.io/opentelemetry-helm-charts/index.yaml"|yq --raw-output ".entries[\"opentelemetry-operator\"][].version"|sort --reverse --version-sort|head
+OTEL_OPERATOR = "0.98.0"
 
 bin_dir = Path("~/.local/bin").expanduser()
 if not bin_dir.exists():
@@ -1836,6 +1838,8 @@ def add_domain(domain, ip, reset, other_domain):
         'k8s.install-reloader',
         'k8s.network-policy.install',
         'k8s.setup-credentials',
+        'k8s.otel.install-operator',
+        'k8s.otel.create-collector',
     ],
     handle_dry_run=True,
 )  # yapf: disable
@@ -3073,4 +3077,43 @@ def namespace():
             "--namespace",
             config.k8sgo.namespace,
         ]
+    )
+
+
+@k8s.group(flowdepends=["k8s.wait-ready"], handle_dry_run=True)
+def otel():
+    """Play with opentelemetry"""
+
+
+@otel.command()
+@option(
+    "--version",
+    default=f"v{OTEL_OPERATOR}",
+    help="The version of the operator chart to install",
+)
+@flag("--force", help="Install even if already present")
+def install_operator(version, force):
+    """Install the otel operator in the current cluster"""
+    HelmApplication("otel", "opentelemetry-operator", version).install(
+        force,
+        [
+            "--repo",
+            "https://open-telemetry.github.io/opentelemetry-helm-charts",
+            "--set",
+            "manager.createRbacPermissions=true",
+        ],
+    )
+
+
+@otel.command()
+@option("--log-endpoint", help="Where to send the logs")
+def create_collector(log_endpoint):
+    """Install a otel collector to do some basic stuff"""
+    if not log_endpoint:
+        return
+    otel_chart = Path(__file__).parent.parent / "files/otel"
+    call(
+        split(
+            f"helm upgrade --wait --install --namespace otel clk-otel {otel_chart} --set otel.log_endpoint={log_endpoint}"
+        )
     )
