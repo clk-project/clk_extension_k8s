@@ -876,10 +876,29 @@ InstallDependency.install_commands(install_dependency)
 @install_dependency.flow_command(
     flowdepends=[
         "k8s.install-dependency.kubectl",
+        "k8s.install-dependency.kind",
+    ]
+)
+def server():
+    """Install the dependencies needed on the server side"""
+
+
+@install_dependency.flow_command(
+    flowdepends=[
+        "k8s.install-dependency.kubectl",
         "k8s.install-dependency.helm",
         "k8s.install-dependency.tilt",
         "k8s.install-dependency.earthly",
-        "k8s.install-dependency.kind",
+    ]
+)
+def client():
+    """Install the dependencies needed on the client side"""
+
+
+@install_dependency.flow_command(
+    flowdepends=[
+        "k8s.install_dependency.client",
+        "k8s.install_dependency.server",
     ],
     handle_dry_run=True,
 )
@@ -906,7 +925,7 @@ docker_registries_configs = {
 }
 
 
-@k8s.command(flowdepends=["k8s.create-cluster"], handle_dry_run=True)
+@k8s.command(handle_dry_run=True)
 @argument(
     "registry-provider",
     type=click.Choice(docker_registries_configs.keys()),
@@ -1044,7 +1063,7 @@ def registry_login(
         )
 
 
-@k8s.command(flowdepends=["k8s.create-cluster"])
+@k8s.command()
 def wait_ready():
     "Wait that the kubernetes node is ready"
 
@@ -1296,7 +1315,7 @@ def _install(version, force):
     )
 
 
-@k8s.command(flowdepends=["k8s.wait-ready"], handle_dry_run=True)
+@k8s.command(handle_dry_run=True)
 @option(
     "--version",
     default=f"v{METRICS_VERSION}",
@@ -1709,7 +1728,7 @@ def install_ingress_controller(version, force, timeout):
     HelmApplication("ingress", "ingress-nginx", version).install(force, helm_args)
 
 
-@k8s.command(flowdepends=["k8s.create-cluster"], handle_dry_run=True)
+@k8s.command(handle_dry_run=True)
 @option(
     "--version",
     default=f"v{RELOADER}",
@@ -1727,7 +1746,7 @@ def install_reloader(version, force):
     )
 
 
-@k8s.command(flowdepends=["k8s.create-cluster"])
+@k8s.command()
 def install_dnsmasq():
     """Install a dnsmasq server resolving *.localhost to 127.0.0.1. Supported OS: macOS."""
     if sys.platform == "darwin":
@@ -1744,7 +1763,7 @@ def install_dnsmasq():
             call(["sudo", "cp", f.name, "/etc/resolver/localhost"])
 
 
-@k8s.command(flowdepends=["k8s.create-cluster"])
+@k8s.command()
 @argument("domain", help="The domain name to define")
 @argument(
     "ip",
@@ -1827,36 +1846,60 @@ def add_domain(domain, ip, reset, other_domain):
         raise click.ClickException("Unsupported distribution")
 
 
-@k8s.flow_command(
+@k8s.group(default_command="all")
+def flow():
+    """Some useful flows of commands"""
+
+
+@flow.flow_command(
     flowdepends=[
-        'k8s.install-local-registry',
-        'k8s.minimal-flow',
-        'k8s.install-dependency.all',
+        "k8s.install-local-registry",
+        "k8s.create-cluster",
+        "k8s.wait-ready",
+    ]
+)
+def _server():
+    """A flow to run on the machine hosting the k8s server"""
+
+
+@flow.flow_command(
+    flowdepends=[
+        "k8s.install-dependency.client",
         # add ons
-        'k8s.cert-manager.generate-certificate-authority',
-        'k8s.install-metrics-server',
-        'k8s.install-reloader',
-        'k8s.network-policy.install',
-        'k8s.setup-credentials',
-        'k8s.otel.install-operator',
-        'k8s.otel.create-collector',
+        "k8s.cert-manager.generate-certificate-authority",
+        "k8s.install-metrics-server",
+        "k8s.install-reloader",
+        "k8s.network-policy.install",
+        "k8s.setup-credentials",
+        "k8s.otel.install-operator",
+        "k8s.otel.create-collector",
+    ]
+)
+def _client():
+    """A flow to run on the machine hosting the k8s server"""
+
+
+@flow.flow_command(
+    flowdepends=[
+        'k8s.flow.server',
+        'k8s.flow.client',
     ],
     handle_dry_run=True,
 )  # yapf: disable
-def flow():
+def __all():
     """Run the full k8s setup flow"""
     if not config.dry_run:
         LOGGER.status("Everything worked well. Now enjoy your new cluster ready to go!")
 
 
-@k8s.flow_command(
+@flow.flow_command(
     flowdepends=[
         "k8s.install-dependency.kubectl",
         "k8s.create-cluster",
     ],
     handle_dry_run=True,
 )
-def minimal_flow():
+def minimal():
     """Run the minimal k8s setup flow"""
     if not config.dry_run:
         LOGGER.status(
@@ -2337,7 +2380,7 @@ def template(args):
     call([str(Helm.program_path), "template"] + list(args))
 
 
-@k8s.command(flowdepends=["k8s.create-cluster"])
+@k8s.command()
 def setup_credentials():
     """Placeholder command to setup the secrets
 
@@ -2347,10 +2390,6 @@ def setup_credentials():
     In case you want to setup some secret after the cluster is created, this is
     as simple as running `clk command create bash k8s.setup-credentials` and
     write whatever behavior you want.
-
-    You will likely want to make this new command have `k8s.create-cluster` in
-    its flow, by adding the line `flowdepends: k8s.create-cluster` in its
-    description for instance.
 
     You might want to take advantage of `clk k8s docker-credentials` and `clk
     k8s registry-login` in this command.
@@ -2548,7 +2587,7 @@ def _network_policy():
     "Play with network policies"
 
 
-@_network_policy.command(flowdepends=["k8s.create-cluster"], handle_dry_run=True)
+@_network_policy.command(handle_dry_run=True)
 @option(
     "--strict/--permissive",
     default=True,

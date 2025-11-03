@@ -66,7 +66,7 @@ RUN_TEST:
     USER root
     ARG distribution=kind
     ARG from=source
-    ARG base="minimal-flow --flow-from k8s.create-cluster"
+    ARG base="flow minimal --flow-from k8s.create-cluster"
     ARG directfail=no
     WITH DOCKER
         RUN --no-cache clk --flow-verbose ${args} k8s --distribution=$distribution ${base} && bash test.sh
