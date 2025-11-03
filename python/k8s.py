@@ -897,8 +897,8 @@ def client():
 
 @install_dependency.flow_command(
     flowdepends=[
-        "k8s.install_dependency.client",
-        "k8s.install_dependency.server",
+        "k8s.install-dependency.client",
+        "k8s.install-dependency.server",
     ],
     handle_dry_run=True,
 )
