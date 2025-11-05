@@ -18,26 +18,31 @@ spec:
         discovery:
           enabled: true
     processors:
-      memory_limiter:
-        check_interval: 1s
-        limit_percentage: 75
-        spike_limit_percentage: 15
-      batch:
-        send_batch_size: 10000
-        timeout: 12s
-
+      resource:
+        attributes:
+          - key: deployment.environment.name
+            value: "clk"
+            action: upsert
+          - key: service.name
+            from_attribute: k8s.container.name
+            action: insert
     exporters:
       otlphttp/logs:
         endpoint:
-            {{ .Values.otel.log_endpoint }}
+            {{ .Values.logs.endpoint }}
+      debug:
+        verbosity: detailed
     service:
       extensions:
       - k8s_observer
       pipelines:
         logs:
           receivers: [receiver_creator]
-          processors: [memory_limiter, batch]
-          exporters: [otlphttp/logs]
+          processors:
+            - resource
+          exporters:
+            {{ if .Values.logs.debug }}- debug{{ end }}
+            - otlphttp/logs
 
   # see https://github.com/open-telemetry/opentelemetry-operator/issues/3791
   volumeMounts:

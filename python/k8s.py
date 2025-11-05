@@ -3146,13 +3146,24 @@ def install_operator(version, force):
 
 @otel.command()
 @option("--log-endpoint", help="Where to send the logs")
-def create_collector(log_endpoint):
+@flag("--log-debug", help="Whether to dump logs on stdout")
+def create_collector(log_endpoint, log_debug):
     """Install a otel collector to do some basic stuff"""
     if not log_endpoint:
         return
     otel_chart = Path(__file__).parent.parent / "files/otel"
-    call(
-        split(
-            f"helm upgrade --wait --install --namespace otel clk-otel {otel_chart} --set otel.log_endpoint={log_endpoint}"
-        )
-    )
+    args = [
+        "helm",
+        "upgrade",
+        "--wait",
+        "--install",
+        "--namespace",
+        "otel",
+        "clk-otel",
+        otel_chart,
+        "--set",
+        f"logs.endpoint={log_endpoint}",
+    ]
+    if log_debug:
+        args += ["--set", "logs.debug=true"]
+    call(args)
