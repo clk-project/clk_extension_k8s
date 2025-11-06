@@ -1871,8 +1871,6 @@ def _server():
         "k8s.install-reloader",
         "k8s.network-policy.install",
         "k8s.setup-credentials",
-        "k8s.otel.install-operator",
-        "k8s.otel.create-collector",
     ]
 )
 def _client():

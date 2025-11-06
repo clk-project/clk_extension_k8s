@@ -62,7 +62,7 @@ v1alpha1.extension(
 load('ext://clk-helpers', 'update_helm_chart')
   #+END_SRC
 * observability
-  ~clk k8s flow~ will automatically install the [[https://github.com/open-telemetry/opentelemetry-operator][opentelementry operator]],
+  You can install the [[https://github.com/open-telemetry/opentelemetry-operator][opentelementry operator]] with ~clk k8s otel install-operator~
   so that you only have to provide [[https://github.com/open-telemetry/opentelemetry-operator/blob/main/docs/api/opentelemetrycollectors.md][open telemetry collector custom resources]]
   depending on your need.
 
