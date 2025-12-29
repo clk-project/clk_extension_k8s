@@ -8,6 +8,7 @@ import json
 import os
 import platform
 import re
+import signal
 import subprocess
 import sys
 import tarfile
@@ -2632,8 +2633,9 @@ def tilt():
     help="What labels to select",
     multiple=True,
 )
+@flag("--down/--no-down", default=True, help="Call tilt down when stopping the program")
 @option("--namespace", help="Given to tilt", default="default")
-def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace):
+def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
     "Run whatever is needed to run tilt"
     root = Path(".").absolute()
     tiltfile_name = "Tiltfile"
@@ -2665,7 +2667,9 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace):
         + tiltfile_args,
         cwd=root,
     )
-    LOGGER.info("Now, waiting for tilt to be ready")
+    LOGGER.info(
+        "Tilt started, waiting for it to be ready before enabling the resources"
+    )
     time.sleep(2)
     call(
         [
@@ -2676,11 +2680,23 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace):
             "uiresources/(Tiltfile)",
         ]
     )
+    LOGGER.info("Enabling resources")
     if label:
         args = ["tilt", "enable", "uncategorized"]
         for label_ in label:
             args += ["-l", label_]
         call(args)
+    if down:
+        LOGGER.info("Ctrl-C will tilt down")
+
+        def signal_handler(sig, frame):
+            LOGGER.info("Received interrupt, running tilt down...")
+            call(["tilt", "down", "--"] + tiltfile_args)
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, signal_handler)
+
+    LOGGER.info("Tilt ready to go")
     process.wait()
 
 
