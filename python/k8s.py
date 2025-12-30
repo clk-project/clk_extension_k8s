@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import base64
-import grp
 import gzip
 import hashlib
 import json
@@ -824,6 +823,8 @@ def doctor():
     if docker is None:
         raise click.UsageError("You need to install docker")
     if sys.platform == "linux":
+        import grp
+
         if "docker" not in [grp.getgrgid(g).gr_name for g in os.getgroups()]:
             raise click.UsageError(
                 "You need to add the current user in the docker group"
