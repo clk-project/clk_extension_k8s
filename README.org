@@ -13,16 +13,22 @@
   :PROPERTIES:
   :CUSTOM_ID: c6c523b0-c187-442f-8c77-e3ca2f803e2c
   :END:
+  ~clk k8s~ expects docker to be up and available.
 
-  Either:
+  Hint
+  ~curl -sSL https://get.docker.com | sh~
+  followed by
+  ~sudo usermod -a -G docker $(id --user --name)~
 
-  1. install [[https://clk-project.org/][clk-project]] and the extension with
+  Now, to install ~clk k8s~, you have two options:
+
+  1. either, install [[https://clk-project.org/][clk-project]] and the extension with
 
      #+BEGIN_SRC shell
        curl -sSL https://clk-project.org/install.sh | env CLK_EXTENSIONS=k8s bash
      #+END_SRC
 
-  2. if you already have clk, you can simply install this extension with
+  2. or, if you already have clk, you can simply install this extension with
      #+BEGIN_SRC shell
        clk extension install k8s
      #+END_SRC
@@ -30,7 +36,6 @@
   :PROPERTIES:
   :CUSTOM_ID: 454564d8-513e-4384-85ba-eef662ed477d
   :END:
-
   #+BEGIN_SRC shell
     clk k8s flow all
   #+END_SRC
