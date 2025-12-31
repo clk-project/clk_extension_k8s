@@ -32,9 +32,10 @@
   :END:
 
   #+BEGIN_SRC shell
-    clk k8s flow
+    clk k8s flow all
   #+END_SRC
   Now, you have a local cluster running and ready to be used. It is that simple.
+
 * tilt extensions
   :PROPERTIES:
   :CREATED:  [2024-04-30 14:33]
