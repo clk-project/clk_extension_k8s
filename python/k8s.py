@@ -1237,7 +1237,7 @@ networking:
                 f.name,
             ]
             if config.log_level in ("debug", "develop"):
-                cmd += ["--loglevel", "3"]
+                cmd += ["--verbosity", "3"]
             silent_call(cmd)
         if use_public_dns:
             call(
@@ -2694,14 +2694,23 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
         LOGGER.info("Ctrl-C will tilt down")
 
         def signal_handler(sig, frame):
-            LOGGER.info("Received interrupt, running tilt down...")
-            call(["tilt", "down", "--"] + tiltfile_args)
             sys.exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
 
     LOGGER.info("Tilt ready to go")
-    process.wait()
+    try:
+        time.sleep(999999)
+    except KeyboardInterrupt:
+        process.kill()
+        process.wait()
+        LOGGER.info("Received interrupt, running tilt down...")
+        # call(["tilt", "down", "--"] + tiltfile_args)
+        time.sleep(3600)
+        LOGGER.info("Tilt is now down")
+    except Exception:
+        process.kill()
+        process.wait()
 
 
 class NamespaceNameType(DynamicChoice):
