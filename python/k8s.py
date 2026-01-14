@@ -65,13 +65,13 @@ KUBECTL_VERSION = "1.35.0"
 TILT_VERSION = "0.36.0"
 
 # server apps
-KIND_VERSION = "0.31.0"
-INGRESS_NGINX_VERSION = "4.14.1"
-CERT_MANAGER_VERSION = "1.19.2"
+KIND_VERSION = "0.23.0"
+INGRESS_NGINX_VERSION = "4.10.1"
+CERT_MANAGER_VERSION = "1.15.1"
 METRICS_VERSION = "3.12.2"
 RELOADER = "1.0.115"
 # curl -s "https://open-telemetry.github.io/opentelemetry-helm-charts/index.yaml"|yq --raw-output ".entries[\"opentelemetry-operator\"][].version"|sort --reverse --version-sort|head
-OTEL_OPERATOR = "0.102.0"
+OTEL_OPERATOR = "0.98.0"
 
 bin_dir = Path("~/.local/bin").expanduser()
 if not bin_dir.exists():
@@ -1237,7 +1237,7 @@ networking:
                 f.name,
             ]
             if config.log_level in ("debug", "develop"):
-                cmd += ["--verbosity", "3"]
+                cmd += ["--loglevel", "3"]
             silent_call(cmd)
         if use_public_dns:
             call(
@@ -2694,23 +2694,14 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
         LOGGER.info("Ctrl-C will tilt down")
 
         def signal_handler(sig, frame):
+            LOGGER.info("Received interrupt, running tilt down...")
+            call(["tilt", "down", "--"] + tiltfile_args)
             sys.exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
 
     LOGGER.info("Tilt ready to go")
-    try:
-        time.sleep(999999)
-    except KeyboardInterrupt:
-        process.kill()
-        process.wait()
-        LOGGER.info("Received interrupt, running tilt down...")
-        # call(["tilt", "down", "--"] + tiltfile_args)
-        time.sleep(3600)
-        LOGGER.info("Tilt is now down")
-    except Exception:
-        process.kill()
-        process.wait()
+    process.wait()
 
 
 class NamespaceNameType(DynamicChoice):
