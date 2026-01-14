@@ -1430,7 +1430,7 @@ def generate_certificate_authority(ca_key_path, ca_crt_path):
         retries = 5
         wait_time = 5
         while not config.kubectl.get("secret", secret_name, "cert-manager") and retries:
-            time.wait(wait_time)
+            time.sleep(wait_time)
             retries -= 1
             wait_time *= 1.5
         if not retries:
