@@ -762,6 +762,10 @@ kubeadmConfigPatches:
   controllerManager:
     extraArgs:
       "feature-gates": "EphemeralContainers=true"
+  apiServer:
+    certSANs:
+    - "{host_ip}"
+    - "{api_server_address}"
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
   kind: InitConfiguration
@@ -1145,7 +1149,7 @@ def install_local_registry(reinstall):
 @flag("--recreate", help="Recreate it if it already exists")
 @option(
     "--api-server-address",
-    default=lambda: config.k8s.host_ip,
+    default="0.0.0.0",
     help="Use this in case you want to control the cluster remotely",
 )
 @option("--nodes", "-n", default=1, type=int, help="Number of nodes in the cluster")
@@ -1207,7 +1211,9 @@ def create_cluster(recreate, nodes, api_server_address, calico_version, use_publ
 
     if config.k8s.distribution == "kind":
         reg_name = f"{config.k8s.distribution}-registry"
-        kind_config_to_use = kind_config
+        kind_config_to_use = kind_config.format(
+            host_ip=config.k8s.host_ip, api_server_address=api_server_address
+        )
         kind_config_to_use += "- role: worker\n" * (nodes - 1)
         using_local_registry = (
             reg_name in check_output(split("docker ps --format {{.Names}}")).split()
@@ -2695,7 +2701,8 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
 
         def signal_handler(sig, frame):
             LOGGER.info("Received interrupt, running tilt down...")
-            call(["tilt", "down", "--"] + tiltfile_args)
+            # call(["tilt", "down", "--"] + tiltfile_args)
+            time.sleep(500)
             sys.exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
