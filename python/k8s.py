@@ -1145,7 +1145,7 @@ def install_local_registry(reinstall):
 @flag("--recreate", help="Recreate it if it already exists")
 @option(
     "--api-server-address",
-    default="127.0.0.1",
+    default=lambda: config.k8s.host_ip,
     help="Use this in case you want to control the cluster remotely",
 )
 @option("--nodes", "-n", default=1, type=int, help="Number of nodes in the cluster")
