@@ -7,7 +7,6 @@ import json
 import os
 import platform
 import re
-import signal
 import subprocess
 import sys
 import tarfile
@@ -22,6 +21,7 @@ import click
 import tomli
 import tomli_w
 import yaml
+from clk.atexit import register
 from clk.config import config
 from clk.core import cache_disk, run
 from clk.decorators import argument, flag, group, option, table_fields, table_format
@@ -2678,7 +2678,10 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
         cwd=root,
     )
     LOGGER.info(
-        "Tilt started, waiting for it to be ready before enabling the resources"
+        click.style(
+            "Tilt started, waiting for it to be ready before enabling the resources",
+            fg="blue",
+        )
     )
     time.sleep(2)
     call(
@@ -2690,24 +2693,27 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
             "uiresources/(Tiltfile)",
         ]
     )
-    LOGGER.info("Enabling resources")
+    LOGGER.info(click.style("Enabling resources", fg="blue"))
     if label:
         args = ["tilt", "enable", "uncategorized"]
         for label_ in label:
             args += ["-l", label_]
         call(args)
     if down:
-        LOGGER.info("Ctrl-C will tilt down")
+        LOGGER.info(
+            click.style(
+                "Ctrl-C will tilt down, so press Ctrl-C several times to cancel tilt down as well",
+                fg="blue",
+            )
+        )
 
-        def signal_handler(sig, frame):
-            LOGGER.info("Received interrupt, running tilt down...")
-            # call(["tilt", "down", "--"] + tiltfile_args)
-            time.sleep(500)
-            sys.exit(0)
+        def tilt_down():
+            LOGGER.info(click.style("Running tilt down", fg="blue"))
+            call(["tilt", "down", "--"] + tiltfile_args)
 
-        signal.signal(signal.SIGINT, signal_handler)
+        register(tilt_down)
 
-    LOGGER.info("Tilt ready to go")
+    LOGGER.info(click.style("Tilt ready to go", fg="blue"))
     process.wait()
 
 
