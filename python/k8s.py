@@ -1220,11 +1220,11 @@ def create_cluster(recreate, nodes, api_server_address, calico_version, use_publ
         )
         if using_local_registry:
             LOGGER.debug("Found a local registry, using it")
-            kind_config_to_use += f"""
+            kind_config_to_use += """
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.host_ip}:{config.k8s.registry_port}"]
-    endpoint = ["http://{reg_name}:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    config_path = "/etc/containerd/certs.d"
 """
         kind_config_to_use += f"""
 networking:
@@ -1245,6 +1245,28 @@ networking:
             if config.log_level in ("debug", "develop"):
                 cmd += ["--verbosity", "3"]
             silent_call(cmd)
+        if using_local_registry:
+            registry_dir = f"/etc/containerd/certs.d/{config.k8s.host_ip}:{config.k8s.registry_port}"
+            nodes = (
+                check_output(
+                    [str(Kind.program_path), "get", "nodes", "--name", CLUSTER_NAME]
+                )
+                .strip()
+                .splitlines()
+            )
+            for node in nodes:
+                call(["docker", "exec", node, "mkdir", "-p", registry_dir])
+                call(
+                    [
+                        "docker",
+                        "exec",
+                        "-i",
+                        node,
+                        "bash",
+                        "-c",
+                        f'cat > {registry_dir}/hosts.toml <<EOF\n[host."http://{reg_name}:5000"]\n  capabilities = ["pull", "resolve"]\nEOF',
+                    ],
+                )
         if use_public_dns:
             call(
                 [
