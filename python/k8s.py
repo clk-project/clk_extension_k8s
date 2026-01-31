@@ -1243,7 +1243,7 @@ networking:
                 f.name,
             ]
             if config.log_level in ("debug", "develop"):
-                cmd += ["--loglevel", "3"]
+                cmd += ["--verbosity", "3"]
             silent_call(cmd)
         if use_public_dns:
             call(
