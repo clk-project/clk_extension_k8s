@@ -787,7 +787,7 @@ nodes:
   extraMounts:
     - hostPath: /kind
       containerPath: /shared
-  extraPortMappings:
+{extra_mounts}  extraPortMappings:
   - containerPort: 80
     hostPort: 80
     protocol: TCP
@@ -1211,20 +1211,40 @@ def create_cluster(recreate, nodes, api_server_address, calico_version, use_publ
 
     if config.k8s.distribution == "kind":
         reg_name = f"{config.k8s.distribution}-registry"
-        kind_config_to_use = kind_config.format(
-            host_ip=config.k8s.host_ip, api_server_address=api_server_address
-        )
-        kind_config_to_use += "- role: worker\n" * (nodes - 1)
         using_local_registry = (
             reg_name in check_output(split("docker ps --format {{.Names}}")).split()
         )
+        extra_mounts = ""
         if using_local_registry:
             LOGGER.debug("Found a local registry, using it")
-            kind_config_to_use += f"""
+            certs_d_host_dir = Path(__file__).parent.parent / (
+                "tmp/kind/containerd-certs.d"
+            )
+            registry_host_dir = os.path.join(
+                certs_d_host_dir, f"{config.k8s.host_ip}:{config.k8s.registry_port}"
+            )
+            os.makedirs(registry_host_dir, exist_ok=True)
+            with open(os.path.join(registry_host_dir, "hosts.toml"), "w") as ht:
+                ht.write(
+                    f'[host."http://{reg_name}:5000"]\n'
+                    f'  capabilities = ["pull", "resolve"]\n'
+                )
+            extra_mounts = (
+                f"    - hostPath: {certs_d_host_dir}\n"
+                f"      containerPath: /etc/containerd/certs.d\n"
+            )
+        kind_config_to_use = kind_config.format(
+            host_ip=config.k8s.host_ip,
+            api_server_address=api_server_address,
+            extra_mounts=extra_mounts,
+        )
+        kind_config_to_use += "- role: worker\n" * (nodes - 1)
+        if using_local_registry:
+            kind_config_to_use += """
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{config.k8s.host_ip}:{config.k8s.registry_port}"]
-    endpoint = ["http://{reg_name}:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    config_path = "/etc/containerd/certs.d"
 """
         kind_config_to_use += f"""
 networking:
