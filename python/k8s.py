@@ -784,10 +784,8 @@ nodes:
         node-labels: "ingress-ready=true"
         eviction-hard: "imagefs.available<1%,nodefs.available<1%"
         eviction-minimum-reclaim: "imagefs.available=1%,nodefs.available=1%"
-  extraMounts:
-    - hostPath: /kind
-      containerPath: /shared
-{extra_mounts}  extraPortMappings:
+{extra_mounts}
+  extraPortMappings:
   - containerPort: 80
     hostPort: 80
     protocol: TCP
@@ -1214,14 +1212,19 @@ def create_cluster(recreate, nodes, api_server_address, calico_version, use_publ
         using_local_registry = (
             reg_name in check_output(split("docker ps --format {{.Names}}")).split()
         )
-        extra_mounts = ""
+        kind_host_dir = Path(__file__).parent.parent / "tmp/kind"
+        shared_host_dir = kind_host_dir / "shared"
+        os.makedirs(shared_host_dir, exist_ok=True)
+        extra_mounts = (
+            f"  extraMounts:\n"
+            f"    - hostPath: {shared_host_dir}\n"
+            f"      containerPath: /shared\n"
+        )
         if using_local_registry:
             LOGGER.debug("Found a local registry, using it")
-            certs_d_host_dir = Path(__file__).parent.parent / (
-                "tmp/kind/containerd-certs.d"
-            )
-            registry_host_dir = os.path.join(
-                certs_d_host_dir, f"{config.k8s.host_ip}:{config.k8s.registry_port}"
+            certs_d_host_dir = kind_host_dir / "containerd-certs.d"
+            registry_host_dir = (
+                certs_d_host_dir / f"{config.k8s.host_ip}:{config.k8s.registry_port}"
             )
             os.makedirs(registry_host_dir, exist_ok=True)
             with open(os.path.join(registry_host_dir, "hosts.toml"), "w") as ht:
@@ -1229,7 +1232,7 @@ def create_cluster(recreate, nodes, api_server_address, calico_version, use_publ
                     f'[host."http://{reg_name}:5000"]\n'
                     f'  capabilities = ["pull", "resolve"]\n'
                 )
-            extra_mounts = (
+            extra_mounts += (
                 f"    - hostPath: {certs_d_host_dir}\n"
                 f"      containerPath: /etc/containerd/certs.d\n"
             )
