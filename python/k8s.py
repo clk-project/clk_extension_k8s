@@ -72,7 +72,7 @@ METRICS_VERSION = "3.12.2"
 CALICO_VERSION = "3.28.0"
 RELOADER = "1.0.115"
 # curl -s "https://open-telemetry.github.io/opentelemetry-helm-charts/index.yaml"|yq --raw-output ".entries[\"opentelemetry-operator\"][].version"|sort --reverse --version-sort|head
-OTEL_OPERATOR = "0.98.0"
+OTEL_OPERATOR = "0.105.0"
 
 bin_dir = Path("~/.local/bin").expanduser()
 if not bin_dir.exists():
