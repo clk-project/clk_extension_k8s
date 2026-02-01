@@ -69,6 +69,7 @@ KIND_VERSION = "0.31.0"
 INGRESS_NGINX_VERSION = "4.10.1"
 CERT_MANAGER_VERSION = "1.19.2"
 METRICS_VERSION = "3.12.2"
+CALICO_VERSION = "3.28.0"
 RELOADER = "1.0.115"
 # curl -s "https://open-telemetry.github.io/opentelemetry-helm-charts/index.yaml"|yq --raw-output ".entries[\"opentelemetry-operator\"][].version"|sort --reverse --version-sort|head
 OTEL_OPERATOR = "0.98.0"
@@ -1153,7 +1154,7 @@ def install_local_registry(reinstall):
 @option("--nodes", "-n", default=1, type=int, help="Number of nodes in the cluster")
 @option(
     "--calico-version",
-    default="v3.28.0",
+    default=CALICO_VERSION,
     help="The version of calico to install along kind",
 )
 @flag(
@@ -1310,7 +1311,7 @@ data:
             [
                 "create",
                 "-f",
-                f"https://raw.githubusercontent.com/projectcalico/calico/{calico_version}/manifests/calico.yaml",
+                f"https://raw.githubusercontent.com/projectcalico/calico/v{calico_version}/manifests/calico.yaml",
             ]
         )
 
