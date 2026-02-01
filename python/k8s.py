@@ -70,7 +70,7 @@ INGRESS_NGINX_VERSION = "4.10.1"
 CERT_MANAGER_VERSION = "1.19.2"
 METRICS_VERSION = "3.12.2"
 CALICO_VERSION = "3.28.0"
-RELOADER = "1.0.115"
+RELOADER = "2.2.7"
 # curl -s "https://open-telemetry.github.io/opentelemetry-helm-charts/index.yaml"|yq --raw-output ".entries[\"opentelemetry-operator\"][].version"|sort --reverse --version-sort|head
 OTEL_OPERATOR = "0.105.0"
 
