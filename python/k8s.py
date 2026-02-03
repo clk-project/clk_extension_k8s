@@ -3105,9 +3105,7 @@ class K8sContextType(DynamicChoice):
     def choices(self):
         @cache_disk(expire=60)
         def k8s_contexts():
-            return check_output(
-                [str(Kubectl.program_path), "config", "get-contexts", "-o", "name"]
-            ).splitlines()
+            return KubeCtl.list_contexts()
 
         return k8s_contexts()
 
