@@ -67,6 +67,60 @@ v1alpha1.extension(
 )
 load('ext://clk-helpers', 'update_helm_chart')
   #+END_SRC
+* shared host directory
+  :PROPERTIES:
+  :CUSTOM_ID: b3e2f8a1-7c4d-4e5a-9b3f-1a2c3d4e5f67
+  :END:
+  When creating a kind cluster with ~clk k8s create-cluster~, a shared
+  directory is automatically set up between the host and the kind node:
+
+  - *Host path:* ~$(clk extension where-is global/k8s)/tmp/kind/shared~
+  - *Kind node path:* ~/shared~
+
+  This allows exchanging files between the host and pods running in the
+  cluster. To use it in a deployment, mount a ~hostPath~ volume pointing
+  to ~/shared~:
+
+  #+BEGIN_SRC shell
+    cat <<'EOF' | kubectl apply -f -
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: shared-volume
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: shared-volume
+      template:
+        metadata:
+          labels:
+            app: shared-volume
+        spec:
+          containers:
+          - name: alpine
+            image: alpine:latest
+            command: ['sleep', 'infinity']
+            volumeMounts:
+            - name: shared
+              mountPath: /shared
+          volumes:
+          - name: shared
+            hostPath:
+              path: /shared
+              type: DirectoryOrCreate
+    EOF
+  #+END_SRC
+
+  Data written to ~$(clk extension where-is global/k8s)/tmp/kind/shared~ on the host is immediately visible
+  at ~/shared~ inside the pod, and vice versa. The data persists across
+  deployment recreations since it lives on the host filesystem.
+
+  *Note:* If you use PersistentVolumes with ~hostPath~ outside of
+  ~/tmp/~, avoid using ~persistentVolumeReclaimPolicy: Delete~ as
+  Kubernetes' built-in host_path deleter only supports paths under
+  ~/tmp/~. Use ~Retain~ instead.
+
 * observability
   You can install the [[https://github.com/open-telemetry/opentelemetry-operator][opentelementry operator]] with ~clk k8s otel install-operator~
   so that you only have to provide [[https://github.com/open-telemetry/opentelemetry-operator/blob/main/docs/api/opentelemetrycollectors.md][open telemetry collector custom resources]]
