@@ -848,7 +848,7 @@ def doctor():
 RUN apk add busybox
 """)
             try:
-                call([str(Kubectl.program_path), "build", d])
+                config.kubectl.call(["build", str(d)], silent=False)
             except Exception:
                 warnings += 1
                 LOGGER.warning(
@@ -1293,7 +1293,7 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 """
             ) as f:
-                silent_call([str(Kubectl.program_path), "apply", "-f", f.name])
+                config.kubectl.call(["apply", "-f", f.name], silent=True)
             containers = check_output(
                 [
                     "docker",
@@ -2686,7 +2686,7 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
         context = {
             "kind": f"kind-{CLUSTER_NAME}",
         }[config.k8s.distribution]
-        silent_call([str(Kubectl.program_path), "config", "use-context", context])
+        config.kubectl.call(["config", "use-context", context], silent=True)
     tiltfile_args = list(tiltfile_args)
     tiltfile_args += ["--clear-enabled-resources"]
     tilt_arg = list(tilt_arg)
@@ -3106,7 +3106,7 @@ class K8sContextType(DynamicChoice):
         @cache_disk(expire=60)
         def k8s_contexts():
             return check_output(
-                ["kubectl", "config", "get-contexts", "-o", "name"]
+                [str(Kubectl.program_path), "config", "get-contexts", "-o", "name"]
             ).splitlines()
 
         return k8s_contexts()
@@ -3119,7 +3119,15 @@ class K8sNamespaceType(DynamicChoice):
             return [
                 "/".join(name.split("/")[1:])
                 for name in check_output(
-                    ["kubectl", "--context", context, "get", "namespaces", "-o", "name"]
+                    [
+                        str(Kubectl.program_path),
+                        "--context",
+                        context,
+                        "get",
+                        "namespaces",
+                        "-o",
+                        "name",
+                    ]
                 ).splitlines()
             ]
 
@@ -3139,16 +3147,16 @@ class K8sNamespaceType(DynamicChoice):
 )
 def go():
     """Configure k8s to use that context and that namespace"""
-    call(["kubectl", "config", "use-context", config.k8sgo.context])
-    call(
+    config.kubectl.call(["config", "use-context", config.k8sgo.context], silent=False)
+    config.kubectl.call(
         [
-            "kubectl",
             "config",
             "set-context",
             config.k8sgo.context,
             "--namespace",
             config.k8sgo.namespace,
-        ]
+        ],
+        silent=False,
     )
 
 
@@ -3162,15 +3170,15 @@ def go():
 )
 def namespace():
     """Configure k8s to use that context and that namespace"""
-    call(
+    config.kubectl.call(
         [
-            "kubectl",
             "config",
             "set-context",
             "--current",
             "--namespace",
             config.k8sgo.namespace,
-        ]
+        ],
+        silent=False,
     )
 
 
