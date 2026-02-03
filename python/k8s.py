@@ -68,11 +68,11 @@ TILT_VERSION = "0.36.0"
 KIND_VERSION = "0.31.0"
 INGRESS_NGINX_VERSION = "4.10.1"
 CERT_MANAGER_VERSION = "1.19.2"
-METRICS_VERSION = "3.12.2"
-CALICO_VERSION = "3.28.0"
+METRICS_VERSION = "3.13.0"
+CALICO_VERSION = "3.31.3"
 RELOADER = "2.2.7"
 # curl -s "https://open-telemetry.github.io/opentelemetry-helm-charts/index.yaml"|yq --raw-output ".entries[\"opentelemetry-operator\"][].version"|sort --reverse --version-sort|head
-OTEL_OPERATOR = "0.105.0"
+OTEL_OPERATOR = "0.144.0"
 
 bin_dir = Path("~/.local/bin").expanduser()
 if not bin_dir.exists():
