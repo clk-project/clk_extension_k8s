@@ -652,6 +652,7 @@ class KubeCtl:
         # this is called only when explicitly set by the user
         self._explicit_context = value
 
+    @cache_disk(expire=60)
     @staticmethod
     def list_contexts():
         return [
