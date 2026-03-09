@@ -749,33 +749,17 @@ kind_config = """
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: kind
-kubeadmConfigPatches:
-- |
-  apiVersion: kubeadm.k8s.io/v1beta2
+kubeadmConfigPatchesJSON6902:
+- group: kubeadm.k8s.io
+  version: v1beta3
   kind: ClusterConfiguration
-  metadata:
-    name: config
-  apiServer:
-    extraArgs:
-      "feature-gates": "EphemeralContainers=true"
-  scheduler:
-    extraArgs:
-      "feature-gates": "EphemeralContainers=true"
-  controllerManager:
-    extraArgs:
-      "feature-gates": "EphemeralContainers=true"
-  apiServer:
-    certSANs:
-    - "{host_ip}"
-    - "{api_server_address}"
-- |
-  apiVersion: kubeadm.k8s.io/v1beta2
-  kind: InitConfiguration
-  metadata:
-    name: config
-  nodeRegistration:
-    kubeletExtraArgs:
-      "feature-gates": "EphemeralContainers=true"
+  patch: |
+    - op: add
+      path: /apiServer/certSANs/-
+      value: "{host_ip}"
+    - op: add
+      path: /apiServer/certSANs/-
+      value: "{api_server_address}"
 nodes:
 - role: control-plane
   kubeadmConfigPatches:
