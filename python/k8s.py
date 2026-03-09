@@ -1571,7 +1571,8 @@ def install_local_certificate(client, secret_name, namespace, type, output_file)
         ):
             LOGGER.error(
                 "You have to install certutil to use this command."
-                " Hint: sudo apt install libnss3-tools"
+                " Hint: sudo apt install libnss3-tools (Debian/Ubuntu)"
+                " or nix-env -iA nixos.nssTools (NixOS)"
             )
             exit(1)
         if update_ca_certificates is None and client == "ca-certificates":
