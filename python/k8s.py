@@ -2727,6 +2727,101 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
     process.wait()
 
 
+class TiltResourceType(DynamicChoice):
+    @staticmethod
+    @cache_disk(expire=60)
+    def get_resources():
+        resources = json.loads(
+            check_output(
+                [
+                    "tilt",
+                    "get",
+                    "uiresources",
+                    "--output",
+                    "json",
+                ]
+            )
+        )
+        return [item["metadata"]["name"] for item in resources["items"]]
+
+    def choices(self):
+        return self.get_resources()
+
+
+@tilt.command()
+@argument(
+    "resources", help="Resource names to check", nargs=-1, type=TiltResourceType()
+)
+def check_status(resources):
+    "Check Tilt resource status"
+    if not resources:
+        raise click.UsageError("At least one resource name required")
+
+    resources_json = json.loads(
+        check_output(
+            [
+                "tilt",
+                "get",
+                "uiresources",
+                "--output",
+                "json",
+            ]
+        )
+    )
+
+    bad_resources = []
+    resource_names = set(resources)
+
+    for item in resources_json["items"]:
+        name = item["metadata"]["name"]
+        if name in resource_names:
+            runtime_status = item["status"].get("runtimeStatus", "")
+            update_status = item["status"].get("updateStatus", "")
+            is_ok = runtime_status == "ok" or update_status == "ok"
+            if not is_ok:
+                has_runtime = runtime_status not in ("", "not_applicable")
+                status = runtime_status if has_runtime else update_status
+                bad_resources.append(f"{name:<30} {status}")
+
+    if bad_resources:
+        click.echo("\n".join(bad_resources))
+        sys.exit(1)
+
+
+@tilt.command()
+@argument(
+    "resources", help="Resource names to wait for", nargs=-1, type=TiltResourceType()
+)
+@option(
+    "--status",
+    help="Condition to wait for",
+    default=["Ready", "UpToDate"],
+    multiple=True,
+)
+@option("--timeout", help="What time to wait", default="300s")
+def wait_for(resources, status, timeout):
+    "Wait for Tilt resources to reach a specific condition"
+    if not resources:
+        raise click.UsageError("At least one resource name required")
+
+    from tqdm import tqdm
+
+    tasks = [(s, r) for s in status for r in resources]
+    with tqdm(tasks) as bar:
+        for _status, resource in bar:
+            bar.set_description(f"Waiting for {resource} to become {_status}")
+            call(
+                [
+                    "tilt",
+                    "wait",
+                    f"--timeout={timeout}",
+                    f"--for=condition={_status}",
+                    f"uiresource/{resource}",
+                ],
+                stdout=subprocess.PIPE,
+            )
+
+
 class NamespaceNameType(DynamicChoice):
     def choices(self):
         return [
