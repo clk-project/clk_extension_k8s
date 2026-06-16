@@ -2728,6 +2728,10 @@ def _run(open, use_context, tilt_arg, tiltfile_args, label, namespace, down):
 
 
 class TiltResourceType(DynamicChoice):
+    def __init__(self, enabled_only=True):
+        super().__init__()
+        self.enabled_only = enabled_only
+
     @staticmethod
     @cache_disk(expire=60)
     def get_resources():
@@ -2742,10 +2746,20 @@ class TiltResourceType(DynamicChoice):
                 ]
             )
         )
-        return [item["metadata"]["name"] for item in resources["items"]]
+        return [
+            (
+                item["metadata"]["name"],
+                item["status"].get("disableStatus", {}).get("state"),
+            )
+            for item in resources["items"]
+        ]
 
     def choices(self):
-        return self.get_resources()
+        return [
+            name
+            for name, state in self.get_resources()
+            if not self.enabled_only or state == "Enabled"
+        ]
 
 
 @tilt.command()
@@ -2820,6 +2834,88 @@ def wait_for(resources, status, timeout):
                 ],
                 stdout=subprocess.PIPE,
             )
+
+
+def _parse_tilt_timeout(spec):
+    "Parse a tilt-style timeout: '300s', '5m', '1h'. Returns seconds."
+    m = re.fullmatch(r"(\d+)([smh]?)", spec.strip())
+    if not m:
+        raise click.UsageError(f"invalid timeout {spec!r}")
+    n, unit = int(m.group(1)), m.group(2) or "s"
+    return n * {"s": 1, "m": 60, "h": 3600}[unit]
+
+
+@tilt.command()
+@argument(
+    "resources", help="Resource names to poll", nargs=-1, type=TiltResourceType()
+)
+@option(
+    "--timeout",
+    help="How long to wait before giving up (e.g. 300s, 10m, 1h)",
+    default="600s",
+)
+@option(
+    "--poll-interval",
+    help="Seconds between polls",
+    default=2.0,
+    type=float,
+)
+def poll_for(resources, timeout, poll_interval):
+    """Poll each Tilt resource's updateStatus until it is terminal (`ok` or `error`).
+
+    Unlike `wait-for`, this command returns as soon as the build is
+    *done* — useful when you want to act on the outcome immediately
+    after a triggered rebuild, whether it succeeded or failed.
+
+    Exit code: 0 if all `ok`, 1 if any `error`, 2 on timeout.
+    """
+    if not resources:
+        raise click.UsageError("At least one resource name required")
+
+    deadline = time.time() + _parse_tilt_timeout(timeout)
+    wanted = set(resources)
+    by_name = {}
+
+    while True:
+        snapshot = json.loads(
+            check_output(
+                [
+                    "tilt",
+                    "get",
+                    "uiresources",
+                    "--output",
+                    "json",
+                ]
+            )
+        )
+        by_name = {
+            it["metadata"]["name"]: it["status"].get("updateStatus", "")
+            for it in snapshot["items"]
+            if it["metadata"]["name"] in wanted
+        }
+        missing = wanted - by_name.keys()
+        non_terminal = {
+            n for n, s in by_name.items() if s not in ("ok", "error")
+        }
+        if not missing and not non_terminal:
+            break
+        if time.time() >= deadline:
+            click.echo(
+                f"timed out after {timeout} waiting for: "
+                + ", ".join(sorted(missing | non_terminal)),
+                err=True,
+            )
+            sys.exit(2)
+        time.sleep(poll_interval)
+
+    failed = []
+    for name in resources:  # preserve caller-supplied output order
+        st = by_name[name]
+        click.echo(f"{name}: {st}")
+        if st == "error":
+            failed.append(name)
+    if failed:
+        sys.exit(1)
 
 
 class NamespaceNameType(DynamicChoice):
