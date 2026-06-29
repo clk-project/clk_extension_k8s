@@ -2845,6 +2845,20 @@ def _parse_tilt_timeout(spec):
     return n * {"s": 1, "m": 60, "h": 3600}[unit]
 
 
+def _tilt_resource_state(update_status, runtime_status):
+    "Classify a resource as 'pending' | 'ok' | 'error' from its Tilt statuses."
+    if update_status == "error":
+        return "error"
+    if update_status not in ("ok", "not_applicable"):
+        return "pending"
+    # build done; gate on the runtime too, else 'ok' fires before the pod serves
+    if runtime_status in ("", "not_applicable", "none", "ok"):
+        return "ok"
+    if runtime_status == "error":
+        return "error"
+    return "pending"
+
+
 @tilt.command()
 @argument(
     "resources", help="Resource names to poll", nargs=-1, type=TiltResourceType()
@@ -2861,10 +2875,11 @@ def _parse_tilt_timeout(spec):
     type=float,
 )
 def poll_for(resources, timeout, poll_interval):
-    """Poll each Tilt resource's updateStatus until it is terminal (`ok` or `error`).
+    """Poll each Tilt resource until it is terminal (`ok` or `error`).
 
-    Unlike `wait-for`, this command returns as soon as the build is
-    *done* — useful when you want to act on the outcome immediately
+    A resource is terminal once its build finished AND, when it owns a
+    pod/process, that runtime has settled — so `ok` means the resource is
+    actually serving, not merely built. Useful to act on the outcome right
     after a triggered rebuild, whether it succeeded or failed.
 
     Exit code: 0 if all `ok`, 1 if any `error`, 2 on timeout.
@@ -2889,7 +2904,10 @@ def poll_for(resources, timeout, poll_interval):
             )
         )
         by_name = {
-            it["metadata"]["name"]: it["status"].get("updateStatus", "")
+            it["metadata"]["name"]: _tilt_resource_state(
+                it["status"].get("updateStatus", ""),
+                it["status"].get("runtimeStatus", ""),
+            )
             for it in snapshot["items"]
             if it["metadata"]["name"] in wanted
         }
