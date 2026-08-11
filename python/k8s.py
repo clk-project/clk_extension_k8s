@@ -1608,15 +1608,28 @@ def install_local_certificate(client, secret_name, namespace, type, output_file)
         else:
 
             def install(directory):
+                directory = Path(directory)
+                list_command = [
+                    certutil,
+                    "-d",
+                    f"sql:{directory}/",
+                    "-L",
+                ]
+                # a missing directory or database makes certutil fail, so create
+                # them if we cannot read the database
+                if not safe_check_output(list_command, internal=True):
+                    directory.mkdir(parents=True, exist_ok=True)
+                    silent_call(
+                        [
+                            certutil,
+                            "-d",
+                            f"sql:{directory}/",
+                            "-N",
+                            "--empty-password",
+                        ]
+                    )
                 name = f"local-cluster-as-{type}"
-                while name in check_output(
-                    [
-                        certutil,
-                        "-d",
-                        f"sql:{directory}/",
-                        "-L",
-                    ]
-                ):
+                while name in check_output(list_command):
                     silent_call(
                         [
                             certutil,
