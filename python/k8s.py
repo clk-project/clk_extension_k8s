@@ -1749,6 +1749,11 @@ def install_ingress_controller(version, force, timeout):
         "controller.extraArgs.enable-ssl-passthrough=",
         "--set",
         "controller.ingressClassResource.default=true",
+        # dev tool tend to perform a lot of requests, so the default
+        # 100 is too small
+        # https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#keep-alive-requests
+        "--set-string",
+        "controller.config.keep-alive-requests=100000",
     ]
     if config.k8s.distribution == "kind":
         helm_args += [
