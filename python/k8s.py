@@ -36,7 +36,6 @@ from clk.lib import (
     download,
     extract,
     get_keyring,
-    glob,
     is_port_available,
     makedirs,
     move,
@@ -290,7 +289,7 @@ class Helm(InstallDependency):
         with tempdir() as d:
             extract(urls["helm"], d)
             makedirs(str(self.program_path.parent))
-            move(glob(Path(d) / "*" / "helm")[0], self.program_path)
+            move(Path(d).glob("*/helm")[0], self.program_path)
             self.program_path.chmod(0o755)
 
 
