@@ -13,6 +13,7 @@ import tarfile
 import time
 import uuid
 from collections import Counter, defaultdict
+from copy import deepcopy
 from pathlib import Path
 from shlex import split
 from subprocess import Popen
@@ -32,7 +33,6 @@ from clk.lib import (
     check_output,
     copy,
     createfile,
-    deepcopy,
     download,
     extract,
     get_keyring,
