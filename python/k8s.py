@@ -2863,9 +2863,11 @@ def _parse_tilt_timeout(spec):
 
 
 def _tilt_resource_state(update_status, runtime_status):
-    "Classify a resource as 'pending' | 'ok' | 'error' from its Tilt statuses."
+    "Classify a resource as 'idle' | 'pending' | 'ok' | 'error' from its Tilt statuses."
     if update_status == "error":
         return "error"
+    if update_status == "none":
+        return "idle"
     if update_status not in ("ok", "not_applicable"):
         return "pending"
     # build done; gate on the runtime too, else 'ok' fires before the pod serves
@@ -2899,7 +2901,8 @@ def poll_for(resources, timeout, poll_interval):
     actually serving, not merely built. Useful to act on the outcome right
     after a triggered rebuild, whether it succeeded or failed.
 
-    Exit code: 0 if all `ok`, 1 if any `error`, 2 on timeout.
+    Exit code: 0 if all `ok`, 1 if any `error`, 2 on timeout, 3 if any
+    never built.
     """
     if not resources:
         raise click.UsageError("At least one resource name required")
@@ -2928,6 +2931,10 @@ def poll_for(resources, timeout, poll_interval):
             for it in snapshot["items"]
             if it["metadata"]["name"] in wanted
         }
+        idle = sorted(n for n, s in by_name.items() if s == "idle")
+        if idle:
+            click.echo("never built: " + ", ".join(idle), err=True)
+            sys.exit(3)
         missing = wanted - by_name.keys()
         non_terminal = {
             n for n, s in by_name.items() if s not in ("ok", "error")
